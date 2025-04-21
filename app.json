@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "HelloWorld",
-    "slug": "expo-template-default",
+    "name": "Movya Wallet",
+    "slug": "movya-wallet",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,13 +9,15 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.oydual3org.movyawallet"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.oydual3org.movyawallet"
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +38,18 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3a77727f-bb1c-4cf3-be70-426deef98387"
+      }
+    },
+    "owner": "oydual3-org",
+    "updates": {
+      "url": "https://u.expo.dev/3a77727f-bb1c-4cf3-be70-426deef98387"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
