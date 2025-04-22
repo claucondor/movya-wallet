@@ -24,6 +24,7 @@ export default function WalletScreen() {
   const [activeTab, setActiveTab] = useState<'tokens' | 'transactions'>('tokens');
   const [currentView, setCurrentView] = useState<'main' | 'send' | 'receive' | 'deposit' | 'swap'>('main');
   const { colorScheme } = useTheme();
+  const [user, setUser] = useState<{name?: string, photo?: string}>({});
   
   const isDark = colorScheme === 'dark';
 
@@ -52,10 +53,27 @@ export default function WalletScreen() {
         <>
           {/* Header */}
           <View style={styles.header}>
-            <Image 
-              source={require('@/assets/logo/logo@SD.png')}
-              style={styles.logo}
-            />
+            {user.photo ? (
+              <Image
+                source={{uri: user.photo}}
+                style={styles.logo}
+              />
+            ) : user.name ? (
+              <View style={[styles.initialsContainer, {backgroundColor: isDark ? '#252D4A' : '#E8EAF6'}]}>
+                <ThemedText
+                  type="title"
+                  lightColor="#0A0E17"
+                  darkColor="white"
+                >
+                  {user.name.split(' ').map(n => n[0]).join('')}
+                </ThemedText>
+              </View>
+            ) : (
+              <Image
+                source={require('@/assets/logo/logo@SD.png')}
+                style={styles.logo}
+              />
+            )}
             <ThemedText
               type="title"
               style={styles.balanceText}
@@ -236,6 +254,14 @@ export default function WalletScreen() {
 }
 
 const styles = StyleSheet.create({
+  initialsContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   container: {
     flex: 1,
   },

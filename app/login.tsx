@@ -1,9 +1,56 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemeToggleButton } from '@/components/ui/ThemeToggleButton';
-import { Link } from 'expo-router';
-import { Image, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import * as Google from 'expo-auth-session/providers/google';
+import { Link, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: '466947410626-1g7eikrjel1qus27p27s79qsk72bhgko.apps.googleusercontent.com',
+    androidClientId: '466947410626-20tp1th3rkkcu3nkqvij8d3271cm9496.apps.googleusercontent.com',
+    redirectUri: (() => {
+      // Intenta usar el esquema de la aplicación primero, luego la URL de Expo como respaldo
+      let uri;
+      if (__DEV__) {
+        uri = 'myapp://'; // Esquema definido en app.json
+      } else {
+        uri = 'https://auth.expo.io/@oydual3-org/movya-wallet';
+      }
+      console.log('Using redirect URI:', uri);
+      return uri;
+    })(),
+    scopes: ['openid', 'profile', 'email'],
+  });
+
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      setLoading(true);
+      const { authentication } = response;
+      
+      fetch('https://www.googleapis.com/userinfo/v2/me', {
+        headers: { Authorization: `Bearer ${authentication?.accessToken}` }
+      })
+      .then(res => res.json())
+      .then(user => {
+        router.replace({
+          pathname: '/(tabs)/wallet',
+          params: {
+            name: user.name,
+            photo: user.picture
+          }
+        });
+      })
+      .finally(() => setLoading(false));
+    }
+  }, [response]);
+
   return (
     <View style={styles.container}>
       {/* Logo */}
@@ -14,42 +61,19 @@ export default function LoginScreen() {
 
       {/* Login Form */}
       <View style={styles.formContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#999"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#999"
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={styles.loginButton}
-          onPress={() => {}}
-        >
-          <ThemedText type="defaultSemiBold" style={styles.loginButtonText}>
-            Login
-          </ThemedText>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.web3Button}
-          onPress={() => {}}
-        >
-          <Image
-            source={require('@/assets/react-logo.png')}
-            style={styles.web3Icon}
-          />
-          <ThemedText type="defaultSemiBold" style={styles.web3ButtonText}>
-            Connect Wallet
-          </ThemedText>
-        </TouchableOpacity>
+        {loading ? (
+          <ActivityIndicator size="large" color="#3A5AFF" />
+        ) : (
+          <TouchableOpacity
+            style={styles.loginButton}
+            disabled={!request}
+            onPress={() => promptAsync()}
+          >
+            <ThemedText type="defaultSemiBold" style={styles.loginButtonText}>
+              Sign in with Google
+            </ThemedText>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Skip to app */}
