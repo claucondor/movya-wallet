@@ -1,55 +1,63 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemeToggleButton } from '@/components/ui/ThemeToggleButton';
-import * as Google from 'expo-auth-session/providers/google';
-import { Link, useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useState } from 'react';
+import {
+  GoogleSignin,
+  statusCodes
+} from '@react-native-google-signin/google-signin';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-WebBrowser.maybeCompleteAuthSession();
+// Configure Google Sign-In for Android
+GoogleSignin.configure({
+  webClientId: '466947410626-20tp1th3rkkcu3nkqvij8d3271cm9496.apps.googleusercontent.com',
+  offlineAccess: true,
+  scopes: ['profile', 'email'],
+});
 
 export default function LoginScreen() {
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: '466947410626-1g7eikrjel1qus27p27s79qsk72bhgko.apps.googleusercontent.com',
-    androidClientId: '466947410626-20tp1th3rkkcu3nkqvij8d3271cm9496.apps.googleusercontent.com',
-    redirectUri: (() => {
-      // Intenta usar el esquema de la aplicación primero, luego la URL de Expo como respaldo
-      let uri;
-      if (__DEV__) {
-        uri = 'myapp://'; // Esquema definido en app.json
-      } else {
-        uri = 'https://auth.expo.io/@oydual3-org/movya-wallet';
-      }
-      console.log('Using redirect URI:', uri);
-      return uri;
-    })(),
-    scopes: ['openid', 'profile', 'email'],
-  });
-
-  const router = useRouter();
+  const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  useEffect(() => {
-    if (response?.type === 'success') {
+  const handleGoogleLogin = async () => {
+    try {
       setLoading(true);
-      const { authentication } = response;
+      setAuthError('');
       
-      fetch('https://www.googleapis.com/userinfo/v2/me', {
-        headers: { Authorization: `Bearer ${authentication?.accessToken}` }
-      })
-      .then(res => res.json())
-      .then(user => {
-        router.replace({
-          pathname: '/(tabs)/wallet',
-          params: {
-            name: user.name,
-            photo: user.picture
-          }
-        });
-      })
-      .finally(() => setLoading(false));
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      
+      router.replace({
+        pathname: '/(tabs)',
+        params: {
+          name: userInfo.user.name || '',
+          photo: userInfo.user.photo || ''
+        }
+      });
+    } catch (error: any) {
+      setLoading(false);
+      
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        setAuthError('Login cancelado');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setAuthError('Google Play Services no disponible');
+      } else {
+        setAuthError('Error durante el login');
+        console.error('Google SignIn error:', error);
+      }
     }
-  }, [response]);
+  };
+
+  const skipToApp = () => {
+    router.replace({
+      pathname: '/(tabs)/wallet',
+      params: {
+        name: 'Usuario Demo',
+        photo: ''
+      }
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -64,22 +72,29 @@ export default function LoginScreen() {
         {loading ? (
           <ActivityIndicator size="large" color="#3A5AFF" />
         ) : (
-          <TouchableOpacity
-            style={styles.loginButton}
-            disabled={!request}
-            onPress={() => promptAsync()}
-          >
-            <ThemedText type="defaultSemiBold" style={styles.loginButtonText}>
-              Sign in with Google
-            </ThemedText>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={handleGoogleLogin}
+            >
+              <ThemedText type="defaultSemiBold" style={styles.loginButtonText}>
+                Iniciar con Google
+              </ThemedText>
+            </TouchableOpacity>
+            
+            {authError ? (
+              <View style={styles.errorContainer}>
+                <ThemedText style={styles.errorText}>{authError}</ThemedText>
+              </View>
+            ) : null}
+          </>
         )}
       </View>
 
       {/* Skip to app */}
-      <Link href={'/(tabs)/wallet'} style={styles.skipLink}>
-        <ThemedText type="defaultSemiBold">Skip to App</ThemedText>
-      </Link>
+      <TouchableOpacity onPress={skipToApp} style={styles.skipLink}>
+        <ThemedText type="defaultSemiBold">Continuar sin login</ThemedText>
+      </TouchableOpacity>
       
       {/* Theme toggle */}
       <ThemeToggleButton />
@@ -148,5 +163,25 @@ const styles = StyleSheet.create({
   },
   skipLink: {
     marginTop: 20,
+  },
+  debugContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#252D4A',
+    borderRadius: 5,
+  },
+  debugText: {
+    color: '#e0e0e0',
+    fontSize: 12,
+  },
+  errorContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#7E2239',
+    borderRadius: 5,
+  },
+  errorText: {
+    color: '#f0f0f0',
+    fontSize: 14,
   },
 });
