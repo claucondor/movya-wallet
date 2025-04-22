@@ -1,6 +1,5 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -18,13 +17,10 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
+        // Hide the tab bar
+        tabBarStyle: {
+          display: 'none',
+        },
       }}>
       <Tabs.Screen
         name="index"
@@ -34,10 +30,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="wallet"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Wallet',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
         }}
       />
     </Tabs>
