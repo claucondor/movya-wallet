@@ -3,15 +3,15 @@ import { Stack } from 'expo-router';
 import "react-native-get-random-values";
 import 'react-native-reanimated';
 
+import { ThemeProvider } from '@/hooks/ThemeContext';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { PrivyProvider } from '@privy-io/expo';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-
-import { ThemeProvider } from '@/hooks/ThemeContext';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { avalanche, avalancheFuji } from 'viem/chains';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -32,6 +32,14 @@ export default function RootLayout() {
     <PrivyProvider
       appId={Constants.expoConfig?.extra?.privyAppId}
       clientId={Constants.expoConfig?.extra?.privyClientId}
+      supportedChains={[avalancheFuji, avalanche]}
+      config={{
+        embedded: {
+            ethereum: {
+                createOnLogin: 'all-users',
+            },
+        },
+    }}
     >
       <ThemeProvider>
         <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
