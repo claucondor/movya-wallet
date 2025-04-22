@@ -1,10 +1,14 @@
+import Constants from 'expo-constants';
+import { Stack } from 'expo-router';
+import "react-native-get-random-values";
+import 'react-native-reanimated';
+
+import { PrivyProvider } from '@privy-io/expo';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import 'react-native-reanimated';
 
 import { ThemeProvider } from '@/hooks/ThemeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -25,18 +29,22 @@ export default function RootLayout() {
   }, [loaded]);
 
   return (
-    <ThemeProvider>
-      <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" options={{ animation: 'none' }} />
-          <Stack.Screen name="login" />
-          <Stack.Screen name="wallet" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      </NavigationThemeProvider>
-    </ThemeProvider>
+    <PrivyProvider
+      appId={Constants.expoConfig?.extra?.privyAppId}
+      clientId={Constants.expoConfig?.extra?.privyClientId}
+    >
+      <ThemeProvider>
+        <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" options={{ animation: 'none' }} />
+            <Stack.Screen name="login" />
+            <Stack.Screen name="wallet" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        </NavigationThemeProvider>
+      </ThemeProvider>
+    </PrivyProvider>
   );
-
 }

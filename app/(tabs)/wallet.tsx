@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/ThemedText';
 import ActionButtons from '@/components/ui/ActionButtons';
 import ChatInput from '@/components/ui/ChatInput';
 import { useTheme } from '@/hooks/ThemeContext';
+import { usePrivy } from '@privy-io/expo';
 import { ResizeMode, Video } from 'expo-av';
 import React, { useState } from 'react';
 import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -24,7 +25,11 @@ export default function WalletScreen() {
   const [activeTab, setActiveTab] = useState<'tokens' | 'transactions'>('tokens');
   const [currentView, setCurrentView] = useState<'main' | 'send' | 'receive' | 'deposit' | 'swap'>('main');
   const { colorScheme } = useTheme();
-  const [user, setUser] = useState<{name?: string, photo?: string}>({});
+  const { user } = usePrivy() as { user?: {
+    google?: { picture?: string; name?: string };
+    email?: { address?: string };
+    wallet?: { address?: string };
+  }};
   
   const isDark = colorScheme === 'dark';
 
@@ -35,6 +40,14 @@ export default function WalletScreen() {
   const handleBack = () => {
     setCurrentView('main');
   };
+
+  if (!user) {
+    return (
+      <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}>
+        <ThemedText type="title">Please login to view your wallet</ThemedText>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}>
@@ -53,19 +66,19 @@ export default function WalletScreen() {
         <>
           {/* Header */}
           <View style={styles.header}>
-            {user.photo ? (
+            {user.google?.picture ? (
               <Image
-                source={{uri: user.photo}}
+                source={{uri: user.google.picture}}
                 style={styles.logo}
               />
-            ) : user.name ? (
+            ) : user.email?.address ? (
               <View style={[styles.initialsContainer, {backgroundColor: isDark ? '#252D4A' : '#E8EAF6'}]}>
                 <ThemedText
                   type="title"
                   lightColor="#0A0E17"
                   darkColor="white"
                 >
-                  {user.name.split(' ').map(n => n[0]).join('')}
+                  {user.email.address[0].toUpperCase()}
                 </ThemedText>
               </View>
             ) : (
@@ -80,16 +93,18 @@ export default function WalletScreen() {
               lightColor="#0A0E17"
               darkColor="white"
             >
-              $123.45
+              {user.google?.name || user.email?.address || 'Welcome'}
             </ThemedText>
-            <ThemedText
-              type="default"
-              style={styles.walletAddress}
-              lightColor="#6C7A9C"
-              darkColor="#9BA1A6"
-            >
-              0x1a2...3b4c
-            </ThemedText>
+            {user.wallet?.address && (
+              <ThemedText
+                type="default"
+                style={styles.walletAddress}
+                lightColor="#6C7A9C"
+                darkColor="#9BA1A6"
+              >
+                {user.wallet.address.slice(0, 6)}...{user.wallet.address.slice(-4)}
+              </ThemedText>
+            )}
           </View>
 
           {/* Main Content */}
