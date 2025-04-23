@@ -34,7 +34,8 @@
       "channel": "production",
       "autoIncrement": true,
       "android": {
-        "image": "latest"
+        "image": "latest",
+        "buildType": "apk"
       },
       "ios": {
         "image": "latest"
