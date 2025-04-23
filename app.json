@@ -11,7 +11,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.oydual3org.movyawallet",
-      "usesAppleSignIn": true,
       "associatedDomains": ["webcredentials:<your-associated-domain>"],
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -34,7 +33,6 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-apple-authentication",
       [
         "expo-build-properties",
         {
@@ -64,15 +62,15 @@
       "eas": {
         "projectId": "3a77727f-bb1c-4cf3-be70-426deef98387"
       },
-      "privyAppId": "cm8t09wte002f4624595l3wba",
-      "privyClientId": "client-WY5i4S9CLNPYiaRbuA5s8wfAwYdM5LhSBsC2nwPdDebU4"
+      "googleOAuth": {
+        "androidClientId": "466947410626-20tp1th3rkkcu3nkqvij8d3271cm9496.apps.googleusercontent.com"
+      }
     },
     "owner": "oydual3-org",
     "updates": {
       "url": "https://u.expo.dev/3a77727f-bb1c-4cf3-be70-426deef98387"
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
+    "runtimeVersion": "1.0.0"
     }
   }
-}
+

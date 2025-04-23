@@ -1,31 +1,25 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemeToggleButton } from '@/components/ui/ThemeToggleButton';
-import { useLoginWithOAuth, usePrivy } from "@privy-io/expo";
+import * as Google from 'expo-auth-session/providers/google';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { Image, StyleSheet, View } from "react-native";
 
 export default function LoginScreen() {
-  const { user } = usePrivy();
-  const isAuthenticated = !!user;
-  const oauth = useLoginWithOAuth({
-    onSuccess: () => {
-      router.replace('/wallet');
-    },
-    onError: (error) => {
-      console.error('Google login failed', error);
-    }
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: '466947410626-20tp1th3rkkcu3nkqvij8d3271cm9496.apps.googleusercontent.com',
+    androidClientId: '466947410626-20tp1th3rkkcu3nkqvij8d3271cm9496.apps.googleusercontent.com',
   });
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (response?.type === 'success') {
+      // Authentication successful, redirect to wallet
       router.replace('/wallet');
+    } else if (response?.type === 'error') {
+      console.error('Google login failed', response.error);
     }
-  }, [isAuthenticated]);
+  }, [response]);
 
-  if (isAuthenticated) {
-    return null; // Will redirect immediately
-  }
 
   return (
     <View style={styles.container}>
@@ -38,7 +32,7 @@ export default function LoginScreen() {
         <ThemedText 
           type="defaultSemiBold" 
           style={styles.oauthButtonText}
-          onPress={() => oauth.login({ provider: "google" })}
+          onPress={() => promptAsync()}
         >
           Login with Google
         </ThemedText>
