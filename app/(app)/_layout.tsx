@@ -52,6 +52,10 @@ export default function AppLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="send" options={{ href: null }} />
+      <Tabs.Screen name="receive" options={{ href: null }} />
+      <Tabs.Screen name="swap" options={{ href: null }} />
+      <Tabs.Screen name="deposit" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -12,9 +12,6 @@ router.get('/auth/callback', handleAuthCallback);
 // --- Import Controllers ---
 // Assume you have an auth controller or logic somewhere
 // const authController = require('../controllers/authController'); 
-const walletController = require('../controllers/walletController');
-const transactionController = require('../controllers/transactionController');
-const balanceController = require('../controllers/balanceController');
 
 // --- Middleware (Placeholder) ---
 // Implement your actual authentication middleware (e.g., JWT verification)
@@ -31,12 +28,8 @@ const authMiddleware = (req, res, next) => {
 // --- Routes ---
 
 // Authentication (Example - Adapt to your existing auth flow)
-// router.post('/login', authController.login, walletController.handleUserAuthentication); // Integrate wallet check post-login
-// router.post('/signup', authController.signup, walletController.handleUserAuthentication); // Integrate wallet check post-signup
 
 // Wallet (Separate endpoint - less ideal, use integration above if possible)
-// Protect this route if used standalone
-// router.get('/wallet', authMiddleware, walletController.getOrCreateWallet);
 
 // Transactions
 // Requires authentication to ensure only the owner can initiate
@@ -46,7 +39,6 @@ router.post('/send-transaction', authMiddleware, express.json(), transactionCont
 // Address in path parameter. Auth middleware to ensure user is allowed to query.
 router.get('/balance/native/:address', authMiddleware, balanceController.getNativeBalance);
 router.get('/balance/token/:userAddress/:tokenAddress', authMiddleware, balanceController.getTokenBalance);
-
 
 // --- Default/Health Check Route (already in server.js, but can be here too) ---
 router.get('/', (req, res) => {

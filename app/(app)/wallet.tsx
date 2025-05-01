@@ -8,7 +8,11 @@ import { Alert, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 're
 import 'react-native-get-random-values';
 import 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { getWalletAddress, loadWallet } from '../../internal/walletService'; // Adjust path if needed
+import { createPublicClient, formatEther, http } from 'viem';
+import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
+import { storage } from '../core/storage';
+
+const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
 // Simple placeholder component for action views
 const ActionView = ({ title, onBack, children }: { title: string; onBack: () => void; children?: React.ReactNode }) => {
@@ -33,11 +37,9 @@ export default function WalletScreen() {
   const [currentView, setCurrentView] = useState<'main' | 'send' | 'receive' | 'deposit' | 'swap'>('main');
   const { colorScheme } = useTheme();
   
-  // TODO: Replace Privy user state with your app's user state
-  // This state should be populated after successful login via deep link
-  const [user, setUser] = useState<any>(null); // Placeholder for user state
-  const [wallet, setWallet] = useState<any>(null); // Placeholder for wallet state
+  const [account, setAccount] = useState<PrivateKeyAccount | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [currentChain, setCurrentChain] = useState(avalancheFuji);
   const [avaxBalance, setAvaxBalance] = useState('0');
@@ -52,135 +54,123 @@ export default function WalletScreen() {
   const isDark = colorScheme === 'dark';
 
   const switchNetwork = async () => {
+    // Determine the target chain
+    const newChain = currentChain.id === avalanche.id ? avalancheFuji : avalanche;
+    
+    console.log(`[Network] Switching configuration from ${currentChain.name} to ${newChain.name}`);
+
     try {
-      // TODO: Get provider from your new wallet state
-      const provider = wallet?.getProvider ? await wallet.getProvider() : null;
-      if (!provider) {
-        console.error('[Network] No provider available');
-        Alert.alert('Error', 'No wallet provider available');
-        return;
-      }
+      // Simply update the currentChain state.
+      // The useEffect hook watching [account, currentChain] will automatically
+      // trigger fetchAvaxBalance with the new chain configuration.
+      setCurrentChain(newChain);
+      
+      // Optional: Clear old balance state immediately for better UX
+      setAvaxBalance('...'); // Show loading indicator
+      setTokens([{
+        id: "1",
+        name: newChain.name,
+        symbol: newChain.nativeCurrency.symbol,
+        amount: '...',
+        value: '$?.??'
+      }]);
 
-      const newChain = currentChain.id === avalanche.id ? avalancheFuji : avalanche;
-      console.log('[Network] Attempting to switch to:', newChain.name, `(0x${newChain.id.toString(16)})`);
+      // No need to manually call fetchAvaxBalance here, useEffect handles it.
+      console.log(`[Network] Configuration switched to ${newChain.name}. Balance refresh triggered.`);
 
-      // Get current chain from provider before switch
-      const currentChainId = provider ? await provider.request({ method: 'eth_chainId' }) : null;
-      console.log('[Network] Provider current chain:', currentChainId);
-
-      // Skip if already on target chain
-      if (currentChainId === `0x${newChain.id.toString(16)}`) {
-        console.log('[Network] Already on target chain');
-        return;
-      }
-
-      try {
-        // Attempt switch with timeout
-        await Promise.race([
-          provider.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: `0x${newChain.id.toString(16)}` }],
-          }),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Network switch timeout')), 5000)
-          )
-        ]);
-
-        // Verify change with retries
-        let updatedChainId;
-        for (let i = 0; i < 3; i++) {
-          updatedChainId = await provider.request({ method: 'eth_chainId' });
-          if (updatedChainId === `0x${newChain.id.toString(16)}`) break;
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        console.log('[Network] Provider new chain:', updatedChainId);
-        
-        if (updatedChainId === `0x${newChain.id.toString(16)}`) {
-          setCurrentChain(newChain);
-          await fetchAvaxBalance();
-          console.log('[Network] Successfully switched to:', newChain.name);
-        } else {
-          console.warn('[Network] ChainId mismatch after switch. Expected:',
-            `0x${newChain.id.toString(16)}`, 'Got:', updatedChainId);
-          Alert.alert('Network Error', 'Failed to verify network change. Please check your wallet.');
-        }
-      } catch (error: any) {
-        console.error('[Network] Switch error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Failed to switch network. Please try again.';
-        Alert.alert('Network Error', errorMessage);
-      }
     } catch (error) {
-      console.error('[Network] Unexpected error:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+      // This catch block might be less relevant now unless state updates fail
+      console.error('[Network] Unexpected error during state update for switch:', error);
+      Alert.alert('Error', 'An unexpected error occurred while switching networks');
     }
   };
 
   const fetchAvaxBalance = async () => {
+    if (!account) {
+      console.log('fetchAvaxBalance: Account not loaded yet.');
+      return; // No account loaded yet
+    }
+
+    console.log(`Fetching balance for ${account.address} on ${currentChain.name}`);
+
     try {
-      // TODO: Get provider from your new wallet state
-      const provider = wallet?.getProvider ? await wallet.getProvider() : null;
-      if (!provider) {
-        console.log('No provider available');
-        return;
-      }
-      
-      // TODO: Ensure provider is valid
-      const accounts = provider ? await provider.request({ method: 'eth_accounts' }) : []; // Keep this as empty array if provider is null
-      if (!accounts.length) {
-        console.log('No accounts available');
-        return;
-      }
-      
-      // TODO: Ensure provider is valid
-      // Complete the ternary operator for balance
-      const balance = provider ? await provider.request({
-        method: 'eth_getBalance',
-        params: [accounts[0], 'latest'],
-      }) : null; // Add `: null` for the else case
+      // 1. Create Viem Public Client for the current chain
+      const client = createPublicClient({
+        chain: currentChain, // Pass the whole chain object from constants
+        transport: http(currentChain.rpcUrls.default.http[0]), // Use the default RPC URL
+      });
 
-      // Check if balance is null before parsing
-      if (balance === null) {
-        console.error('Failed to fetch balance because provider was null or request failed');
-        return; // Exit if balance couldn't be fetched
-      }
-
-      // Now safe to parse balance
-      const balanceNum = (parseInt(balance) / 10**18).toFixed(4);
+      // 2. Fetch balance
+      const balanceWei = await client.getBalance({ 
+        address: account.address, 
+      });
       
-      setAvaxBalance(balanceNum);
+      // 3. Format balance (Viem returns BigInt in wei)
+      const balanceFormatted = formatEther(balanceWei);
+      // Truncate for display purposes if desired
+      const balanceDisplay = parseFloat(balanceFormatted).toFixed(4); 
+
+      console.log(`Balance fetched: ${balanceDisplay} AVAX`);
+
+      // 4. Update state
+      setAvaxBalance(balanceDisplay);
       setTokens([{
-        id: "1",
-        name: currentChain.name,
-        symbol: "AVAX",
-        amount: balanceNum,
+        id: "1", // Keep static ID for the native token
+        name: currentChain.name, // Use current chain name
+        symbol: currentChain.nativeCurrency.symbol, // Use symbol from chain config
+        amount: balanceDisplay,
+        // Keep approximate price calculation for now
         value: currentChain.id === avalanche.id
-          ? "$" + (parseFloat(balanceNum) * 35).toFixed(2) // Precio realista para Mainnet
-          : "$" + (parseFloat(balanceNum) * 0.01).toFixed(2) // Precio bajo para Testnet (Fuji)
+          ? "$" + (parseFloat(balanceDisplay) * 35).toFixed(2) // Approx Mainnet price
+          : "$" + (parseFloat(balanceDisplay) * 0.01).toFixed(2) // Approx Testnet price
       }]);
+
     } catch (error) {
       console.error('Error fetching balance:', error);
+      // Optionally set an error state or show an alert
+      // Keep previous balance state on error for now
+       setTokens([{
+        id: "1",
+        name: currentChain.name,
+        symbol: currentChain.nativeCurrency.symbol,
+        amount: "Error", // Indicate error in amount
+        value: "$?.??"
+      }]);
     }
   };
 
   useEffect(() => {
-    // TODO: Update this effect to trigger when your actual wallet state is available
-    if (wallet) {
+    if (account) {
+      console.log('Account loaded, fetching balance for:', account.address, 'on chain:', currentChain.name);
       fetchAvaxBalance();
       const interval = setInterval(fetchAvaxBalance, 15000);
       return () => clearInterval(interval);
+    } else {
+        console.log('Account not loaded yet, balance fetch skipped.');
     }
-  }, [wallet, currentChain]);
+  }, [account, currentChain]);
 
   useEffect(() => {
-    const fetchAddress = async () => {
-      const address = await getWalletAddress();
-      setWalletAddress(address);
-      // You might want to load the full wallet object into state here too
-      const loadedWallet = await loadWallet();
-      setWallet(loadedWallet); 
+    const loadAccount = () => {
+      setIsLoading(true);
+      try {
+        const privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
+        if (privateKey) {
+          const loadedAccount = privateKeyToAccount(privateKey as `0x${string}`); 
+          console.log('Wallet loaded from MMKV for address:', loadedAccount.address);
+          setAccount(loadedAccount);
+          setWalletAddress(loadedAccount.address);
+        } else {
+          console.error('No private key found in MMKV. User might not be properly logged in or wallet not generated.');
+        }
+      } catch (error) {
+        console.error('Failed to load wallet from MMKV:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    fetchAddress();
+
+    loadAccount();
   }, []);
 
   const handleAction = (view: 'send' | 'receive' | 'deposit' | 'swap') => {
@@ -191,33 +181,38 @@ export default function WalletScreen() {
     setCurrentView('main');
   };
 
-  if (!user && !walletAddress) { // Adjust loading/auth check as needed
+  if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}>
+      <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA', justifyContent: 'center', alignItems: 'center' }]}>
         <ThemedText type="title">Loading Wallet...</ThemedText>
-        {/* Or show login prompt if definitively not logged in */}
       </View>
     );
   }
+  
+  if (!account) {
+      return (
+         <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA', justifyContent: 'center', alignItems: 'center' }]}>
+             <ThemedText type="title" style={{color: 'red', marginBottom: 10}}>Error Loading Wallet</ThemedText>
+             <ThemedText>Could not load wallet details.</ThemedText>
+             <ThemedText>Please try logging out and back in.</ThemedText>
+         </View>
+      )
+  }
 
-  // --- Render logic based on currentView --- 
   if (currentView !== 'main') {
     switch (currentView) {
       case 'send':
         return (
           <ActionView title="Send Crypto" onBack={handleBack}>
             <ThemedText>Send UI Placeholder</ThemedText>
-            {/* TODO: Input fields for recipient, amount, gas estimation */}
-            {/* TODO: Button to call signing function using loaded wallet */}
           </ActionView>
         );
       case 'receive':
-      case 'deposit': // Treat Receive and Deposit similarly for now
+      case 'deposit':
         return (
           <ActionView title={currentView === 'receive' ? "Receive Crypto" : "Deposit Crypto"} onBack={handleBack}>
             <ThemedText style={{ marginBottom: 10 }}>Your Wallet Address:</ThemedText>
-            <ThemedText selectable type="defaultSemiBold" style={{ marginBottom: 20 }}>{walletAddress ?? 'Loading...'}</ThemedText>
-            {/* TODO: Add QR Code generation using walletAddress */}
+            <ThemedText selectable type="defaultSemiBold" style={{ marginBottom: 20 }}>{walletAddress ?? 'Error loading address'}</ThemedText>
             <ThemedText>(QR Code Placeholder)</ThemedText>
           </ActionView>
         );
@@ -225,36 +220,22 @@ export default function WalletScreen() {
         return (
           <ActionView title="Swap Tokens" onBack={handleBack}>
             <ThemedText>Swap UI Placeholder</ThemedText>
-            {/* TODO: Token selection inputs, amount, quote fetching */}
-            {/* TODO: Button to call swap/signing function */}
           </ActionView>
         );
       default:
-        setCurrentView('main'); // Fallback to main
+        setCurrentView('main');
         return null;
     }
   }
 
-  // --- Render Main View --- 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}>
-      {/* Video Background - Temporalmente comentado para diagnosticar */}
       <View style={styles.videoContainer}>
-        {/* 
-        <Video
-          source={require('@/assets/bg/header-bg.webm')}
-          style={styles.videoBackground}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          isLooping
-        />
-        */}
         <View style={[styles.videoBackground, { backgroundColor: isDark ? '#152238' : '#A1CEDC' }]} />
       </View>
 
       {currentView === 'main' && (
         <>
-          {/* Header */}
           <View style={styles.header}>
             <ThemedText
               type="title"
@@ -269,7 +250,7 @@ export default function WalletScreen() {
                   lightColor="#0A0E17"
                   darkColor="white"
                 >
-                  {user?.linked_accounts?.[0]?.name ? `Welcome back, ${user.linked_accounts[0].name}` : 'Welcome to Movya Wallet'}
+                  {'Welcome to Movya Wallet'}
                 </ThemedText>
               </View>
             </ThemedText>
@@ -291,18 +272,15 @@ export default function WalletScreen() {
                     : 'Loading address...'}
                 </ThemedText>
               </View>
-              <ThemedText
-                type="defaultSemiBold"
-                style={{color: '#3A5AFF', marginTop: 8}}
-              >
-                Testnet
-              </ThemedText>
+              <TouchableOpacity onPress={switchNetwork} style={[styles.networkSwitch, {backgroundColor: isDark ? '#252D4A' : '#E8EAF6'}]}>
+                 <ThemedText type="defaultSemiBold" lightColor="#0A0E17" darkColor="white" style={{fontSize: 12}}>
+                   {currentChain.name}
+                 </ThemedText>
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Main Content */}
           <View style={[styles.content, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
-            {/* Tabs */}
             <View style={styles.tabs}>
               <TouchableOpacity
                 style={[styles.tab, activeTab === 'tokens' && styles.activeTab]}
@@ -330,10 +308,8 @@ export default function WalletScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Tab Content */}
             {activeTab === 'tokens' ? (
               <ScrollView style={styles.tabContent}>
-                {/* Token List */}
                 {tokens.map(token => (
                   <View key={token.id} style={[styles.tokenCard, { backgroundColor: isDark ? '#252D4A' : '#E8EAF6' }]}>
                     <Icon
@@ -377,7 +353,6 @@ export default function WalletScreen() {
                   </View>
                 ))}
 
-                {/* Action Buttons */}
                 <ActionButtons
                   onSend={() => handleAction('send')}
                   onReceive={() => handleAction('receive')}
@@ -387,7 +362,6 @@ export default function WalletScreen() {
               </ScrollView>
             ) : (
               <ScrollView style={styles.tabContent}>
-                {/* Transaction List - Add explicit type for tx */}
                 {[
                   { id: "1", type: "Received", amount: "+1.50 AVAX", value: "$55.70", date: "Today" },
                   { id: "2", type: "Sent", amount: "-0.75 AVAX", value: "$27.85", date: "Yesterday" }
@@ -419,7 +393,6 @@ export default function WalletScreen() {
         </>
       )}
       
-      {/* Chat input */}
       <ChatInput
         onSendMessage={(message) => console.log('Message sent:', message)}
       />
@@ -468,13 +441,13 @@ const styles = StyleSheet.create({
   },
   walletAddress: {
     fontSize: 14,
-    color: '#6C7A9C',
   },
   content: {
     flex: 1,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
+    marginTop: -20,
   },
   tabs: {
     flexDirection: 'row',
@@ -501,8 +474,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tokenIcon: {
-    width: 40,
-    height: 40,
     marginRight: 12,
   },
   tokenInfo: {
@@ -513,15 +484,11 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     marginTop: 20,
+    marginBottom: 10,
   },
   actionButton: {
-    flex: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 8,
-    alignItems: 'center',
   },
   transactionItem: {
     flexDirection: 'row',
@@ -538,18 +505,24 @@ const styles = StyleSheet.create({
   },
   fullScreenView: {
     flex: 1,
+    padding: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButton: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
     marginTop: 20,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     borderRadius: 8,
   },
   networkSwitch: {
+    marginTop: 8,
     marginLeft: 8,
     paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     borderRadius: 12,
   },
 }); 

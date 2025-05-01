@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: Movya Wallet Backend API
   version: 1.0.0
-  description: API for managing user wallets, transactions, and balances on Avalanche networks.
+  description: API for user authentication with Google OAuth.
 
 servers:
   # Add your actual server URLs here (e.g., development, production)
@@ -12,11 +12,10 @@ servers:
   #   description: Production server
 
 paths:
-  # Authentication & Wallet Generation (Conceptual - Adapt based on your actual auth flow)
-  # Assuming wallet check happens during login/signup
+  # Authentication (No wallet generation)
   /auth/login: # Replace with your actual login path
     post:
-      summary: User Login and Wallet Check/Generation
+      summary: User Login
       tags:
         - Authentication
       requestBody:
@@ -35,7 +34,7 @@ paths:
                 - password
       responses:
         '200':
-          description: Authentication successful, wallet info included.
+          description: Authentication successful.
           content:
             application/json:
               schema:
@@ -46,209 +45,12 @@ paths:
                     example: Authentication successful.
                   token: # Example JWT token
                     type: string
-                  wallet:
-                    type: object
-                    properties:
-                      address:
-                        type: string
-                        format: ethereum-address
-                        description: User's Avalanche C-Chain address.
-                      encryptedPk: # Only present if wallet was newly generated
-                        type: string
-                        description: AES-encrypted private key (only returned on first creation).
         '401':
           description: Invalid credentials.
         '500':
-          description: Server error during authentication or wallet processing.
-
-  /send-transaction:
-    post:
-      summary: Send a Signed Transaction
-      tags:
-        - Transactions
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SendTransactionRequest'
-      responses:
-        '200':
-          description: Transaction successfully relayed to the network.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SendTransactionResponse'
-        '400':
-          description: Bad request (e.g., missing signedTx, invalid network).
-        '401':
-          description: Unauthorized (Missing or invalid auth token).
-        '500':
-          description: Internal server error (e.g., RPC error, insufficient funds).
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /balance/native/{address}:
-    get:
-      summary: Get Native (AVAX) Balance
-      tags:
-        - Balances
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: address
-          in: path
-          required: true
-          description: The Avalanche C-Chain address to query.
-          schema:
-            type: string
-            format: ethereum-address
-        - name: network
-          in: query
-          required: false
-          description: The network to query ('mainnet' or 'fuji'). Defaults to 'mainnet'.
-          schema:
-            type: string
-            enum: [mainnet, fuji]
-            default: mainnet
-      responses:
-        '200':
-          description: Native balance retrieved successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NativeBalanceResponse'
-        '400':
-          description: Bad request (e.g., invalid address format, invalid network).
-        '401':
-          description: Unauthorized.
-        '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /balance/token/{userAddress}/{tokenAddress}:
-    get:
-      summary: Get ERC20 Token Balance
-      tags:
-        - Balances
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: userAddress
-          in: path
-          required: true
-          description: The user's Avalanche C-Chain address.
-          schema:
-            type: string
-            format: ethereum-address
-        - name: tokenAddress
-          in: path
-          required: true
-          description: The ERC20 token contract address.
-          schema:
-            type: string
-            format: ethereum-address
-        - name: network
-          in: query
-          required: false
-          description: The network to query ('mainnet' or 'fuji'). Defaults to 'mainnet'.
-          schema:
-            type: string
-            enum: [mainnet, fuji]
-            default: mainnet
-      responses:
-        '200':
-          description: Token balance retrieved successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TokenBalanceResponse'
-        '400':
-          description: Bad request (e.g., invalid address format, invalid network).
-        '401':
-          description: Unauthorized.
-        '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Server error during authentication.
 
 components:
-  schemas:
-    SendTransactionRequest:
-      type: object
-      properties:
-        signedTx:
-          type: string
-          format: hex
-          description: The raw, signed transaction hex string (0x...).
-        network:
-          type: string
-          enum: [mainnet, fuji]
-          default: mainnet
-          description: The target network.
-      required:
-        - signedTx
-
-    SendTransactionResponse:
-      type: object
-      properties:
-        message:
-          type: string
-        transactionHash:
-          type: string
-          format: hex
-        network:
-          type: string
-          enum: [mainnet, fuji]
-
-    NativeBalanceResponse:
-      type: object
-      properties:
-        address:
-          type: string
-          format: ethereum-address
-        balance:
-          type: string
-          description: Native balance formatted as a string (in AVAX).
-        network:
-          type: string
-          enum: [mainnet, fuji]
-
-    TokenBalanceResponse:
-      type: object
-      properties:
-        userAddress:
-          type: string
-          format: ethereum-address
-        tokenAddress:
-          type: string
-          format: ethereum-address
-        balance:
-          type: string
-          description: Token balance formatted according to the token's decimals.
-        network:
-          type: string
-          enum: [mainnet, fuji]
-
-    ErrorResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          description: General error message.
-        error:
-          type: string
-          description: Specific error detail.
-
   securitySchemes:
     BearerAuth:
       type: http
@@ -258,8 +60,4 @@ components:
 
 tags:
   - name: Authentication
-    description: User login and wallet management during authentication.
-  - name: Transactions
-    description: Sending signed transactions to the Avalanche network.
-  - name: Balances
-    description: Querying native (AVAX) and token balances. 
+    description: User login and authentication management. 

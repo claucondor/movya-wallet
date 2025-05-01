@@ -1,19 +1,20 @@
 import { ethers } from 'ethers';
-import * as SecureStore from 'expo-secure-store';
+import { storage } from '../app/core/storage'; // Import MMKV storage
 
-// Key used to store the private key in SecureStore
-const SECURE_STORE_KEY = 'ethereumPrivateKey';
+// Key used to store the private key
+const STORAGE_KEY = 'ethereumPrivateKey'; // Renamed for clarity
 
 /**
- * Creates a new random Ethereum wallet and saves its private key securely.
- * @returns {Promise<ethers.Wallet>} The created wallet instance.
- * @throws {Error} If saving to SecureStore fails.
+ * Creates a new random Ethereum wallet and saves its private key.
+ * @returns {ethers.Wallet} The created wallet instance.
+ * @throws {Error} If saving fails.
  */
-export const createAndSaveWallet = async (): Promise<ethers.Wallet> => {
+export const createAndSaveWallet = (): ethers.Wallet => { // Remove async
   try {
     const wallet = ethers.Wallet.createRandom();
-    await SecureStore.setItemAsync(SECURE_STORE_KEY, wallet.privateKey);
-    console.log('New wallet created and private key saved securely.');
+    // Use MMKV's synchronous set
+    storage.set(STORAGE_KEY, wallet.privateKey);
+    console.log('New wallet created and private key saved.');
     return wallet;
   } catch (error) {
     console.error('Failed to create and save wallet:', error);
@@ -22,12 +23,13 @@ export const createAndSaveWallet = async (): Promise<ethers.Wallet> => {
 };
 
 /**
- * Loads the wallet by retrieving the private key from SecureStore.
- * @returns {Promise<ethers.Wallet | null>} The wallet instance if found, otherwise null.
+ * Loads the wallet by retrieving the private key from storage.
+ * @returns {ethers.Wallet | null} The wallet instance if found, otherwise null.
  */
-export const loadWallet = async (): Promise<ethers.Wallet | null> => {
+export const loadWallet = (): ethers.Wallet | null => { // Remove async
   try {
-    const privateKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+    // Use MMKV's synchronous getString
+    const privateKey = storage.getString(STORAGE_KEY);
     if (privateKey) {
       const wallet = new ethers.Wallet(privateKey);
       // Optional: Could add a provider here if needed immediately
@@ -45,22 +47,23 @@ export const loadWallet = async (): Promise<ethers.Wallet | null> => {
 
 /**
  * Gets the public address of the stored wallet.
- * @returns {Promise<string | null>} The Ethereum address if the wallet exists, otherwise null.
+ * @returns {string | null} The Ethereum address if the wallet exists, otherwise null.
  */
-export const getWalletAddress = async (): Promise<string | null> => {
-  const wallet = await loadWallet();
+export const getWalletAddress = (): string | null => { // Remove async
+  const wallet = loadWallet(); // Now synchronous
   return wallet ? wallet.address : null;
 };
 
 /**
- * Deletes the stored private key from SecureStore.
+ * Deletes the stored private key from storage.
  * Use with caution (e.g., on logout or account deletion).
- * @returns {Promise<void>}
+ * @returns {void}
  */
-export const deleteWallet = async (): Promise<void> => {
+export const deleteWallet = (): void => { // Remove async and Promise
   try {
-    await SecureStore.deleteItemAsync(SECURE_STORE_KEY);
-    console.log('Wallet private key deleted from SecureStore.');
+    // Use MMKV's synchronous delete
+    storage.delete(STORAGE_KEY);
+    console.log('Wallet private key deleted from storage.');
   } catch (error) {
     console.error('Failed to delete wallet key:', error);
   }
