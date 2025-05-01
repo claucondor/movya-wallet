@@ -16,13 +16,14 @@ export default function AuthSuccessScreen() {
 
     // Redirect to the main app screen after a short delay
     const timer = setTimeout(() => {
-      // Navigate to the main part of the app, e.g., the wallet or app index
+      // Navigate to the main part of the app (inside the (app) group)
       // Using replace to prevent going back to the success screen
-      router.replace('/app/wallet'); // Or '/app' depending on your desired landing page
+      // Correct path is '/wallet', not '/app/wallet'
+      router.replace('/wallet');
     }, 1500); // 1.5 second delay
 
     return () => clearTimeout(timer); // Clear timeout if component unmounts
-  }, [userId]);
+  }, [userId]); // Added userId to dependency array for correctness
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? Colors.dark.background : Colors.light.background }]}>
