@@ -3,7 +3,6 @@ import ActionButtons from '@/components/ui/ActionButtons';
 import ChatInput from '@/components/ui/ChatInput';
 import { avalanche, avalancheFuji } from '@/constants/chains';
 import { useTheme } from '@/hooks/ThemeContext';
-import { useEmbeddedEthereumWallet, usePrivy } from '@privy-io/expo';
 import { ResizeMode, Video } from 'expo-av';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -15,36 +14,12 @@ export default function WalletScreen() {
   const [activeTab, setActiveTab] = useState<'tokens' | 'transactions'>('tokens');
   const [currentView, setCurrentView] = useState<'main' | 'send' | 'receive' | 'deposit' | 'swap'>('main');
   const { colorScheme } = useTheme();
-  const { user } = usePrivy() as { user?: {
-    created_at?: number;
-    has_accepted_terms?: boolean;
-    id?: string;
-    is_guest?: boolean;
-    linked_accounts?: Array<{
-      type: string;
-      name?: string;
-      email?: string;
-      subject?: string;
-      address?: string;
-      chain_id?: string;
-      chain_type?: string;
-      connector_type?: string;
-      delegated?: boolean;
-      first_verified_at?: number;
-      id?: string | null;
-      imported?: boolean;
-      latest_verified_at?: number;
-      recovery_method?: string;
-      verified_at?: number;
-      wallet_client?: string;
-      wallet_client_type?: string;
-      wallet_index?: number;
-    }>;
-    mfa_methods?: Array<unknown>;
-  }};
   
-  const { wallets } = useEmbeddedEthereumWallet();
-  const wallet = wallets[0];
+  // TODO: Replace Privy user state with your app's user state
+  // This state should be populated after successful login via deep link
+  const [user, setUser] = useState<any>(null); // Placeholder for user state
+  const [wallet, setWallet] = useState<any>(null); // Placeholder for wallet state
+
   const [currentChain, setCurrentChain] = useState(avalancheFuji);
   const [avaxBalance, setAvaxBalance] = useState('0');
   const [tokens, setTokens] = useState([{
@@ -59,9 +34,8 @@ export default function WalletScreen() {
 
   const switchNetwork = async () => {
     try {
-      console.log('[Network] Current chain:', currentChain.name, `(0x${currentChain.id.toString(16)})`);
-      
-      const provider = await wallet?.getProvider();
+      // TODO: Get provider from your new wallet state
+      const provider = wallet?.getProvider ? await wallet.getProvider() : null;
       if (!provider) {
         console.error('[Network] No provider available');
         Alert.alert('Error', 'No wallet provider available');
@@ -72,7 +46,7 @@ export default function WalletScreen() {
       console.log('[Network] Attempting to switch to:', newChain.name, `(0x${newChain.id.toString(16)})`);
 
       // Get current chain from provider before switch
-      const currentChainId = await provider.request({ method: 'eth_chainId' });
+      const currentChainId = provider ? await provider.request({ method: 'eth_chainId' }) : null;
       console.log('[Network] Provider current chain:', currentChainId);
 
       // Skip if already on target chain
@@ -112,7 +86,7 @@ export default function WalletScreen() {
             `0x${newChain.id.toString(16)}`, 'Got:', updatedChainId);
           Alert.alert('Network Error', 'Failed to verify network change. Please check your wallet.');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[Network] Switch error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Failed to switch network. Please try again.';
         Alert.alert('Network Error', errorMessage);
@@ -125,22 +99,34 @@ export default function WalletScreen() {
 
   const fetchAvaxBalance = async () => {
     try {
-      const provider = await wallet?.getProvider();
+      // TODO: Get provider from your new wallet state
+      const provider = wallet?.getProvider ? await wallet.getProvider() : null;
       if (!provider) {
         console.log('No provider available');
         return;
       }
       
-      const accounts = await provider.request({ method: 'eth_accounts' });
+      // TODO: Ensure provider is valid
+      const accounts = provider ? await provider.request({ method: 'eth_accounts' }) : []; // Keep this as empty array if provider is null
       if (!accounts.length) {
         console.log('No accounts available');
         return;
       }
       
-      const balance = await provider.request({
+      // TODO: Ensure provider is valid
+      // Complete the ternary operator for balance
+      const balance = provider ? await provider.request({
         method: 'eth_getBalance',
         params: [accounts[0], 'latest'],
-      });
+      }) : null; // Add `: null` for the else case
+
+      // Check if balance is null before parsing
+      if (balance === null) {
+        console.error('Failed to fetch balance because provider was null or request failed');
+        return; // Exit if balance couldn't be fetched
+      }
+
+      // Now safe to parse balance
       const balanceNum = (parseInt(balance) / 10**18).toFixed(4);
       
       setAvaxBalance(balanceNum);
@@ -159,6 +145,7 @@ export default function WalletScreen() {
   };
 
   useEffect(() => {
+    // TODO: Update this effect to trigger when your actual wallet state is available
     if (wallet) {
       fetchAvaxBalance();
       const interval = setInterval(fetchAvaxBalance, 15000);

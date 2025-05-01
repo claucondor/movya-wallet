@@ -9,7 +9,7 @@
     "docker:build": "docker build -t gcr.io/automatic-ace-457219-r3/auth-callback-backend:latest -f Dockerfile .",
     "docker:run": "npm run docker:build && docker run --rm -p 8080:8080 gcr.io/automatic-ace-457219-r3/auth-callback-backend:latest",
     "deploy:image:push": "docker push gcr.io/automatic-ace-457219-r3/auth-callback-backend:latest",
-    "deploy:cloudrun": "gcloud run deploy auth-callback-backend --image gcr.io/automatic-ace-457219-r3/auth-callback-backend:latest --region us-central1 --platform managed --allow-unauthenticated --port 8080 --memory 256Mi --cpu 1 --timeout 300s",
+    "deploy:cloudrun": "node scripts/deploy-cloud-run.js",
     "deploy": "npm run docker:build && npm run deploy:image:push && npm run deploy:cloudrun",
     "gcp:list-services": "gcloud run services list --region us-central1",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -20,9 +20,11 @@
   "description": "",
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",
+    "axios": "^1.9.0",
     "express": "^5.1.0"
   },
   "devDependencies": {
+    "dotenv": "^16.5.0",
     "rimraf": "^5.0.7"
   }
 }

@@ -63,7 +63,8 @@
         "projectId": "3a77727f-bb1c-4cf3-be70-426deef98387"
       },
       "googleOAuth": {
-        "androidClientId": "466947410626-20tp1th3rkkcu3nkqvij8d3271cm9496.apps.googleusercontent.com"
+        "androidClientId": "466947410626-20tp1th3rkkcu3nkqvij8d3271cm9496.apps.googleusercontent.com",
+        "webClientId": "466947410626-1g7eikrjel1qus27p27s79qsk72bhgko.apps.googleusercontent.com"
       }
     },
     "owner": "oydual3-org",

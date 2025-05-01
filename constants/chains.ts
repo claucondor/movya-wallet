@@ -1,6 +1,6 @@
-import { Chain } from '@privy-io/expo';
+// import { Chain } from '@privy-io/expo';
 
-export const avalanche: Chain = {
+export const avalanche = {
   id: 43114,
   name: 'Avalanche',
   rpcUrls: {
@@ -17,7 +17,7 @@ export const avalanche: Chain = {
   }
 };
 
-export const avalancheFuji: Chain = {
+export const avalancheFuji = {
   id: 43113,
   name: 'Avalanche Fuji',
   rpcUrls: {
