@@ -1,11 +1,15 @@
 import { Ionicons } from '@expo/vector-icons'; // Assuming expo icons are installed
 import Clipboard from '@react-native-clipboard/clipboard';
-import * as SecureStore from 'expo-secure-store';
-import React, { useCallback, useEffect, useState } from 'react';
+// import * as SecureStore from 'expo-secure-store'; // Remove SecureStore import
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { storage } from '../../core/storage'; // Import MMKV storage using relative path
+
+// Define the key used in storage
+const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
 export default function ReceiveScreen() {
   const [address, setAddress] = useState<string | null>(null);
@@ -13,16 +17,20 @@ export default function ReceiveScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadAddress = async () => {
+    // Make the function synchronous as storage.getString is synchronous
+    const loadAddress = () => { 
       setIsLoading(true);
       setError(null);
       try {
-        const pk = await SecureStore.getItemAsync('userPrivateKey');
+        // Use MMKV's synchronous getString
+        const pk = storage.getString(PRIVATE_KEY_STORAGE_KEY); 
         if (!pk) {
-          throw new Error('Private key not found in secure store.');
+          // Adjust error message for MMKV
+          throw new Error('Private key not found in storage.'); 
         }
         // Ensure the key starts with 0x for viem
-        const privateKeyHex = pk.startsWith('0x') ? pk as Hex : `0x${pk}` as Hex;
+        // Type assertion as Hex for viem compatibility
+        const privateKeyHex = pk.startsWith('0x') ? pk as Hex : `0x${pk}` as Hex; 
         const account = privateKeyToAccount(privateKeyHex);
         setAddress(account.address);
       } catch (err: any) {
