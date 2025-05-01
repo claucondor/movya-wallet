@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons'; // Assuming expo icons are installed
-import * as Clipboard from 'expo-clipboard';
+import Clipboard from '@react-native-clipboard/clipboard';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -39,7 +39,7 @@ export default function ReceiveScreen() {
 
   const copyToClipboard = useCallback(async () => {
     if (address) {
-      await Clipboard.setStringAsync(address);
+      Clipboard.setString(address);
       Alert.alert('Copied!', 'Your address has been copied to the clipboard.');
     }
   }, [address]);
