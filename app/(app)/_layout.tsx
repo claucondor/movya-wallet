@@ -9,7 +9,8 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-export default function TabLayout() {
+// Layout for the main authenticated part of the app (tabs)
+export default function AppLayout() {
   const colorScheme = useColorScheme();
 
   return (
@@ -28,14 +29,27 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol name={focused ? 'house.fill' : 'house'} color={color} size={28} />
+          ),
         }}
       />
       <Tabs.Screen
         name="wallet"
         options={{
           title: 'Wallet',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol name={focused ? 'creditcard.fill' : 'creditcard'} color={color} size={28} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: 'Explore',
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol name={focused ? 'safari.fill' : 'safari'} color={color} size={28} />
+          ),
         }}
       />
     </Tabs>

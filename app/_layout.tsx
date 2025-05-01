@@ -148,10 +148,9 @@ export default function RootLayout() {
       <ThemeProvider>
         <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(app)" />
             <Stack.Screen name="index" options={{ animation: 'none' }} />
-            <Stack.Screen name="login" />
-            <Stack.Screen name="wallet" />
-            <Stack.Screen name="(tabs)" />
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />

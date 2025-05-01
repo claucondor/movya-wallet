@@ -3,12 +3,30 @@ import ActionButtons from '@/components/ui/ActionButtons';
 import ChatInput from '@/components/ui/ChatInput';
 import { avalanche, avalancheFuji } from '@/constants/chains';
 import { useTheme } from '@/hooks/ThemeContext';
-import { ResizeMode, Video } from 'expo-av';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import 'react-native-get-random-values';
 import 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { getWalletAddress, loadWallet } from '../../internal/walletService'; // Adjust path if needed
+
+// Simple placeholder component for action views
+const ActionView = ({ title, onBack, children }: { title: string; onBack: () => void; children?: React.ReactNode }) => {
+  const { colorScheme } = useTheme();
+  const isDark = colorScheme === 'dark';
+  return (
+    <View style={[styles.fullScreenView, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}>
+      <ThemedText type="title" style={{ marginBottom: 20 }} lightColor="#0A0E17" darkColor="white">{title}</ThemedText>
+      {children}
+      <TouchableOpacity
+        style={[styles.backButton, { backgroundColor: isDark ? '#252D4A' : '#E8EAF6' }]}
+        onPress={onBack}
+      >
+        <ThemedText type="defaultSemiBold" lightColor="#0A0E17" darkColor="white">Back</ThemedText>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 export default function WalletScreen() {
   const [activeTab, setActiveTab] = useState<'tokens' | 'transactions'>('tokens');
@@ -19,6 +37,7 @@ export default function WalletScreen() {
   // This state should be populated after successful login via deep link
   const [user, setUser] = useState<any>(null); // Placeholder for user state
   const [wallet, setWallet] = useState<any>(null); // Placeholder for wallet state
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   const [currentChain, setCurrentChain] = useState(avalancheFuji);
   const [avaxBalance, setAvaxBalance] = useState('0');
@@ -153,6 +172,17 @@ export default function WalletScreen() {
     }
   }, [wallet, currentChain]);
 
+  useEffect(() => {
+    const fetchAddress = async () => {
+      const address = await getWalletAddress();
+      setWalletAddress(address);
+      // You might want to load the full wallet object into state here too
+      const loadedWallet = await loadWallet();
+      setWallet(loadedWallet); 
+    };
+    fetchAddress();
+  }, []);
+
   const handleAction = (view: 'send' | 'receive' | 'deposit' | 'swap') => {
     setCurrentView(view);
   };
@@ -161,18 +191,56 @@ export default function WalletScreen() {
     setCurrentView('main');
   };
 
-  if (!user) {
+  if (!user && !walletAddress) { // Adjust loading/auth check as needed
     return (
       <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}>
-        <ThemedText type="title">Please login to view your wallet</ThemedText>
+        <ThemedText type="title">Loading Wallet...</ThemedText>
+        {/* Or show login prompt if definitively not logged in */}
       </View>
     );
   }
 
+  // --- Render logic based on currentView --- 
+  if (currentView !== 'main') {
+    switch (currentView) {
+      case 'send':
+        return (
+          <ActionView title="Send Crypto" onBack={handleBack}>
+            <ThemedText>Send UI Placeholder</ThemedText>
+            {/* TODO: Input fields for recipient, amount, gas estimation */}
+            {/* TODO: Button to call signing function using loaded wallet */}
+          </ActionView>
+        );
+      case 'receive':
+      case 'deposit': // Treat Receive and Deposit similarly for now
+        return (
+          <ActionView title={currentView === 'receive' ? "Receive Crypto" : "Deposit Crypto"} onBack={handleBack}>
+            <ThemedText style={{ marginBottom: 10 }}>Your Wallet Address:</ThemedText>
+            <ThemedText selectable type="defaultSemiBold" style={{ marginBottom: 20 }}>{walletAddress ?? 'Loading...'}</ThemedText>
+            {/* TODO: Add QR Code generation using walletAddress */}
+            <ThemedText>(QR Code Placeholder)</ThemedText>
+          </ActionView>
+        );
+      case 'swap':
+        return (
+          <ActionView title="Swap Tokens" onBack={handleBack}>
+            <ThemedText>Swap UI Placeholder</ThemedText>
+            {/* TODO: Token selection inputs, amount, quote fetching */}
+            {/* TODO: Button to call swap/signing function */}
+          </ActionView>
+        );
+      default:
+        setCurrentView('main'); // Fallback to main
+        return null;
+    }
+  }
+
+  // --- Render Main View --- 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}>
-      {/* Video Background */}
+      {/* Video Background - Temporalmente comentado para diagnosticar */}
       <View style={styles.videoContainer}>
+        {/* 
         <Video
           source={require('@/assets/bg/header-bg.webm')}
           style={styles.videoBackground}
@@ -180,9 +248,11 @@ export default function WalletScreen() {
           shouldPlay
           isLooping
         />
+        */}
+        <View style={[styles.videoBackground, { backgroundColor: isDark ? '#152238' : '#A1CEDC' }]} />
       </View>
 
-      {currentView === 'main' ? (
+      {currentView === 'main' && (
         <>
           {/* Header */}
           <View style={styles.header}>
@@ -216,9 +286,9 @@ export default function WalletScreen() {
                   lightColor="#6C7A9C"
                   darkColor="#9BA1A6"
                 >
-                  {user?.linked_accounts?.find(acc => acc.type === 'wallet')?.address
-                    ? `${user.linked_accounts.find(acc => acc.type === 'wallet')?.address?.slice(0, 6)}...${user.linked_accounts.find(acc => acc.type === 'wallet')?.address?.slice(-4)}`
-                    : 'No wallet connected'}
+                  {walletAddress 
+                    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+                    : 'Loading address...'}
                 </ThemedText>
               </View>
               <ThemedText
@@ -317,75 +387,36 @@ export default function WalletScreen() {
               </ScrollView>
             ) : (
               <ScrollView style={styles.tabContent}>
-                {/* Transaction List */}
+                {/* Transaction List - Add explicit type for tx */}
                 {[
                   { id: "1", type: "Received", amount: "+1.50 AVAX", value: "$55.70", date: "Today" },
                   { id: "2", type: "Sent", amount: "-0.75 AVAX", value: "$27.85", date: "Yesterday" }
-                ].map(tx => (
-                  <View key={tx.id} style={[styles.transactionItem, { backgroundColor: isDark ? '#252D4A' : '#E8EAF6' }]}>
-                    <View style={styles.transactionDetails}>
-                      <ThemedText
-                        type="defaultSemiBold"
-                        lightColor="#0A0E17"
-                        darkColor="white"
-                      >
-                        {tx.type}
-                      </ThemedText>
-                      <ThemedText
-                        type="default"
-                        lightColor="#6C7A9C"
-                        darkColor="#9BA1A6"
-                      >
-                        {tx.date}
-                      </ThemedText>
+                ].map((tx: { id: string; type: string; amount: string; value: string; date: string }) => {
+                  return (
+                    <View key={tx.id} style={[styles.transactionItem, { backgroundColor: isDark ? '#252D4A' : '#E8EAF6' }]}>
+                      <View style={styles.transactionDetails}>
+                        <ThemedText type="defaultSemiBold" lightColor="#0A0E17" darkColor="white">
+                          {tx.type}
+                        </ThemedText>
+                        <ThemedText type="default" lightColor="#6C7A9C" darkColor="#9BA1A6">
+                          {tx.date}
+                        </ThemedText>
+                      </View>
+                      <View style={styles.transactionAmount}>
+                        <ThemedText type="defaultSemiBold" lightColor="#0A0E17" darkColor="white">
+                          {tx.amount}
+                        </ThemedText>
+                        <ThemedText type="default" lightColor="#6C7A9C" darkColor="#9BA1A6">
+                          {tx.value}
+                        </ThemedText>
+                      </View>
                     </View>
-                    <View style={styles.transactionAmount}>
-                      <ThemedText
-                        type="defaultSemiBold"
-                        lightColor="#0A0E17"
-                        darkColor="white"
-                      >
-                        {tx.amount}
-                      </ThemedText>
-                      <ThemedText
-                        type="default"
-                        lightColor="#6C7A9C"
-                        darkColor="#9BA1A6"
-                      >
-                        {tx.value}
-                      </ThemedText>
-                    </View>
-                  </View>
-                ))}
+                  );
+                })}
               </ScrollView>
             )}
           </View>
         </>
-      ) : (
-        /* Send/Receive/Deposit/Swap Screens */
-        <View style={styles.fullScreenView}>
-          <ThemedText
-            type="title"
-            lightColor="#0A0E17"
-            darkColor="white"
-          >
-            {currentView === 'send' ? 'Send Screen' :
-             currentView === 'receive' ? 'Receive Screen' :
-             currentView === 'deposit' ? 'Deposit Screen' : 'Swap Screen'}
-          </ThemedText>
-          <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: isDark ? '#252D4A' : '#E8EAF6' }]}
-            onPress={handleBack}
-          >
-            <ThemedText
-              type="defaultSemiBold"
-              lightColor="#0A0E17"
-              darkColor="white"
-            >
-              Back
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
       )}
       
       {/* Chat input */}
@@ -521,4 +552,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 12,
   },
-});
+}); 

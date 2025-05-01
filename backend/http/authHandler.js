@@ -85,7 +85,6 @@ async function handleAuthCallback(req, res) {
     // --- 3. Prepare and Save Credentials to Firestore ---
     const credentialsToSave = {
       accessToken: access_token,
-      refreshToken: refresh_token, // Store refresh token if present and needed
       idToken: id_token,           // Store ID token if needed
       googleUserId: userId,
       email: userEmail,
@@ -94,6 +93,14 @@ async function handleAuthCallback(req, res) {
       name: userInfo.name,
       picture: userInfo.picture,
     };
+
+    // **Only add refreshToken if it exists**
+    if (refresh_token) {
+      credentialsToSave.refreshToken = refresh_token;
+      console.log('Refresh token received, adding to save data.');
+    } else {
+      console.log('No refresh token received from Google.');
+    }
 
     console.log(`Saving credentials for user ID: ${userId}`);
     await saveCredentials(userId, credentialsToSave); // Use Google User ID as the Firestore document ID
