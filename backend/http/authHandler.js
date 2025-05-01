@@ -57,6 +57,9 @@ async function handleAuthCallback(req, res) {
       }
     });
 
+    // Log the entire token response for debugging
+    console.log('Full token response from Google:', JSON.stringify(tokenResponse.data, null, 2));
+
     const { access_token, refresh_token, id_token } = tokenResponse.data;
 
     if (!access_token) {
@@ -99,7 +102,9 @@ async function handleAuthCallback(req, res) {
       credentialsToSave.refreshToken = refresh_token;
       console.log('Refresh token received, adding to save data.');
     } else {
-      console.log('No refresh token received from Google.');
+      console.log('Warning: No refresh token received from Google. This may cause Firestore save errors.');
+      // To handle undefined properties, you could enable ignoreUndefinedProperties in Firestore setup
+      // If not already configured, consider adding it in your Firestore initialization elsewhere.
     }
 
     console.log(`Saving credentials for user ID: ${userId}`);
