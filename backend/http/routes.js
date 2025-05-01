@@ -9,4 +9,48 @@ router.get('/auth/callback', handleAuthCallback);
 
 // You can add other routes here if needed
 
+// --- Import Controllers ---
+// Assume you have an auth controller or logic somewhere
+// const authController = require('../controllers/authController'); 
+const walletController = require('../controllers/walletController');
+const transactionController = require('../controllers/transactionController');
+const balanceController = require('../controllers/balanceController');
+
+// --- Middleware (Placeholder) ---
+// Implement your actual authentication middleware (e.g., JWT verification)
+const authMiddleware = (req, res, next) => {
+    // Placeholder: Simulate authenticated user
+    // In reality, verify token and attach user info (e.g., req.user = { id: 'user123' };)
+    console.log("Auth Middleware: Skipping actual auth for now."); 
+    // Example: Simulate attaching user ID. Replace with real logic.
+    // req.user = { id: 'some_user_id_from_token' }; 
+    // if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+    next();
+};
+
+// --- Routes ---
+
+// Authentication (Example - Adapt to your existing auth flow)
+// router.post('/login', authController.login, walletController.handleUserAuthentication); // Integrate wallet check post-login
+// router.post('/signup', authController.signup, walletController.handleUserAuthentication); // Integrate wallet check post-signup
+
+// Wallet (Separate endpoint - less ideal, use integration above if possible)
+// Protect this route if used standalone
+// router.get('/wallet', authMiddleware, walletController.getOrCreateWallet);
+
+// Transactions
+// Requires authentication to ensure only the owner can initiate
+router.post('/send-transaction', authMiddleware, express.json(), transactionController.sendTransaction); // Need express.json() for body parsing
+
+// Balances
+// Address in path parameter. Auth middleware to ensure user is allowed to query.
+router.get('/balance/native/:address', authMiddleware, balanceController.getNativeBalance);
+router.get('/balance/token/:userAddress/:tokenAddress', authMiddleware, balanceController.getTokenBalance);
+
+
+// --- Default/Health Check Route (already in server.js, but can be here too) ---
+router.get('/', (req, res) => {
+  res.status(200).send('Backend API is running.');
+});
+
 module.exports = router; 
