@@ -1,36 +1,54 @@
-import { Ionicons } from '@expo/vector-icons'; // Assuming expo icons are installed
+import { ThemedText } from '@/components/ThemedText';
+import { useTheme } from '@/hooks/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 import Clipboard from '@react-native-clipboard/clipboard';
-// import * as SecureStore from 'expo-secure-store'; // Remove SecureStore import
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ResizeMode, Video } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Image, Pressable, Share, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { storage } from '../../core/storage'; // Import MMKV storage using relative path
+import { storage } from '../../core/storage';
 
-// Define the key used in storage
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
 export default function ReceiveScreen() {
+  const { colorScheme } = useTheme();
+  const isDark = colorScheme === 'dark';
   const [address, setAddress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Animation values
+  const copyAnimatedValue = useRef(new Animated.Value(1)).current;
+  const shareAnimatedValue = useRef(new Animated.Value(1)).current;
+
+  const animateButton = (value: Animated.Value, callback?: () => void) => {
+    Animated.sequence([
+      Animated.timing(value, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(value, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start(callback);
+  };
 
   useEffect(() => {
-    // Make the function synchronous as storage.getString is synchronous
-    const loadAddress = () => { 
+    const loadAddress = () => {
       setIsLoading(true);
       setError(null);
       try {
-        // Use MMKV's synchronous getString
-        const pk = storage.getString(PRIVATE_KEY_STORAGE_KEY); 
+        const pk = storage.getString(PRIVATE_KEY_STORAGE_KEY);
         if (!pk) {
-          // Adjust error message for MMKV
-          throw new Error('Private key not found in storage.'); 
+          throw new Error('Private key not found in storage.');
         }
-        // Ensure the key starts with 0x for viem
-        // Type assertion as Hex for viem compatibility
-        const privateKeyHex = pk.startsWith('0x') ? pk as Hex : `0x${pk}` as Hex; 
+        const privateKeyHex = pk.startsWith('0x') ? pk as Hex : `0x${pk}` as Hex;
         const account = privateKeyToAccount(privateKeyHex);
         setAddress(account.address);
       } catch (err: any) {
@@ -47,28 +65,32 @@ export default function ReceiveScreen() {
 
   const copyToClipboard = useCallback(async () => {
     if (address) {
-      Clipboard.setString(address);
-      Alert.alert('Copied!', 'Your address has been copied to the clipboard.');
+      animateButton(copyAnimatedValue, () => {
+        Clipboard.setString(address);
+        Alert.alert('Copied!', 'Your address has been copied to the clipboard.');
+      });
     }
   }, [address]);
 
   const shareAddress = useCallback(async () => {
     if (address) {
-      try {
-        await Share.share({
-          message: `My wallet address: ${address}`,
-        });
-      } catch (error: any) {
-        Alert.alert('Error', 'Could not share address');
-      }
+      animateButton(shareAnimatedValue, async () => {
+        try {
+          await Share.share({
+            message: `My Movya wallet address: ${address}`,
+          });
+        } catch (error: any) {
+          Alert.alert('Error', 'Could not share address');
+        }
+      });
     }
   }, [address]);
 
   if (isLoading) {
     return (
       <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" />
-        <Text>Loading your address...</Text>
+        <ActivityIndicator size="large" color={isDark ? '#FFFFFF' : '#3A5AFF'} />
+        <ThemedText type="default">Loading your address...</ThemedText>
       </View>
     );
   }
@@ -76,39 +98,144 @@ export default function ReceiveScreen() {
   if (error) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Ionicons name="warning-outline" size={40} color="red" />
-        <Text style={styles.errorText}>{error}</Text>
-        {/* Optional: Add a retry button */}
+        <Ionicons name="warning-outline" size={40} color="#E53E3E" />
+        <ThemedText type="default" style={styles.errorText}>{error}</ThemedText>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Receive Funds</Text>
-      <View style={styles.qrContainer}>
-        {address && (
-          <QRCode
-            value={address}
-            size={200}
-            logoBackgroundColor='transparent'
-          />
-        )}
+      <View style={styles.videoContainer}>
+        <Video
+          source={require('@/assets/bg/header-bg.mp4')}
+          style={StyleSheet.absoluteFill}
+          resizeMode={ResizeMode.COVER}
+          isLooping
+          shouldPlay
+          isMuted
+        />
+        <LinearGradient
+          colors={['rgba(0,24,69,0.2)', 'rgba(0,24,69,0.4)']}
+          style={StyleSheet.absoluteFill}
+        />
       </View>
-      <Text style={styles.addressLabel}>Your Address:</Text>
-      <TouchableOpacity onPress={copyToClipboard}>
-        <Text selectable style={styles.addressText}>{address}</Text>
-      </TouchableOpacity>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={copyToClipboard}>
-          <Ionicons name="copy-outline" size={20} color="#fff" />
-          <Text style={styles.buttonText}>Copy Address</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={shareAddress}>
-          <Ionicons name="share-outline" size={20} color="#fff" />
-          <Text style={styles.buttonText}>Share Address</Text>
-        </TouchableOpacity>
+      <View style={styles.header}>
+        <ThemedText
+          type="title"
+          style={styles.headerTitle}
+          lightColor="#FFFFFF"
+          darkColor="#FFFFFF"
+        >
+          Receive AVAX
+        </ThemedText>
+        <Image
+          source={require('@/assets/Avax_Token.png')}
+          style={styles.tokenLogo}
+          resizeMode="contain"
+        />
+      </View>
+
+      <View style={[styles.content, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
+        <View style={styles.qrContainer}>
+          <LinearGradient
+            colors={isDark ? ['#2D3748', '#1A202C'] : ['#FFFFFF', '#F7FAFC']}
+            style={styles.qrWrapper}
+          >
+            {address && (
+              <QRCode
+                value={address}
+                size={200}
+                backgroundColor="transparent"
+                color={isDark ? '#FFFFFF' : '#000000'}
+                logoBackgroundColor="transparent"
+              />
+            )}
+          </LinearGradient>
+        </View>
+
+        <View style={styles.addressContainer}>
+          <ThemedText type="defaultSemiBold" style={styles.addressLabel}>
+            Your Wallet Address
+          </ThemedText>
+          <Pressable onPress={copyToClipboard}>
+            <ThemedText 
+              type="default" 
+              style={styles.addressText}
+              numberOfLines={1}
+              ellipsizeMode="middle"
+            >
+              {address}
+            </ThemedText>
+          </Pressable>
+        </View>
+
+        <View style={styles.buttonContainer}>
+          <Animated.View style={[
+            styles.buttonWrapper,
+            { transform: [{ scale: copyAnimatedValue }] }
+          ]}>
+            <LinearGradient
+              colors={isDark ? ['#2D3748', '#1A202C'] : ['#EDF2F7', '#E2E8F0']}
+              style={[styles.button, styles.copyButton]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Pressable
+                style={styles.buttonContent}
+                onPress={copyToClipboard}
+              >
+                <Ionicons 
+                  name="copy-outline" 
+                  size={20} 
+                  color={isDark ? '#FFFFFF' : '#4A5568'} 
+                  style={styles.buttonIcon} 
+                />
+                <ThemedText 
+                  type="defaultSemiBold" 
+                  style={styles.buttonText}
+                  lightColor="#4A5568"
+                  darkColor="#FFFFFF"
+                >
+                  Copy
+                </ThemedText>
+              </Pressable>
+            </LinearGradient>
+          </Animated.View>
+
+          <Animated.View style={[
+            styles.buttonWrapper,
+            { transform: [{ scale: shareAnimatedValue }] }
+          ]}>
+            <LinearGradient
+              colors={['#3A5AFF', '#2541CC']}
+              style={[styles.button, styles.shareButton]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Pressable
+                style={styles.buttonContent}
+                onPress={shareAddress}
+              >
+                <Ionicons 
+                  name="share-social-outline" 
+                  size={20} 
+                  color="#FFFFFF" 
+                  style={styles.buttonIcon} 
+                />
+                <ThemedText 
+                  type="defaultSemiBold" 
+                  style={styles.buttonText}
+                  lightColor="#FFFFFF"
+                  darkColor="#FFFFFF"
+                >
+                  Share
+                </ThemedText>
+              </Pressable>
+            </LinearGradient>
+          </Animated.View>
+        </View>
       </View>
     </View>
   );
@@ -117,58 +244,123 @@ export default function ReceiveScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
   },
   center: {
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    color: '#333',
+  videoContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: '60%',
+    overflow: 'hidden',
+  },
+  header: {
+    paddingTop: 60,
+    paddingBottom: 30,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  tokenLogo: {
+    width: 60,
+    height: 60,
+    marginBottom: 20,
+  },
+  content: {
+    flex: 1,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
   },
   qrContainer: {
+    alignItems: 'center',
     marginBottom: 30,
-    padding: 10,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
+  },
+  qrWrapper: {
+    padding: 20,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  addressContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
   },
   addressLabel: {
+    marginBottom: 8,
     fontSize: 16,
-    color: '#555',
-    marginBottom: 5,
   },
   addressText: {
-    fontSize: 14, // Smaller font for address
-    fontFamily: 'monospace', // Monospace font for readability
-    color: '#007AFF', // Blue color to indicate interactivity
-    textAlign: 'center',
-    marginBottom: 30,
-    paddingHorizontal: 10,
+    fontSize: 14,
+    fontFamily: 'monospace',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 8,
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+  },
+  buttonWrapper: {
+    flex: 1,
+    marginHorizontal: 6,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   button: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingVertical: 12,
+    justifyContent: 'center',
+    paddingVertical: 16,
     paddingHorizontal: 20,
-    borderRadius: 8,
+  },
+  copyButton: {
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  shareButton: {
+    backgroundColor: '#3A5AFF',
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   buttonText: {
-    color: '#fff',
     fontSize: 16,
-    marginLeft: 8,
+    fontWeight: '600',
   },
   errorText: {
-    color: 'red',
+    color: '#E53E3E',
     marginTop: 10,
     textAlign: 'center',
   },

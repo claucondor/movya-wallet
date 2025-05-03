@@ -3,11 +3,13 @@ import ActionButtons from '@/components/ui/ActionButtons';
 import ChatInput from '@/components/ui/ChatInput';
 import { avalanche, avalancheFuji } from '@/constants/chains';
 import { useTheme } from '@/hooks/ThemeContext';
+import { ResizeMode, Video } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import 'react-native-get-random-values';
 import 'react-native-reanimated';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { createPublicClient, formatEther, http } from 'viem';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import { storage } from '../core/storage';
@@ -174,7 +176,8 @@ export default function WalletScreen() {
   }, []);
 
   const handleAction = (view: 'send' | 'receive' | 'deposit' | 'swap') => {
-    setCurrentView(view);
+    // Use Expo Router navigation instead of internal view state
+    router.push(`/(app)/${view}`);
   };
 
   const handleBack = () => {
@@ -231,7 +234,18 @@ export default function WalletScreen() {
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}>
       <View style={styles.videoContainer}>
-        <View style={[styles.videoBackground, { backgroundColor: isDark ? '#152238' : '#A1CEDC' }]} />
+        <Video
+          source={require('@/assets/bg/header-bg.mp4')}
+          style={StyleSheet.absoluteFill}
+          resizeMode={ResizeMode.COVER}
+          isLooping
+          shouldPlay
+          isMuted
+        />
+        <LinearGradient
+          colors={['rgba(0,24,69,0.2)', 'rgba(0,24,69,0.4)']}
+          style={StyleSheet.absoluteFill}
+        />
       </View>
 
       {currentView === 'main' && (
@@ -240,15 +254,21 @@ export default function WalletScreen() {
             <ThemedText
               type="title"
               style={[styles.balanceText, {marginTop: 20}]}
-              lightColor="#0A0E17"
-              darkColor="white"
+              lightColor="#FFFFFF"
+              darkColor="#FFFFFF"
             >
               <View style={{flexDirection: 'column', alignItems: 'center'}}>
                 <ThemedText
                   type="title"
-                  style={{fontSize: 22, fontWeight: '600'}}
-                  lightColor="#0A0E17"
-                  darkColor="white"
+                  style={{
+                    fontSize: 22,
+                    fontWeight: '600',
+                    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 4,
+                  }}
+                  lightColor="#FFFFFF"
+                  darkColor="#FFFFFF"
                 >
                   {'Welcome to Movya Wallet'}
                 </ThemedText>
@@ -263,24 +283,55 @@ export default function WalletScreen() {
                 />
                 <ThemedText
                   type="defaultSemiBold"
-                  style={styles.walletAddress}
-                  lightColor="#6C7A9C"
-                  darkColor="#9BA1A6"
+                  style={[styles.walletAddress, {
+                    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 3,
+                  }]}
+                  lightColor="#FFFFFF"
+                  darkColor="#FFFFFF"
                 >
                   {walletAddress 
                     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
                     : 'Loading address...'}
                 </ThemedText>
               </View>
-              <TouchableOpacity onPress={switchNetwork} style={[styles.networkSwitch, {backgroundColor: isDark ? '#252D4A' : '#E8EAF6'}]}>
-                 <ThemedText type="defaultSemiBold" lightColor="#0A0E17" darkColor="white" style={{fontSize: 12}}>
-                   {currentChain.name}
-                 </ThemedText>
+              <TouchableOpacity 
+                onPress={switchNetwork} 
+                style={[
+                  styles.networkSwitch, 
+                  {
+                    backgroundColor: 'rgba(255,255,255,0.15)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.2)'
+                  }
+                ]}
+              >
+                <ThemedText 
+                  type="defaultSemiBold" 
+                  style={{
+                    fontSize: 12,
+                    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 3,
+                  }}
+                  lightColor="#FFFFFF"
+                  darkColor="#FFFFFF"
+                >
+                  {currentChain.name}
+                </ThemedText>
               </TouchableOpacity>
             </View>
           </View>
 
-          <View style={[styles.content, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
+          <View style={[styles.content, { 
+            backgroundColor: isDark ? '#1A1F38' : '#FFFFFF',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: 0.1,
+            shadowRadius: 6,
+            elevation: 5,
+          }]}>
             <View style={styles.tabs}>
               <TouchableOpacity
                 style={[styles.tab, activeTab === 'tokens' && styles.activeTab]}
@@ -312,11 +363,10 @@ export default function WalletScreen() {
               <ScrollView style={styles.tabContent}>
                 {tokens.map(token => (
                   <View key={token.id} style={[styles.tokenCard, { backgroundColor: isDark ? '#252D4A' : '#E8EAF6' }]}>
-                    <Icon
-                      name="ethereum"
-                      size={40}
-                      color={isDark ? 'white' : '#0A0E17'}
+                    <Image
+                      source={require('@/assets/Avax_Token.png')}
                       style={styles.tokenIcon}
+                      resizeMode="contain"
                     />
                     <View style={styles.tokenInfo}>
                       <ThemedText
@@ -417,7 +467,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    bottom: 0,
+    bottom: '60%', // Solo cubre la parte superior
     overflow: 'hidden',
   },
   videoBackground: {
@@ -436,8 +486,10 @@ const styles = StyleSheet.create({
   },
   balanceText: {
     fontSize: 32,
-    color: 'white',
     marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   walletAddress: {
     fontSize: 14,
@@ -474,6 +526,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tokenIcon: {
+    width: 40,
+    height: 40,
     marginRight: 12,
   },
   tokenInfo: {
@@ -521,8 +575,16 @@ const styles = StyleSheet.create({
   networkSwitch: {
     marginTop: 8,
     marginLeft: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
   },
 }); 

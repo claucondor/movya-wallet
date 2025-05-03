@@ -52,10 +52,34 @@ export default function AppLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="send" options={{ href: null }} />
-      <Tabs.Screen name="receive" options={{ href: null }} />
-      <Tabs.Screen name="swap" options={{ href: null }} />
-      <Tabs.Screen name="deposit" options={{ href: null }} />
+      <Tabs.Screen 
+        name="send/index" 
+        options={{ 
+          headerShown: false,
+          href: '/send',
+        }} 
+      />
+      <Tabs.Screen 
+        name="receive/index" 
+        options={{ 
+          headerShown: false,
+          href: '/receive',
+        }} 
+      />
+      <Tabs.Screen 
+        name="swap/index" 
+        options={{ 
+          headerShown: false,
+          href: '/swap',
+        }} 
+      />
+      <Tabs.Screen 
+        name="deposit/index" 
+        options={{ 
+          headerShown: false,
+          href: '/deposit',
+        }} 
+      />
     </Tabs>
   );
 }
