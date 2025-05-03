@@ -14,7 +14,7 @@
     "deploy:cloudrun": "node scripts/deploy-cloud-run.js",
     "deploy": "npm run docker:build && npm run deploy:image:push && npm run deploy:cloudrun",
     "gcp:list-services": "gcloud run services list --region us-central1",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha -r ts-node/register -r tsconfig-paths/register 'test/**/*.test.ts'"
   },
   "keywords": [],
   "author": "",
@@ -29,8 +29,13 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.1",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.16",
     "dotenv": "^16.5.0",
+    "mocha": "^10.3.0",
     "rimraf": "^5.0.7",
-    "tsconfig-paths": "^4.2.0"
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.3.3"
   }
 }
