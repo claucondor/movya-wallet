@@ -1,15 +1,16 @@
-const axios = require('axios');
-const { saveCredentials } = require('../internal/firestoreService');
+import { saveCredentials } from '@firestore';
+import axios from 'axios';
+import { Request, Response } from 'express';
 
 // Your Expo app scheme (from app.json)
-const APP_SCHEME = 'exp';
+const APP_SCHEME: string = 'exp';
 // Google OAuth Config - Read from environment variables for security
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID; // Your Web Client ID
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET; // Your Web Client Secret
-const BACKEND_CALLBACK_URL = process.env.BACKEND_CALLBACK_URL; // Your backend callback URL
+const GOOGLE_CLIENT_ID: string | undefined = process.env.GOOGLE_CLIENT_ID; // Your Web Client ID
+const GOOGLE_CLIENT_SECRET: string | undefined = process.env.GOOGLE_CLIENT_SECRET; // Your Web Client Secret
+const BACKEND_CALLBACK_URL: string | undefined = process.env.BACKEND_CALLBACK_URL; // Your backend callback URL
 
-const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
-const GOOGLE_USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo';
+const GOOGLE_TOKEN_ENDPOINT: string = 'https://oauth2.googleapis.com/token';
+const GOOGLE_USERINFO_ENDPOINT: string = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
 /**
  * Handles the Google authentication callback.
@@ -19,7 +20,7 @@ const GOOGLE_USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo'
  * - Saves tokens/user info to Firestore.
  * - Redirects back to the Expo app using a deep link.
  */
-async function handleAuthCallback(req, res) {
+async function handleAuthCallback(req: Request, res: Response): Promise<void> {
   const { code, error } = req.query;
 
   if (error) {
@@ -29,9 +30,9 @@ async function handleAuthCallback(req, res) {
     return res.redirect(302, errorDeepLink);
   }
 
-  if (!code) {
-    console.error('No authorization code received from Google.');
-    const errorDeepLink = `${APP_SCHEME}://auth-error?message=${encodeURIComponent('Missing authorization code from Google.')}`;
+  if (!code || typeof code !== 'string') {
+    console.error('No authorization code received from Google or invalid type.');
+    const errorDeepLink = `${APP_SCHEME}://auth-error?message=${encodeURIComponent('Missing or invalid authorization code from Google.')}`;
     return res.redirect(302, errorDeepLink);
   }
 
@@ -60,7 +61,7 @@ async function handleAuthCallback(req, res) {
     // Log the entire token response for debugging
     console.log('Full token response from Google:', JSON.stringify(tokenResponse.data, null, 2));
 
-    const { access_token, refresh_token, id_token } = tokenResponse.data;
+    const { access_token, refresh_token, id_token } = tokenResponse.data as { access_token: string, refresh_token?: string, id_token?: string };
 
     if (!access_token) {
       throw new Error('Did not receive access_token from Google.');
@@ -76,7 +77,7 @@ async function handleAuthCallback(req, res) {
       },
     });
 
-    const userInfo = userInfoResponse.data;
+    const userInfo = userInfoResponse.data as { sub: string, email: string, name?: string, picture?: string };
     const userId = userInfo.sub; // Google's unique user ID
     const userEmail = userInfo.email;
 
@@ -86,7 +87,7 @@ async function handleAuthCallback(req, res) {
     console.log(`User Info received: ID=${userId}, Email=${userEmail}`);
 
     // --- 3. Prepare and Save Credentials to Firestore ---
-    const credentialsToSave = {
+    const credentialsToSave: any = { // Use a more specific type later when firestoreService is typed
       accessToken: access_token,
       idToken: id_token,           // Store ID token if needed
       googleUserId: userId,
@@ -115,7 +116,7 @@ async function handleAuthCallback(req, res) {
     console.log(`Redirecting to deep link: ${deepLinkUrl}`);
     res.redirect(302, deepLinkUrl);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error during Google auth callback processing:', err.response ? err.response.data : err.message);
     // Redirect to an error screen in the app
     const errorMessage = err.response?.data?.error_description || err.message || 'Failed to process Google login.';
@@ -124,6 +125,5 @@ async function handleAuthCallback(req, res) {
   }
 }
 
-module.exports = {
-  handleAuthCallback,
-}; 
+export { handleAuthCallback };
+

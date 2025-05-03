@@ -1,16 +1,42 @@
-const OpenRouterService = require('../openrouter/service');
-const { WalletAssistantSystemPrompt } = require('../openrouter/prompts');
-const models = require('../openrouter/models');
+import { OpenRouterModel, OpenRouterService, WalletAssistantSystemPrompt } from '@openrouter';
+
+// Define interfaces for clarity
+export interface AIResponse {
+    action: 'SEND' | 'CHECK_BALANCE' | 'VIEW_HISTORY' | 'CLARIFY' | 'GREETING' | 'ERROR' | 'CONFIRM' | string; // Allow string for unhandled actions
+    parameters: {
+        recipientAddress?: string;
+        recipientEmail?: string;
+        amount?: number | string; // Amount could be string initially
+        currency?: string;
+    } | null;
+    confirmationRequired?: boolean;
+    confirmationMessage?: string;
+    responseMessage: string;
+}
+
+export interface AgentServiceResponse {
+    responseMessage: string;
+    newState: AIResponse | null; // The state passed between turns is the AI's response structure
+    actionDetails: {
+        type: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY';
+        recipientAddress?: string;
+        recipientEmail?: string;
+        amount?: number | string;
+        currency?: string;
+    } | null;
+}
 
 class AgentService {
-    constructor(openRouterApiKey) {
+    private openRouterService: OpenRouterService;
+
+    constructor(openRouterApiKey: string | undefined) {
         if (!openRouterApiKey) {
             throw new Error("OpenRouter API key is required for AgentService.");
         }
         // Initialize OpenRouter service here
         this.openRouterService = new OpenRouterService({
             apiKey: openRouterApiKey,
-            model: models.CLAUDE_3_HAIKU, // Default model, can be configured
+            model: OpenRouterModel.DEFAULT, // Use the correct model reference
             temperature: 0.7,
             systemPrompt: WalletAssistantSystemPrompt
         });
@@ -20,13 +46,13 @@ class AgentService {
      * Processes a user's message using the OpenRouter AI and prepares a response for the frontend.
      *
      * @param {string} currentUserMessage - The latest message from the user.
-     * @param {object | null} currentState - The state object returned by the AI in the previous turn.
-     * @returns {Promise<{responseMessage: string, newState: object | null, actionDetails: object | null}>}
+     * @param {AIResponse | null} currentState - The state object returned by the AI in the previous turn.
+     * @returns {Promise<AgentServiceResponse>}
      *          - responseMessage: The message to display to the user.
      *          - newState: The state object to be stored by the frontend for the next turn.
      *          - actionDetails: If an action needs frontend execution (e.g., SEND), this contains the parameters.
      */
-    async processMessage(currentUserMessage, currentState) {
+    async processMessage(currentUserMessage: string, currentState: AIResponse | null): Promise<AgentServiceResponse> {
         if (!currentUserMessage) {
             return {
                 responseMessage: "Please provide a message.",
@@ -36,11 +62,18 @@ class AgentService {
         }
 
         try {
-            const aiResponseString = await this.openRouterService.getCompletion(currentUserMessage, currentState);
+            // Format the input for the AI as per the system prompt requirements
+            const aiInput = JSON.stringify({
+                currentUserMessage,
+                currentState
+            });
 
-            let aiResponse;
+            // Get AI response using the chat method
+            const aiResponseString = await this.openRouterService.chat(aiInput);
+
+            let aiResponse: AIResponse;
             try {
-                // The AI should return *only* JSON, so parse it directly.
+                // Parse the AI's JSON response
                 aiResponse = JSON.parse(aiResponseString);
             } catch (parseError) {
                 console.error("Failed to parse AI JSON response:", aiResponseString, parseError);
@@ -55,7 +88,7 @@ class AgentService {
             const { action, parameters, confirmationRequired, confirmationMessage, responseMessage } = aiResponse;
 
             let frontendResponseMessage = responseMessage;
-            let actionDetails = null;
+            let actionDetails: AgentServiceResponse['actionDetails'] = null; // Explicitly type actionDetails
 
             // Prepare response based on AI action
             switch (action) {
@@ -63,16 +96,16 @@ class AgentService {
                     if (confirmationRequired) {
                         // AI is asking for confirmation. Send confirmation message + response message.
                         // The frontend should display both and store the AI response as the new state.
-                        frontendResponseMessage = confirmationMessage ? `${confirmationMessage}\n${responseMessage}` : responseMessage;
+                        frontendResponseMessage = confirmationMessage ? `${confirmationMessage}\\n${responseMessage}` : responseMessage;
                     } else {
                         // User has confirmed (or AI determined no confirmation needed initially).
                         // Package parameters for frontend to execute the send transaction.
                         actionDetails = {
                             type: 'SEND_TRANSACTION',
-                            recipientAddress: parameters.recipientAddress,
-                            recipientEmail: parameters.recipientEmail, // Send email too, backend/frontend decides how to resolve
-                            amount: parameters.amount,
-                            currency: parameters.currency
+                            recipientAddress: parameters?.recipientAddress,
+                            recipientEmail: parameters?.recipientEmail, // Send email too, backend/frontend decides how to resolve
+                            amount: parameters?.amount,
+                            currency: parameters?.currency
                         };
                         // Keep the AI's response message (e.g., "Great! Preparing the transaction...")
                     }
@@ -109,7 +142,7 @@ class AgentService {
                 actionDetails: actionDetails
             };
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error processing message in AgentService:", error);
             return {
                 responseMessage: "Sorry, I encountered an internal error. Please try again later.",
@@ -120,4 +153,4 @@ class AgentService {
     }
 }
 
-module.exports = AgentService; 
+export default AgentService; 

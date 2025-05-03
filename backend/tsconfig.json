@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@config": ["config"],
+      "@config/*": ["config/*"],
+      "@internal": ["internal"],
+      "@internal/*": ["internal/*"],
+      "@http": ["internal/http"],
+      "@http/*": ["internal/http/*"],
+      "@agent": ["internal/agent"],
+      "@agent/*": ["internal/agent/*"],
+      "@firestore": ["internal/firestore"],
+      "@firestore/*": ["internal/firestore/*"],
+      "@openrouter": ["internal/openrouter"],
+      "@openrouter/*": ["internal/openrouter/*"],
+      "@services": ["services"],
+      "@services/*": ["services/*"],
+      "@types": ["types"],
+      "@types/*": ["types/*"],
+      "@utils": ["utils"],
+      "@utils/*": ["utils/*"],
+      "@wallet": ["internal/wallet"],
+      "@wallet/*": ["internal/wallet/*"],
+      "@core": ["app/core"],
+      "@core/*": ["app/core/*"]
+    }
+  },
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+} 

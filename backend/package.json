@@ -1,11 +1,13 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "cmd/server.js",
+  "main": "dist/cmd/server.js",
   "scripts": {
     "setup": "npm ci",
-    "clean": "rimraf node_modules",
-    "dev": "node cmd/server.js",
+    "clean": "rimraf node_modules dist",
+    "build": "tsc",
+    "start": "node dist/cmd/server.js",
+    "dev": "npm run build && node dist/cmd/server.js",
     "docker:build": "docker build -t gcr.io/automatic-ace-457219-r3/auth-callback-backend:latest -f Dockerfile .",
     "docker:run": "npm run docker:build && docker run --rm -p 8080:8080 gcr.io/automatic-ace-457219-r3/auth-callback-backend:latest",
     "deploy:image:push": "docker push gcr.io/automatic-ace-457219-r3/auth-callback-backend:latest",
@@ -21,12 +23,14 @@
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",
     "axios": "^1.9.0",
-    "express": "^5.1.0",
+    "crypto-js": "^4.2.0",
     "ethers": "^5.7.2",
-    "crypto-js": "^4.2.0"
+    "express": "^5.1.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.1",
     "dotenv": "^16.5.0",
-    "rimraf": "^5.0.7"
+    "rimraf": "^5.0.7",
+    "tsconfig-paths": "^4.2.0"
   }
 }
