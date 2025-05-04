@@ -8,13 +8,13 @@
     "build": "tsc",
     "start": "node dist/cmd/server.js",
     "dev": "npm run build && node dist/cmd/server.js",
+    "test": "ts-node -r tsconfig-paths/register ./internal/test/agentService.ts",
     "docker:build": "docker build -t gcr.io/automatic-ace-457219-r3/auth-callback-backend:latest -f Dockerfile .",
     "docker:run": "npm run docker:build && docker run --rm -p 8080:8080 gcr.io/automatic-ace-457219-r3/auth-callback-backend:latest",
     "deploy:image:push": "docker push gcr.io/automatic-ace-457219-r3/auth-callback-backend:latest",
     "deploy:cloudrun": "node scripts/deploy-cloud-run.js",
     "deploy": "npm run docker:build && npm run deploy:image:push && npm run deploy:cloudrun",
-    "gcp:list-services": "gcloud run services list --region us-central1",
-    "test": "mocha -r ts-node/register -r tsconfig-paths/register 'test/**/*.test.ts'"
+    "gcp:list-services": "gcloud run services list --region us-central1"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +24,7 @@
     "@google-cloud/firestore": "^7.11.0",
     "axios": "^1.9.0",
     "crypto-js": "^4.2.0",
+    "dotenv": "^16.5.0",
     "ethers": "^5.7.2",
     "express": "^5.1.0"
   },
@@ -31,7 +32,7 @@
     "@types/express": "^5.0.1",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.16",
-    "dotenv": "^16.5.0",
+    "cross-env": "^7.0.3",
     "mocha": "^10.3.0",
     "rimraf": "^5.0.7",
     "ts-node": "^10.9.2",

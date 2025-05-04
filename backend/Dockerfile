@@ -8,12 +8,14 @@ WORKDIR /usr/src/app
 # Copy package.json and package-lock.json (or yarn.lock)
 COPY package*.json ./
 
-# Install only production dependencies
-# Using 'npm ci' is generally recommended for CI/CD as it uses package-lock.json for deterministic builds
-RUN npm ci --only=production
+# Install ALL dependencies (including devDependencies for TypeScript compilation)
+RUN npm ci
 
 # Copy the rest of the application code
 COPY . .
+
+# Build TypeScript code
+RUN npm run build
 
 # --- Second Stage: Runtime ---
 # Use a minimal Node.js image for the final stage
@@ -21,21 +23,21 @@ FROM node:lts-alpine
 
 WORKDIR /usr/src/app
 
-# Copy dependencies from the builder stage
-COPY --from=builder /usr/src/app/node_modules ./node_modules
-# Copy application code from the builder stage
-COPY --from=builder /usr/src/app/cmd ./cmd
-COPY --from=builder /usr/src/app/http ./http
-COPY --from=builder /usr/src/app/internal ./internal
-COPY --from=builder /usr/src/app/package.json ./package.json
+# Copy only production dependencies
+COPY package*.json ./
+RUN npm ci --only=production
 
+# Copy compiled JavaScript from builder stage
+COPY --from=builder /usr/src/app/dist ./dist
+
+# Copy .env file
+COPY .env ./
 
 # Expose the port the app runs on (should match the one in cmd/server.js)
 EXPOSE 8080
 
-# Run the application
-# Ensure the entrypoint script is executable if needed (not usually required for Node)
-CMD [ "node", "cmd/server.js" ]
+# Run the compiled application
+CMD [ "node", "dist/cmd/server.js" ]
 
 # Optional: Run as a non-root user for security
 # USER node

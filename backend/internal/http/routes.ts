@@ -1,5 +1,7 @@
 import express, { NextFunction, Request, Response } from 'express';
+import { chatWithAgent } from './agentController';
 import { handleAuthCallback } from './authHandler'; // Assuming authHandler will be migrated and export handleAuthCallback
+import { reportAgentResult } from './resultController'; // Import the new controller
 
 const routes = express.Router();
 
@@ -40,9 +42,24 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
 // router.get('/balance/native/:address', authMiddleware, balanceController.getNativeBalance);
 // router.get('/balance/token/:userAddress/:tokenAddress', authMiddleware, balanceController.getTokenBalance);
 
+// AI Agent routes
+routes.post('/agent/chat', 
+    authMiddleware,           // Require authentication
+    express.json(),          // Parse JSON body
+    chatWithAgent            // Handle the chat request
+);
+
+// AI Agent Result Reporting Endpoint
+routes.post('/agent/report_result', 
+    authMiddleware,          // Require authentication
+    express.json(),         // Parse JSON body
+    reportAgentResult        // Handle the result report
+);
+
 // --- Default/Health Check Route (already in server.js, but can be here too) ---
 routes.get('/', (req: Request, res: Response) => {
   res.status(200).send('Backend API is running.');
 });
 
 export { routes };
+

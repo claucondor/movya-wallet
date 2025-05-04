@@ -123,7 +123,23 @@ export class OpenRouterService {
         };
 
         const response = await this.makeRequest(request);
-        return response.choices?.[0]?.message?.content || '';
+        const content = response.choices?.[0]?.message?.content || '';
+
+        // Intentar limpiar el formato markdown si existe
+        if (content.startsWith('```json') && content.endsWith('```')) {
+            const jsonContent = content.slice(7, -3).trim(); // Elimina ```json y ```
+            try {
+                // Verificar que sea un JSON válido
+                JSON.parse(jsonContent);
+                return jsonContent;
+            } catch (e) {
+                // Si no es un JSON válido, devolver el contenido original
+                return content;
+            }
+        }
+
+        // Si no tiene formato markdown o la limpieza falló, devolver el contenido original
+        return content;
     }
 
     async streamChat(

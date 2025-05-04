@@ -1,7 +1,8 @@
-import { routes } from '@internal';
-import type { ApiResponse } from '@types';
-import { handleError } from '@utils';
+import 'dotenv/config';
 import express from 'express';
+import { routes } from '../internal';
+import type { ApiResponse } from '../types';
+import { handleError } from '../utils';
 
 const app = express();
 

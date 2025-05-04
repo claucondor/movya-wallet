@@ -14,29 +14,36 @@ IMAGE_NAME=gcr.io/$(PROJECT_ID)/$(SERVICE_NAME):$(GIT_SHA)
 
 # --- Targets ---
 
-.PHONY: setup clean check dev docker deploy list-services
+.PHONY: setup clean build check dev docker deploy list-services
 
 # Installs dependencies using npm ci for consistency
 setup:
 	@echo "[setup] Installing dependencies using npm ci..."
 	@npm ci
 
-# Removes node_modules
+# Removes node_modules and build artifacts
 clean:
-	@echo "[clean] Removing node_modules..."
-	@rm -rf node_modules
+	@echo "[clean] Removing node_modules and dist directory..."
+	@rm -rf node_modules dist
 
-# Placeholder for checks (e.g., linting, testing - add tools if needed)
+# Build TypeScript code
+build:
+	@echo "[build] Compiling TypeScript..."
+	@npm run build
+
+# Run type checking, linting, and tests
 check:
-	@echo "[check] Running checks (add linters/tests as needed)..."
-	# @npm run lint || true
-	# @npm run test || true
+	@echo "[check] Running TypeScript checks..."
+	@npm run type-check
+	@echo "[check] Running linting..."
+	@npm run lint
+	@echo "[check] Running tests..."
+	@npm run test
 
-# Runs the service locally using Node
-# Note: This doesn't use a .env file currently. Add env var loading if needed.
+# Runs the service locally using ts-node for development
 dev:
-	@echo "[run-dev $(SERVICE_NAME)] Running service locally..."
-	@node cmd/server.js
+	@echo "[run-dev $(SERVICE_NAME)] Running service locally with ts-node..."
+	@npm run dev
 
 # Builds the Docker image locally
 docker-build:
@@ -49,7 +56,7 @@ docker: docker-build
 	@docker run --rm -p 8080:8080 $(IMAGE_NAME)
 
 # Builds, pushes the image, and deploys to Cloud Run
-deploy: docker-build
+deploy: build docker-build
 	@echo "[deploy $(SERVICE_NAME)] Deploying to Cloud Run in $(REGION)..."
 	@echo "  Image: $(IMAGE_NAME)"
 	@docker push $(IMAGE_NAME)

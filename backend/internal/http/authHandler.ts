@@ -1,6 +1,6 @@
-import { saveCredentials } from '@firestore';
 import axios from 'axios';
 import { Request, Response } from 'express';
+import { saveCredentials } from '../firestore';
 
 // Your Expo app scheme (from app.json)
 const APP_SCHEME: string = 'exp';
@@ -20,7 +20,7 @@ const GOOGLE_USERINFO_ENDPOINT: string = 'https://www.googleapis.com/oauth2/v3/u
  * - Saves tokens/user info to Firestore.
  * - Redirects back to the Expo app using a deep link.
  */
-async function handleAuthCallback(req: Request, res: Response): Promise<void> {
+async function handleAuthCallback(req: Request, res: Response) {
   const { code, error } = req.query;
 
   if (error) {
@@ -39,7 +39,7 @@ async function handleAuthCallback(req: Request, res: Response): Promise<void> {
   // Check if required environment variables are set
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !BACKEND_CALLBACK_URL) {
     console.error('Missing required Google OAuth environment variables (CLIENT_ID, CLIENT_SECRET, BACKEND_CALLBACK_URL).');
-    return res.status(500).send('Server configuration error.');
+    return res.status(500).send('Server configuration err3or.');
   }
 
   try {

@@ -444,7 +444,14 @@ export default function WalletScreen() {
       )}
       
       <ChatInput
-        onSendMessage={(message) => console.log('Message sent:', message)}
+        onSendMessage={(message) => {
+          console.log('Navigating to chat with message:', message);
+          // Navigate to chat screen with the message as a parameter
+          router.push({ 
+            pathname: '/(app)/chat' as any,
+            params: { initialMessage: message }
+          });
+        }}
       />
     </View>
   );

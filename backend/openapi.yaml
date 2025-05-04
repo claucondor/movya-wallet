@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: Movya Wallet Backend API
   version: 1.0.0
-  description: API for user authentication with Google OAuth.
+  description: API for user authentication and wallet management with AI assistance.
 
 servers:
   # Add your actual server URLs here (e.g., development, production)
@@ -50,14 +50,219 @@ paths:
         '500':
           description: Server error during authentication.
 
+  /agent/chat:
+    post:
+      summary: Chat with AI Wallet Assistant
+      description: Send a message to the AI assistant and get a response with potential wallet actions
+      tags:
+        - AI Assistant
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  description: The user's message to the AI assistant
+                  example: "Send 0.1 ETH to 0x123..."
+                currentState:
+                  type: object
+                  description: The previous state of the conversation (null if starting new)
+                  nullable: true
+                  properties:
+                    action:
+                      type: string
+                      enum: [SEND, CHECK_BALANCE, VIEW_HISTORY, CLARIFY, GREETING, ERROR]
+                    parameters:
+                      type: object
+                      properties:
+                        recipientEmail:
+                          type: string
+                          nullable: true
+                        recipientAddress:
+                          type: string
+                          nullable: true
+                        amount:
+                          type: string
+                          nullable: true
+                        currency:
+                          type: string
+                          nullable: true
+                    confirmationRequired:
+                      type: boolean
+                    confirmationMessage:
+                      type: string
+                      nullable: true
+                    responseMessage:
+                      type: string
+              required:
+                - message
+      responses:
+        '200':
+          description: Successful response from the AI assistant
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  responseMessage:
+                    type: string
+                    description: The AI's response message to display to the user
+                    example: "Sure! I'll help you send ETH. Please confirm the details..."
+                  newState:
+                    type: object
+                    description: The new state to maintain conversation context
+                    properties:
+                      action:
+                        type: string
+                        enum: [SEND, CHECK_BALANCE, VIEW_HISTORY, CLARIFY, GREETING, ERROR]
+                      parameters:
+                        type: object
+                        properties:
+                          recipientEmail:
+                            type: string
+                            nullable: true
+                          recipientAddress:
+                            type: string
+                            nullable: true
+                          amount:
+                            type: string
+                            nullable: true
+                          currency:
+                            type: string
+                            nullable: true
+                      confirmationRequired:
+                        type: boolean
+                      confirmationMessage:
+                        type: string
+                        nullable: true
+                      responseMessage:
+                        type: string
+                  actionDetails:
+                    type: object
+                    nullable: true
+                    description: Details for actions that need to be executed by the frontend
+                    properties:
+                      type:
+                        type: string
+                        enum: [SEND_TRANSACTION, FETCH_BALANCE, FETCH_HISTORY]
+                      recipientAddress:
+                        type: string
+                      recipientEmail:
+                        type: string
+                      amount:
+                        type: string
+                      currency:
+                        type: string
+        '400':
+          description: Invalid request format or parameters
+        '401':
+          description: Unauthorized - Invalid or missing authentication token
+        '500':
+          description: Server error processing the message
+
+  /agent/report_result:
+    post:
+      summary: Report Action Result to AI Assistant
+      description: Sends the structured result of a frontend action (e.g., transaction status, balance fetched) back to the AI assistant to get a natural language response message.
+      tags:
+        - AI Assistant
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actionType:
+                  type: string
+                  enum: [SEND_TRANSACTION, FETCH_BALANCE, FETCH_HISTORY]
+                  description: The type of action whose result is being reported.
+                status:
+                  type: string
+                  enum: [success, failure]
+                  description: Whether the action succeeded or failed.
+                data:
+                  type: object
+                  description: Contains specific details about the result.
+                  properties:
+                    # Properties vary based on actionType and status
+                    transactionHash:
+                      type: string
+                      description: Transaction hash (for successful SEND_TRANSACTION).
+                      example: "0xabcdef..."
+                    amountSent:
+                      type: string
+                      description: Amount sent (for successful SEND_TRANSACTION).
+                      example: "0.1"
+                    currencySent:
+                      type: string
+                      description: Currency sent (for successful SEND_TRANSACTION).
+                      example: "ETH"
+                    recipient:
+                      type: string
+                      description: Recipient address or email (for successful SEND_TRANSACTION).
+                      example: "0x123..."
+                    balance:
+                      type: string
+                      description: Fetched balance string (for successful FETCH_BALANCE).
+                      example: "1.23 ETH"
+                    history:
+                      type: array
+                      description: Array of transaction history objects (for successful FETCH_HISTORY).
+                      items:
+                        type: object
+                        properties:
+                          date: { type: string, format: date-time }
+                          type: { type: string, enum: [sent, received] }
+                          amount: { type: string }
+                          recipientOrSender: { type: string }
+                    errorCode:
+                      type: string
+                      description: Optional error code (for status=failure).
+                    errorMessage:
+                      type: string
+                      description: Error message describing the failure (for status=failure).
+                      example: "Insufficient funds"
+              required:
+                - actionType
+                - status
+                - data
+      responses:
+        '200':
+          description: Successfully processed the result and generated a response message.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  responseMessage:
+                    type: string
+                    description: The natural language message generated by the AI assistant to inform the user about the action result.
+                    example: "Great news! Your transaction was successful."
+        '400':
+          description: Invalid request body format or missing required fields.
+        '401':
+          description: Unauthorized - Invalid or missing authentication token.
+        '500':
+          description: Server error processing the action result.
+
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT # Or however your token is formatted
+      bearerFormat: JWT
       description: JWT token obtained after login/authentication.
 
 tags:
   - name: Authentication
-    description: User login and authentication management. 
+    description: User login and authentication management.
+  - name: AI Assistant
+    description: Interact with the AI wallet assistant for natural language transactions. 
