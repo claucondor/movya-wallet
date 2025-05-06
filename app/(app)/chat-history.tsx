@@ -1,12 +1,12 @@
 import { ThemedText } from '@/components/ThemedText';
 import { useTheme } from '@/hooks/ThemeContext';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ScrollView,
+    Alert,
     StyleSheet,
     TouchableOpacity,
     View
@@ -56,20 +56,15 @@ export default function ChatHistoryScreen() {
             if (storedHistory) {
                 const parsedHistory = JSON.parse(storedHistory);
                 
-                // Check if we have the new format with conversations object
                 if (parsedHistory && parsedHistory.conversations) {
-                    // Get conversations as an array
                     const conversationsArray = Object.values(parsedHistory.conversations) as Conversation[];
                     
-                    // Sort by most recent
                     conversationsArray.sort((a, b) => b.timestamp - a.timestamp);
                     
-                    // Create summaries from the conversations
                     const summaries: ChatSummary[] = conversationsArray.map(conversation => {
                         const messages = conversation.messages;
                         const lastMessage = messages[messages.length - 1];
                         
-                        // Get a snippet of the conversation (first 2 messages or so)
                         const snippetMessages = messages.slice(0, Math.min(2, messages.length));
                         const snippetText = snippetMessages.map(m => 
                             `${m.sender === 'user' ? 'You: ' : 'Assistant: '}${m.text.substring(0, 40)}${m.text.length > 40 ? '...' : ''}`
@@ -84,14 +79,10 @@ export default function ChatHistoryScreen() {
                     });
                     
                     setChatSummaries(summaries.slice(0, MAX_CHATS));
-                    console.log(`[ChatHistoryScreen] Loaded ${summaries.length} conversations`);
                 } else {
-                    // Handle old format (if needed) or just show empty state
-                    console.log('[ChatHistoryScreen] No conversations found in new format');
                     setChatSummaries([]);
                 }
             } else {
-                console.log('[ChatHistoryScreen] No chat history found');
                 setChatSummaries([]);
             }
         } catch (error) {
@@ -100,8 +91,48 @@ export default function ChatHistoryScreen() {
         }
     };
 
+    const deleteConversation = (conversationId: string) => {
+        try {
+            const storedHistory = storage.getString(CHAT_HISTORY_KEY);
+            if (storedHistory) {
+                const parsedHistory = JSON.parse(storedHistory);
+                
+                if (parsedHistory.conversations) {
+                    // Remove the specific conversation
+                    delete parsedHistory.conversations[conversationId];
+                    
+                    // Save the updated history
+                    storage.set(CHAT_HISTORY_KEY, JSON.stringify(parsedHistory));
+                    
+                    // Reload chat summaries
+                    loadChatSummaries();
+                }
+            }
+        } catch (error) {
+            console.error('[ChatHistoryScreen] Failed to delete conversation:', error);
+            Alert.alert('Error', 'Could not delete the conversation');
+        }
+    };
+
+    const confirmDeleteConversation = (conversationId: string) => {
+        Alert.alert(
+            'Delete Conversation',
+            'Are you sure you want to delete this conversation?',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => deleteConversation(conversationId),
+                },
+            ]
+        );
+    };
+
     const startNewChat = (initialMessage?: string) => {
-        // Navigate to chat with or without an initial message
         router.push({
             pathname: '/(app)/chat',
             params: initialMessage ? { initialMessage, from: 'history' } : { from: 'history' }
@@ -110,53 +141,86 @@ export default function ChatHistoryScreen() {
 
     const renderExamplePrompt = ({ item }: { item: string }) => (
         <TouchableOpacity
-            style={[styles.examplePrompt, { backgroundColor: isDark ? 'rgba(37, 45, 74, 0.7)' : 'rgba(232, 234, 246, 0.7)' }]}
+            style={[
+                styles.examplePrompt, 
+                { 
+                    backgroundColor: isDark 
+                        ? 'rgba(58, 90, 255, 0.2)' 
+                        : 'rgba(58, 90, 255, 0.1)' 
+                }
+            ]}
             onPress={() => startNewChat(item)}
         >
-            <Ionicons name="chatbubble-outline" size={20} color={isDark ? '#3A5AFF' : '#3A5AFF'} style={styles.promptIcon} />
+            <MaterialIcons 
+                name="psychology-alt" 
+                size={24} 
+                color={isDark ? '#3A5AFF' : '#3A5AFF'} 
+                style={styles.promptIcon} 
+            />
             <ThemedText style={styles.promptText}>{item}</ThemedText>
         </TouchableOpacity>
     );
 
     const renderChatSummary = ({ item }: { item: ChatSummary }) => {
-        // Format the date in a user-friendly way
         const date = new Date(item.lastMessageTimestamp);
         const now = new Date();
         let dateText;
         
         if (date.toDateString() === now.toDateString()) {
-            // Today - show time
             dateText = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } else if (now.getTime() - date.getTime() < 7 * 24 * 60 * 60 * 1000) {
-            // Within last week - show day of week
             dateText = date.toLocaleDateString([], { weekday: 'short' });
         } else {
-            // Older - show date
             dateText = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
         }
         
         return (
-            <TouchableOpacity
-                style={[styles.chatSummary, { backgroundColor: isDark ? 'rgba(37, 45, 74, 0.7)' : 'rgba(232, 234, 246, 0.7)' }]}
-                onPress={() => router.push({
-                    pathname: '/(app)/chat',
-                    params: { 
-                        conversationId: item.id,
-                        from: 'history'
-                    }
-                })}
-            >
-                <View style={styles.chatInfo}>
-                    <View style={styles.chatHeader}>
-                        <ThemedText type="defaultSemiBold">Movya Assistant</ThemedText>
-                        <ThemedText style={styles.dateText}>{dateText}</ThemedText>
+            <View style={styles.chatSummaryContainer}>
+                <TouchableOpacity
+                    style={[
+                        styles.chatSummary, 
+                        { 
+                            backgroundColor: isDark 
+                                ? 'rgba(58, 90, 255, 0.2)' 
+                                : 'rgba(58, 90, 255, 0.1)' 
+                        }
+                    ]}
+                    onPress={() => router.push({
+                        pathname: '/(app)/chat',
+                        params: { 
+                            conversationId: item.id,
+                            from: 'history'
+                        }
+                    })}
+                >
+                    <View style={styles.chatInfo}>
+                        <View style={styles.chatHeader}>
+                            <ThemedText type="defaultSemiBold" style={styles.assistantName}>Movya Assistant</ThemedText>
+                            <ThemedText style={styles.dateText}>{dateText}</ThemedText>
+                        </View>
+                        <ThemedText numberOfLines={2} style={styles.snippetText}>
+                            {item.snippetText}
+                        </ThemedText>
                     </View>
-                    <ThemedText numberOfLines={2} style={styles.snippetText}>
-                        {item.snippetText}
-                    </ThemedText>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={isDark ? '#9BA1A6' : '#6C7A9C'} />
-            </TouchableOpacity>
+                    <View style={styles.chatActions}>
+                        <TouchableOpacity 
+                            style={styles.deleteButton}
+                            onPress={() => confirmDeleteConversation(item.id)}
+                        >
+                            <MaterialIcons 
+                                name="delete-sweep" 
+                                size={24} 
+                                color={isDark ? '#FF4D4D' : '#FF4D4D'} 
+                            />
+                        </TouchableOpacity>
+                        <Ionicons 
+                            name="chevron-forward" 
+                            size={20} 
+                            color={isDark ? '#9BA1A6' : '#6C7A9C'} 
+                        />
+                    </View>
+                </TouchableOpacity>
+            </View>
         );
     };
 
@@ -184,11 +248,9 @@ export default function ChatHistoryScreen() {
                     <TouchableOpacity 
                         style={styles.backButton}
                         onPress={() => {
-                            // Try to go back to the wallet screen
                             if (router.canGoBack()) {
                                 router.back();
                             } else {
-                                // Fallback to navigating to wallet screen directly
                                 router.replace('/(app)/wallet');
                             }
                         }}
@@ -199,13 +261,25 @@ export default function ChatHistoryScreen() {
                     <View style={styles.headerRight} />
                 </View>
                 
-                <ScrollView 
-                    style={styles.content}
-                    contentContainerStyle={styles.scrollViewContent}
-                >
+                <View style={styles.content}>
                     {chatSummaries.length > 0 ? (
                         <>
-                            <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, { color: '#FFFFFF' }]}>Recent Conversations</ThemedText>
+                            <ThemedText 
+                                type="defaultSemiBold" 
+                                style={[
+                                    styles.sectionTitle, 
+                                    { 
+                                        color: '#FFFFFF', 
+                                        backgroundColor: 'rgba(58, 90, 255, 0.2)',
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 8,
+                                        borderRadius: 8,
+                                        alignSelf: 'flex-start'
+                                    }
+                                ]}
+                            >
+                                Recent Conversations
+                            </ThemedText>
                             {chatSummaries.map(chat => (
                                 <View key={chat.id}>
                                     {renderChatSummary({ item: chat })}
@@ -214,11 +288,35 @@ export default function ChatHistoryScreen() {
                         </>
                     ) : (
                         <View style={styles.noChatsContainer}>
-                            <ThemedText style={[styles.noChatsText, { color: '#FFFFFF' }]}>No recent conversations</ThemedText>
+                            <MaterialIcons 
+                                name="chat-bubble-outline" 
+                                size={64} 
+                                color="rgba(255,255,255,0.3)" 
+                                style={styles.noChatsIcon}
+                            />
+                            <ThemedText style={[styles.noChatsText, { color: '#FFFFFF' }]}>
+                                No recent conversations
+                            </ThemedText>
                         </View>
                     )}
                     
-                    <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, { color: '#FFFFFF' }]}>Try asking</ThemedText>
+                    <ThemedText 
+                        type="defaultSemiBold" 
+                        style={[
+                            styles.sectionTitle, 
+                            { 
+                                color: '#FFFFFF', 
+                                backgroundColor: 'rgba(58, 90, 255, 0.2)',
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 8,
+                                alignSelf: 'flex-start',
+                                marginTop: 20
+                            }
+                        ]}
+                    >
+                        Try asking
+                    </ThemedText>
                     {EXAMPLE_PROMPTS.map((prompt, index) => (
                         <View key={`prompt-${index}`}>
                             {renderExamplePrompt({ item: prompt })}
@@ -226,13 +324,33 @@ export default function ChatHistoryScreen() {
                     ))}
                     
                     <TouchableOpacity
-                        style={[styles.newChatButton, { backgroundColor: '#3A5AFF' }]}
+                        style={[
+                            styles.newChatButton, 
+                            { 
+                                backgroundColor: 'rgba(58, 90, 255, 0.8)', 
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }
+                        ]}
                         onPress={() => startNewChat()}
                     >
-                        <Ionicons name="add" size={20} color="#FFFFFF" style={styles.newChatIcon} />
-                        <ThemedText style={styles.newChatText} lightColor="#FFFFFF" darkColor="#FFFFFF">New Chat</ThemedText>
+                        <MaterialIcons 
+                            name="add-comment" 
+                            size={24} 
+                            color="#FFFFFF" 
+                            style={styles.newChatIcon} 
+                        />
+                        <ThemedText 
+                            style={[
+                                styles.newChatText, 
+                                { color: '#FFFFFF', marginLeft: 8 }
+                            ]}
+                        >
+                            New Conversation
+                        </ThemedText>
                     </TouchableOpacity>
-                </ScrollView>
+                </View>
             </SafeAreaView>
         </View>
     );
@@ -267,19 +385,18 @@ const styles = StyleSheet.create({
         fontSize: 17,
     },
     headerRight: {
-        width: 40, // For balance with the back button
+        width: 40,
     },
     content: {
         flex: 1,
         padding: 16,
     },
-    scrollViewContent: {
-        paddingBottom: 40,
-    },
     sectionTitle: {
-        marginTop: 20,
         marginBottom: 12,
         fontSize: 16,
+    },
+    chatSummaryContainer: {
+        marginBottom: 12,
     },
     chatSummary: {
         flexDirection: 'row',
@@ -287,15 +404,18 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         padding: 16,
         borderRadius: 12,
-        marginBottom: 12,
     },
     chatInfo: {
         flex: 1,
+        marginRight: 12,
     },
     chatHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginBottom: 6,
+    },
+    assistantName: {
+        color: '#FFFFFF',
     },
     dateText: {
         fontSize: 12,
@@ -305,13 +425,24 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: 'rgba(255,255,255,0.8)',
     },
+    chatActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    deleteButton: {
+        marginRight: 12,
+    },
     noChatsContainer: {
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
     },
+    noChatsIcon: {
+        marginBottom: 16,
+    },
     noChatsText: {
         opacity: 0.5,
+        fontSize: 16,
     },
     examplePrompt: {
         flexDirection: 'row',
@@ -328,9 +459,6 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
     },
     newChatButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
         padding: 16,
         borderRadius: 12,
         marginTop: 20,
