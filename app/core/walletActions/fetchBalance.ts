@@ -54,7 +54,7 @@ export async function fetchAvaxBalance(): Promise<WalletActionResult> {
     // 7. Reportar el resultado al agente para obtener una respuesta natural
     return {
       success: true,
-      responseMessage: `Tu balance actual es ${balanceDisplay} AVAX en la red ${avalancheFuji.name}`,
+      responseMessage: "",
       data: actionResult
     };
   } catch (error: any) {
@@ -72,7 +72,7 @@ export async function fetchAvaxBalance(): Promise<WalletActionResult> {
 
     return {
       success: false,
-      responseMessage: `No pude consultar tu balance: ${error.message || 'Error desconocido'}`,
+      responseMessage: "",
       data: actionResult
     };
   }

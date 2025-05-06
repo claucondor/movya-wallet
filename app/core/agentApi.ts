@@ -67,18 +67,27 @@ export const sendMessageToAgent = async (message: string, currentState: AIRespon
  */
 export const reportActionResult = async (resultData: ActionResultInput): Promise<{ responseMessage: string }> => {
     const token = storage.getString('userToken');
-    if (!token) {
-        throw new Error('Authentication token not found.');
-    }
+    // Comentado para permitir llamadas sin token por ahora
+    // if (!token) {
+    //     throw new Error('Authentication token not found.');
+    // }
 
     console.log(`[agentApi] Reporting action result to ${BACKEND_URL}/agent/report_result:`, resultData);
 
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+
+    // Añadir el token solo si existe
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    } else {
+        console.warn('[agentApi] No authentication token found. Proceeding without it.');
+    }
+
     const response = await fetch(`${BACKEND_URL}/agent/report_result`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(resultData),
     });
 

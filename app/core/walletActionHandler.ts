@@ -89,7 +89,19 @@ export async function handleWalletAction(
     // Manejar diferentes tipos de acciones
     switch (actionType) {
       case 'FETCH_BALANCE':
-        return await fetchAvaxBalance();
+        const result = await fetchAvaxBalance();
+        
+        // Si no hay mensaje de respuesta (debería venir de la IA), agregar un fallback
+        if (!result.responseMessage && result.success && result.data) {
+          // Proporcionar un mensaje por defecto solo como fallback
+          const balance = result.data.data.balance || 'desconocido';
+          result.responseMessage = `Balance actual: ${balance}`;
+        } else if (!result.responseMessage && !result.success) {
+          // Mensaje de error por defecto como fallback
+          result.responseMessage = "No se pudo obtener el balance en este momento.";
+        }
+        
+        return result;
       
       case 'SEND_TRANSACTION':
         // Aquí se implementará en el futuro
@@ -108,7 +120,7 @@ export async function handleWalletAction(
     // Retornar un formato consistente en caso de error
     return {
       success: false,
-      responseMessage: `Lo siento, hubo un problema al procesar tu solicitud: ${error.message || 'Error desconocido'}`,
+      responseMessage: `Error al procesar la solicitud.`, // Mensaje genérico, la IA proporcionará uno mejor
     };
   }
 }

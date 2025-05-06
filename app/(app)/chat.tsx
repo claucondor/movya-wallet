@@ -165,11 +165,10 @@ export default function ChatScreen() {
         if (!actionDetails || !actionDetails.type) return;
 
         setIsLoading(true);
-        addMessage(`🤖 Procesando: ${actionDetails.type}...`, 'agent');
         console.log('[ChatScreen] Handling action:', actionDetails);
 
         try {
-            // Usar nuestro nuevo manejador modular de acciones del wallet
+            // Usar nuestro manejador modular de acciones del wallet
             const result = await handleWalletAction(
                 actionDetails.type,
                 {
@@ -189,18 +188,18 @@ export default function ChatScreen() {
                     addMessage(aiResponseMessage, 'agent');
                 } catch (reportError: any) {
                     console.error('[ChatScreen] Error al reportar resultado al agente:', reportError);
-                    // Si falla, usar el mensaje de respuesta predeterminado
+                    // Si falla, usar el mensaje de respuesta del resultado de la acción
                     addMessage(result.responseMessage, 'agent');
                 }
             } else {
-                // Si no hay datos para reportar o la acción falló, usar el mensaje predeterminado
+                // Si no hay datos para reportar o la acción falló, usamos el mensaje del resultado
                 addMessage(result.responseMessage, 'agent');
             }
             
         } catch (error: any) {
             console.error('[ChatScreen] Action handling error:', error);
-            // Mostrar un mensaje de error amigable para el usuario
-            addMessage(`Lo siento, algo salió mal: ${error.message || 'Error desconocido'}`, 'agent');
+            // Mensaje de error genérico sin hardcodear información específica
+            addMessage(`Error al procesar la acción solicitada. Por favor, inténtalo más tarde.`, 'agent');
         } finally {
             setIsLoading(false);
         }
