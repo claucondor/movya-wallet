@@ -64,13 +64,14 @@
       "googleOAuth": {
         "androidClientId": "466947410626-20tp1th3rkkcu3nkqvij8d3271cm9496.apps.googleusercontent.com",
         "webClientId": "466947410626-1g7eikrjel1qus27p27s79qsk72bhgko.apps.googleusercontent.com"
-      }
+      },
+      "backendUrl": "https://auth-callback-backend-466947410626.us-central1.run.app"
     },
     "owner": "oydual3-org",
     "updates": {
       "url": "https://u.expo.dev/3a77727f-bb1c-4cf3-be70-426deef98387"
     },
     "runtimeVersion": "1.0.0"
-    }
   }
+}
 

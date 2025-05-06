@@ -44,7 +44,6 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
 
 // AI Agent routes
 routes.post('/agent/chat', 
-    authMiddleware,           // Require authentication
     express.json(),          // Parse JSON body
     chatWithAgent            // Handle the chat request
 );

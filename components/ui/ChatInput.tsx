@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useTheme } from '@/hooks/ThemeContext';
+import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -41,6 +42,10 @@ export default function ChatInput({ onSendMessage, isLoading = false }: ChatInpu
       setMessage('');
     }
   };
+  
+  const navigateToChatHistory = () => {
+    router.push('/(app)/chat-history' as any);
+  };
 
   return (
     <ThemedView
@@ -53,12 +58,14 @@ export default function ChatInput({ onSendMessage, isLoading = false }: ChatInpu
       ]}
     >
       <View style={styles.inputContainer}>
-        <Animated.View style={{ transform: [{ translateY: floatAnim }] }}>
-          <Image
-            source={require('@/assets/logo/logo@HD.png')}
-            style={styles.logo}
-          />
-        </Animated.View>
+        <TouchableOpacity onPress={navigateToChatHistory}>
+          <Animated.View style={{ transform: [{ translateY: floatAnim }] }}>
+            <Image
+              source={require('@/assets/logo/logo@HD.png')}
+              style={styles.logo}
+            />
+          </Animated.View>
+        </TouchableOpacity>
         <TextInput
           style={[
             styles.input,

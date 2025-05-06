@@ -58,4 +58,10 @@ export interface ChatMessage {
     sender: 'user' | 'agent';
     timestamp: number;
     actionRequired?: AgentServiceResponse['actionDetails'];
+    conversationId?: string;
+}
+
+export interface SearchParams {
+    conversationId?: string | string[];
+    from?: string;
 } 
