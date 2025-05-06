@@ -47,9 +47,13 @@ export default function ChatScreen() {
     const loadChatHistory = useCallback(() => {
         try {
             const storedHistory = storage.getString(CHAT_HISTORY_KEY);
+            console.log('[ChatScreen] Stored Chat History:', storedHistory);
+            
             if (storedHistory) {
                 const parsedHistory = JSON.parse(storedHistory) || {};
-                console.log('[ChatScreen] Loaded chat history');
+                console.log('[ChatScreen] Parsed Chat History:', {
+                    conversationCount: Object.keys(parsedHistory.conversations || {}).length
+                });
                 
                 // Extract conversations as an array and sort by timestamp (newest first)
                 const conversationsArray = Object.values(parsedHistory.conversations || {}) as Array<{
@@ -75,26 +79,34 @@ export default function ChatScreen() {
                 } 
                 // If we have an initial message, start a new conversation
                 else if (initialMessage) {
-                    setCurrentConversationId(`conversation-${Date.now()}`);
+                    const newConversationId = `conversation-${Date.now()}`;
+                    setCurrentConversationId(newConversationId);
+                    console.log(`[ChatScreen] Started new conversation with initial message: ${newConversationId}`);
                 }
                 // Otherwise, load the most recent conversation if available
                 else if (conversationsArray.length > 0) {
-                    setMessages(conversationsArray[0].messages);
-                    setCurrentConversationId(conversationsArray[0].id);
-                    console.log(`[ChatScreen] Loaded most recent conversation: ${conversationsArray[0].id}`);
+                    const mostRecentConversation = conversationsArray[0];
+                    setMessages(mostRecentConversation.messages);
+                    setCurrentConversationId(mostRecentConversation.id);
+                    console.log(`[ChatScreen] Loaded most recent conversation: ${mostRecentConversation.id}`);
                 } else {
                     // No conversations yet, start a new one
-                    setCurrentConversationId(`conversation-${Date.now()}`);
+                    const newConversationId = `conversation-${Date.now()}`;
+                    setCurrentConversationId(newConversationId);
+                    console.log(`[ChatScreen] No conversations found, started new: ${newConversationId}`);
                 }
             } else {
                 // No stored history at all, start a new conversation
-                setCurrentConversationId(`conversation-${Date.now()}`);
-                console.log('[ChatScreen] No chat history found, starting new conversation');
+                const newConversationId = `conversation-${Date.now()}`;
+                setCurrentConversationId(newConversationId);
+                console.log(`[ChatScreen] No chat history found, started new: ${newConversationId}`);
             }
         } catch (error) {
             console.error('[ChatScreen] Failed to load chat history:', error);
             // Ensure we have a conversation ID even if loading failed
-            setCurrentConversationId(`conversation-${Date.now()}`);
+            const newConversationId = `conversation-${Date.now()}`;
+            setCurrentConversationId(newConversationId);
+            console.log(`[ChatScreen] Error loading history, started new: ${newConversationId}`);
         }
     }, [conversationIdParam, initialMessage]);
 
@@ -109,12 +121,22 @@ export default function ChatScreen() {
                 chatHistory.conversations = {};
             }
             
+            // Limit message count per conversation
+            const limitedMessages = updatedMessages.slice(-MAX_MESSAGES_PER_CONVERSATION);
+            
             // Update the current conversation
             chatHistory.conversations[currentConversationId] = {
                 id: currentConversationId,
                 timestamp: Date.now(),
-                messages: updatedMessages
+                messages: limitedMessages
             };
+            
+            // Detailed logging
+            console.log('[ChatScreen] Saving Chat History:', {
+                conversationId: currentConversationId,
+                messageCount: limitedMessages.length,
+                totalConversations: Object.keys(chatHistory.conversations).length
+            });
             
             // Limit to MAX_CHATS conversations (keeping the most recent ones)
             const conversationIds = Object.keys(chatHistory.conversations);
@@ -135,7 +157,7 @@ export default function ChatScreen() {
             
             // Save updated history to storage
             storage.set(CHAT_HISTORY_KEY, JSON.stringify(chatHistory));
-            console.log(`[ChatScreen] Saved conversation ${currentConversationId} with ${updatedMessages.length} messages`);
+            console.log(`[ChatScreen] Saved conversation ${currentConversationId} with ${limitedMessages.length} messages`);
         } catch (error) {
             console.error('[ChatScreen] Failed to save chat history:', error);
         }

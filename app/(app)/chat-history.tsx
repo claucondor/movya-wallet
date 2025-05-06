@@ -248,11 +248,8 @@ export default function ChatHistoryScreen() {
                     <TouchableOpacity 
                         style={styles.backButton}
                         onPress={() => {
-                            if (router.canGoBack()) {
-                                router.back();
-                            } else {
-                                router.replace('/(app)/wallet');
-                            }
+                            // Explicitly navigate to wallet screen
+                            router.replace('/(app)/wallet');
                         }}
                     >
                         <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
