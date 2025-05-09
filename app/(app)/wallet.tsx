@@ -7,7 +7,7 @@ import { ResizeMode, Video } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Clipboard, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import 'react-native-get-random-values';
 import 'react-native-reanimated';
 import { createPublicClient, formatEther, http } from 'viem';
@@ -52,6 +52,8 @@ export default function WalletScreen() {
     amount: "0",
     value: "$0.00"
   }]);
+
+  const [isCopied, setIsCopied] = useState(false);
 
   const isDark = colorScheme === 'dark';
 
@@ -184,6 +186,21 @@ export default function WalletScreen() {
     setCurrentView('main');
   };
 
+  const copyWalletAddress = () => {
+    if (walletAddress) {
+      // Use React Native's Clipboard API directly
+      Clipboard.setString(walletAddress);
+      
+      // Show copied feedback
+      setIsCopied(true);
+      
+      // Reset copied state after 2 seconds
+      setTimeout(() => {
+        setIsCopied(false);
+      }, 2000);
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA', justifyContent: 'center', alignItems: 'center' }]}>
@@ -215,7 +232,48 @@ export default function WalletScreen() {
         return (
           <ActionView title={currentView === 'receive' ? "Receive Crypto" : "Deposit Crypto"} onBack={handleBack}>
             <ThemedText style={{ marginBottom: 10 }}>Your Wallet Address:</ThemedText>
-            <ThemedText selectable type="defaultSemiBold" style={{ marginBottom: 20 }}>{walletAddress ?? 'Error loading address'}</ThemedText>
+            <TouchableOpacity 
+              onPress={copyWalletAddress} 
+              style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}
+            >
+              <Image
+                source={require('@/assets/logo/logo@SD.png')}
+                style={{width: 16, height: 16, marginRight: 8}}
+              />
+              <ThemedText
+                type="defaultSemiBold"
+                style={[styles.walletAddress, {
+                  textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 3,
+                }]}
+                lightColor="#FFFFFF"
+                darkColor="#FFFFFF"
+              >
+                {walletAddress 
+                  ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+                  : 'Loading address...'}
+              </ThemedText>
+              {isCopied && (
+                <View style={{
+                  marginLeft: 8,
+                  backgroundColor: 'rgba(0,255,0,0.2)', 
+                  paddingHorizontal: 8, 
+                  paddingVertical: 4, 
+                  borderRadius: 12
+                }}>
+                  <ThemedText 
+                    type="default" 
+                    style={{
+                      color: 'green', 
+                      fontSize: 10
+                    }}
+                  >
+                    Copied!
+                  </ThemedText>
+                </View>
+              )}
+            </TouchableOpacity>
             <ThemedText>(QR Code Placeholder)</ThemedText>
           </ActionView>
         );
@@ -276,7 +334,10 @@ export default function WalletScreen() {
             </ThemedText>
 
             <View style={{flexDirection: 'column', alignItems: 'center', marginTop: 16}}>
-              <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}>
+              <TouchableOpacity 
+                onPress={copyWalletAddress} 
+                style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}
+              >
                 <Image
                   source={require('@/assets/logo/logo@SD.png')}
                   style={{width: 16, height: 16, marginRight: 8}}
@@ -295,7 +356,26 @@ export default function WalletScreen() {
                     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
                     : 'Loading address...'}
                 </ThemedText>
-              </View>
+                {isCopied && (
+                  <View style={{
+                    marginLeft: 8,
+                    backgroundColor: 'rgba(0,255,0,0.2)', 
+                    paddingHorizontal: 8, 
+                    paddingVertical: 4, 
+                    borderRadius: 12
+                  }}>
+                    <ThemedText 
+                      type="default" 
+                      style={{
+                        color: 'green', 
+                        fontSize: 10
+                      }}
+                    >
+                      Copied!
+                    </ThemedText>
+                  </View>
+                )}
+              </TouchableOpacity>
               <TouchableOpacity 
                 onPress={switchNetwork} 
                 style={[
