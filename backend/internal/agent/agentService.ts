@@ -1,6 +1,7 @@
 import { ActionResultSystemPrompt } from '../openrouter/ActionResultSystemPrompt';
 import { WalletAssistantSystemPrompt } from '../openrouter/prompts';
 import { OpenRouterService } from '../openrouter/service';
+import RecipientResolver from './recipientResolver';
 
 // Define interfaces for clarity
 export interface AIResponse {
@@ -58,12 +59,13 @@ export class AgentService {
      *
      * @param {string} currentUserMessage - The latest message from the user.
      * @param {AIResponse | null} currentState - The state object returned by the AI in the previous turn.
+     * @param {string} userId - The ID of the user for resolving contacts and recipients.
      * @returns {Promise<AgentServiceResponse>}
      *          - responseMessage: The message to display to the user.
      *          - newState: The state object to be stored by the frontend for the next turn.
      *          - actionDetails: If an action needs frontend execution (e.g., SEND), this contains the parameters.
      */
-    async processMessage(currentUserMessage: string, currentState: AIResponse | null): Promise<AgentServiceResponse> {
+    async processMessage(currentUserMessage: string, currentState: AIResponse | null, userId: string): Promise<AgentServiceResponse> {
         // Restore the check for empty messages *before* calling the AI
         if (!currentUserMessage) {
             console.log('Empty message received, returning predefined response.');
@@ -89,6 +91,12 @@ export class AgentService {
             const aiResponse: AIResponse = JSON.parse(responseJsonString);
             console.log('AI Raw Response:', responseJsonString);
             console.log('AI Parsed Response:', aiResponse);
+
+            // Si la acción es un envío y no requiere confirmación (listo para procesar)
+            if (aiResponse.action === 'SEND' && !aiResponse.confirmationRequired && aiResponse.parameters) {
+                // Resolver nickname/email a dirección de wallet si es necesario
+                await this.resolveRecipient(aiResponse, userId);
+            }
 
             let actionDetails: AgentServiceResponse['actionDetails'] = null;
 
@@ -125,6 +133,56 @@ export class AgentService {
                 newState: null,
                 actionDetails: null
             };
+        }
+    }
+
+    /**
+     * Resuelve el destinatario (nickname o email) a una dirección de wallet
+     * @param aiResponse - Respuesta del AI para modificar
+     * @param userId - ID del usuario para buscar contactos
+     */
+    private async resolveRecipient(aiResponse: AIResponse, userId: string): Promise<void> {
+        if (!aiResponse.parameters) return;
+
+        const recipientEmail = aiResponse.parameters.recipientEmail;
+        const recipientAddress = aiResponse.parameters.recipientAddress;
+
+        // Si ya tenemos una dirección y no un email, no hay nada que resolver
+        if (recipientAddress && !recipientEmail) return;
+
+        // Si tenemos un email, intentamos resolverlo a una dirección
+        if (recipientEmail) {
+            const resolved = await RecipientResolver.resolveRecipient(userId, recipientEmail);
+            
+            if (resolved.address) {
+                // Si se pudo resolver, actualizamos los parámetros de la respuesta
+                aiResponse.parameters.recipientAddress = resolved.address;
+                // Mantenemos el email para referencia en los mensajes al usuario
+            }
+        } 
+        // Si no tenemos ni dirección ni email (podría ser un nickname)
+        else if (!recipientAddress && !recipientEmail) {
+            // Buscamos en el mensaje del usuario alguna palabra que pueda ser un destinatario
+            // Nota: Esto es una simplificación, en un caso real se necesitaría un análisis más sofisticado
+            const words = aiResponse.responseMessage.split(/\s+/);
+            
+            for (const word of words) {
+                // Ignorar palabras muy cortas y palabras comunes
+                if (word.length < 3) continue;
+                
+                const resolved = await RecipientResolver.resolveRecipient(userId, word);
+                
+                if (resolved.address) {
+                    aiResponse.parameters.recipientAddress = resolved.address;
+                    
+                    // Si era un nickname, añadimos un mensaje adicional
+                    if (resolved.type === 'nickname') {
+                        aiResponse.parameters.recipientEmail = resolved.originalValue; // Guardamos el nickname original
+                    }
+                    
+                    break; // Terminamos la búsqueda si encontramos una coincidencia
+                }
+            }
         }
     }
 
