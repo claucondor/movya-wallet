@@ -1,0 +1,113 @@
+import FirestoreService from '../firestore/firestoreService';
+
+// Collection names
+const USER_CREDENTIALS_COLLECTION = 'user_credentials';
+const USERS_COLLECTION = 'users';
+
+// Interfaces para tipado fuerte
+export interface UserCredentials {
+  accessToken: string;
+  refreshToken?: string;
+  idToken?: string;
+  googleUserId: string;
+  email: string;
+}
+
+export interface UserProfile {
+  email?: string;
+  name?: string;
+  googleUserId?: string;
+  lastFaucetUse?: Date;
+  faucetCount?: number;
+  walletAddress?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  picture?: string;
+}
+
+/**
+ * Servicio de gestión de usuarios
+ */
+class UserService {
+  /**
+   * Guardar credenciales de usuario después de la autenticación
+   * @param userId - ID de usuario de Google
+   * @param credentials - Credenciales de autenticación
+   */
+  static async saveCredentials(userId: string, credentials: UserCredentials): Promise<void> {
+    await FirestoreService.setDocument(
+      USER_CREDENTIALS_COLLECTION, 
+      userId, 
+      credentials
+    );
+  }
+
+  /**
+   * Obtener perfil de usuario
+   * @param userId - ID de usuario de Google
+   * @returns Perfil de usuario o null
+   */
+  static async getUserProfile(userId: string): Promise<UserProfile | null> {
+    return FirestoreService.getDocument<UserProfile>(USERS_COLLECTION, userId);
+  }
+
+  /**
+   * Crear o actualizar perfil de usuario
+   * @param userId - ID de usuario de Google
+   * @param userData - Datos de perfil de usuario
+   */
+  static async upsertUserProfile(userId: string, userData: UserProfile): Promise<void> {
+    const existingProfile = await this.getUserProfile(userId);
+    
+    const profileToSave = {
+      ...userData,
+      updatedAt: new Date(),
+      ...(existingProfile ? {} : { createdAt: new Date() })
+    };
+
+    await FirestoreService.setDocument(
+      USERS_COLLECTION, 
+      userId, 
+      profileToSave
+    );
+  }
+
+  /**
+   * Verificar si un usuario puede usar el faucet
+   * @param userId - ID de usuario de Google
+   * @param cooldownHours - Horas entre usos del faucet
+   * @returns Booleano que indica si puede usar el faucet
+   */
+  static async canUseFaucet(userId: string, cooldownHours: number = 24): Promise<boolean> {
+    const userData = await this.getUserProfile(userId);
+    
+    // Si no existe el usuario, no puede usar el faucet
+    if (!userData) return false;
+
+    // Si nunca ha usado el faucet, puede usarlo
+    if (!userData.lastFaucetUse) return true;
+
+    // Verificar tiempo transcurrido desde el último uso
+    const lastUse = userData.lastFaucetUse;
+    const now = new Date();
+    const timeSinceLastUse = now.getTime() - lastUse.getTime();
+    
+    return timeSinceLastUse >= cooldownHours * 60 * 60 * 1000;
+  }
+
+  /**
+   * Actualizar uso del faucet
+   * @param userId - ID de usuario de Google
+   */
+  static async updateFaucetUsage(userId: string): Promise<void> {
+    const userData = await this.getUserProfile(userId);
+    const currentFaucetCount = userData?.faucetCount ?? 0;
+
+    await this.upsertUserProfile(userId, {
+      lastFaucetUse: new Date(),
+      faucetCount: currentFaucetCount + 1
+    });
+  }
+}
+
+export default UserService; 

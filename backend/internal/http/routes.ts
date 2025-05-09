@@ -1,6 +1,7 @@
 import express, { NextFunction, Request, Response } from 'express';
 import { chatWithAgent } from './agentController';
 import { handleAuthCallback } from './authHandler'; // Assuming authHandler will be migrated and export handleAuthCallback
+import { faucetHandler } from './faucetHandler';
 import { reportAgentResult } from './resultController'; // Import the new controller
 
 const routes = express.Router();
@@ -54,6 +55,9 @@ routes.post('/agent/report_result',
     express.json(),         // Parse JSON body
     reportAgentResult        // Handle the result report
 );
+
+// Ruta de faucet
+routes.post('/faucet', faucetHandler);
 
 // --- Default/Health Check Route (already in server.js, but can be here too) ---
 routes.get('/', (req: Request, res: Response) => {

@@ -253,6 +253,96 @@ paths:
         '500':
           description: Server error processing the action result.
 
+  # Añadir la especificación del endpoint de faucet
+  /faucet:
+    post:
+      summary: Request Faucet Funds
+      description: Request a small amount of native tokens (AVAX) for testing purposes
+      tags:
+        - Blockchain
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                network:
+                  type: string
+                  description: Blockchain network (fuji or mainnet)
+                  enum: ['fuji', 'mainnet']
+                address:
+                  type: string
+                  description: Recipient wallet address
+                  example: '0x1234...'
+                userId:
+                  type: string
+                  description: User ID from authentication
+              required:
+                - network
+                - address
+                - userId
+      responses:
+        '200':
+          description: Faucet funds successfully sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  txHash:
+                    type: string
+                    description: Transaction hash of the faucet transfer
+                    example: '0x...'
+                  message:
+                    type: string
+                    description: Success message
+                    example: "Faucet funds successfully sent"
+        '400':
+          description: Invalid request (e.g., balance too high)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+                    example: "Address balance is too high to use faucet"
+                  currentBalance:
+                    type: string
+                    description: Current balance of the address
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+                    example: "User not found"
+        '429':
+          description: Faucet cooldown period not elapsed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+                    example: "Faucet can only be used once every 24 hours"
+                  lastFaucetUse:
+                    type: string
+                    format: date-time
+                    description: Timestamp of last faucet use
+        '500':
+          description: Server error processing the faucet request
+
 components:
   securitySchemes:
     BearerAuth:
@@ -265,4 +355,6 @@ tags:
   - name: Authentication
     description: User login and authentication management.
   - name: AI Assistant
-    description: Interact with the AI wallet assistant for natural language transactions. 
+    description: Interact with the AI wallet assistant for natural language transactions.
+  - name: Blockchain
+    description: Blockchain-related operations like faucet requests 

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { Request, Response } from 'express';
-import { saveCredentials } from '../firestore';
+import UserService from '../users/userService';
 
 // Your Expo app scheme (from app.json)
 const APP_SCHEME: string = 'exp';
@@ -39,7 +39,7 @@ async function handleAuthCallback(req: Request, res: Response) {
   // Check if required environment variables are set
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !BACKEND_CALLBACK_URL) {
     console.error('Missing required Google OAuth environment variables (CLIENT_ID, CLIENT_SECRET, BACKEND_CALLBACK_URL).');
-    return res.status(500).send('Server configuration err3or.');
+    return res.status(500).send('Server configuration error.');
   }
 
   try {
@@ -58,19 +58,13 @@ async function handleAuthCallback(req: Request, res: Response) {
       }
     });
 
-    // Log the entire token response for debugging
-    console.log('Full token response from Google:', JSON.stringify(tokenResponse.data, null, 2));
-
     const { access_token, refresh_token, id_token } = tokenResponse.data as { access_token: string, refresh_token?: string, id_token?: string };
 
     if (!access_token) {
       throw new Error('Did not receive access_token from Google.');
     }
 
-    console.log('Tokens received successfully.');
-
     // --- 2. Fetch User Info from Google ---
-    console.log('Fetching user info from Google...');
     const userInfoResponse = await axios.get(GOOGLE_USERINFO_ENDPOINT, {
       headers: {
         Authorization: `Bearer ${access_token}`,
@@ -84,36 +78,30 @@ async function handleAuthCallback(req: Request, res: Response) {
     if (!userId) {
       throw new Error('Could not get Google User ID (sub) from userinfo endpoint.');
     }
-    console.log(`User Info received: ID=${userId}, Email=${userEmail}`);
 
-    // --- 3. Prepare and Save Credentials to Firestore ---
-    const credentialsToSave: any = { // Use a more specific type later when firestoreService is typed
+    // --- 3. Save Credentials and User Profile ---
+    const credentialsToSave = {
       accessToken: access_token,
-      idToken: id_token,           // Store ID token if needed
+      idToken: id_token,
       googleUserId: userId,
       email: userEmail,
-      lastUpdated: new Date(),
-      // Add any other relevant data from userInfo (name, picture, etc.)
-      name: userInfo.name,
-      picture: userInfo.picture,
+      ...(refresh_token ? { refreshToken: refresh_token } : {})
     };
 
-    // **Only add refreshToken if it exists**
-    if (refresh_token) {
-      credentialsToSave.refreshToken = refresh_token;
-      console.log('Refresh token received, adding to save data.');
-    } else {
-      console.log('Warning: No refresh token received from Google. This may cause Firestore save errors.');
-      // To handle undefined properties, you could enable ignoreUndefinedProperties in Firestore setup
-      // If not already configured, consider adding it in your Firestore initialization elsewhere.
-    }
+    // Save credentials
+    await UserService.saveCredentials(userId, credentialsToSave);
 
-    console.log(`Saving credentials for user ID: ${userId}`);
-    await saveCredentials(userId, credentialsToSave); // Use Google User ID as the Firestore document ID
+    // Upsert user profile
+    await UserService.upsertUserProfile(userId, {
+      email: userEmail,
+      name: userInfo.name,
+      googleUserId: userId,
+      // Optionally add other profile info
+      picture: userInfo.picture
+    });
 
     // --- 4. Build Deep Link and Redirect ---
     const deepLinkUrl = `${APP_SCHEME}://auth-success?userId=${encodeURIComponent(userId)}`;
-    console.log(`Redirecting to deep link: ${deepLinkUrl}`);
     res.redirect(302, deepLinkUrl);
 
   } catch (err: any) {

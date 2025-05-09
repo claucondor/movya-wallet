@@ -10,6 +10,118 @@ const USER_CREDENTIALS_COLLECTION = 'user_credentials'; // Renamed for clarity
 const USERS_COLLECTION = 'users'; // Collection for user data
 
 /**
+ * Generic Firestore Service for CRUD operations
+ */
+class FirestoreService {
+  /**
+   * Get a document from a specific collection
+   * @param collection - Collection name
+   * @param documentId - Document ID
+   * @returns Document data or null
+   */
+  static async getDocument<T>(collection: string, documentId: string): Promise<T | null> {
+    try {
+      const docRef = firestore.collection(collection).doc(documentId);
+      const doc = await docRef.get();
+      return doc.exists ? doc.data() as T : null;
+    } catch (error) {
+      console.error(`Error getting document from ${collection}:`, error);
+      throw new Error(`Could not retrieve document from ${collection}`);
+    }
+  }
+
+  /**
+   * Create or update a document in a specific collection
+   * @param collection - Collection name
+   * @param documentId - Document ID
+   * @param data - Document data
+   * @param options - Firestore set options
+   */
+  static async setDocument(
+    collection: string, 
+    documentId: string, 
+    data: any, 
+    options: { merge?: boolean } = { merge: true }
+  ): Promise<void> {
+    try {
+      const docRef = firestore.collection(collection).doc(documentId);
+      await docRef.set(data, options);
+    } catch (error) {
+      console.error(`Error setting document in ${collection}:`, error);
+      throw new Error(`Could not set document in ${collection}`);
+    }
+  }
+
+  /**
+   * Update specific fields of a document
+   * @param collection - Collection name
+   * @param documentId - Document ID
+   * @param data - Fields to update
+   */
+  static async updateDocument(
+    collection: string, 
+    documentId: string, 
+    data: any
+  ): Promise<void> {
+    try {
+      const docRef = firestore.collection(collection).doc(documentId);
+      await docRef.update(data);
+    } catch (error) {
+      console.error(`Error updating document in ${collection}:`, error);
+      throw new Error(`Could not update document in ${collection}`);
+    }
+  }
+
+  /**
+   * Delete a document from a collection
+   * @param collection - Collection name
+   * @param documentId - Document ID
+   */
+  static async deleteDocument(
+    collection: string, 
+    documentId: string
+  ): Promise<void> {
+    try {
+      const docRef = firestore.collection(collection).doc(documentId);
+      await docRef.delete();
+    } catch (error) {
+      console.error(`Error deleting document from ${collection}:`, error);
+      throw new Error(`Could not delete document from ${collection}`);
+    }
+  }
+
+  /**
+   * Query documents in a collection
+   * @param collection - Collection name
+   * @param queryFn - Function to apply query
+   * @returns Array of documents
+   */
+  static async queryDocuments<T>(
+    collection: string, 
+    queryFn: (ref: FirebaseFirestore.CollectionReference) => FirebaseFirestore.Query
+  ): Promise<T[]> {
+    try {
+      const collectionRef = firestore.collection(collection);
+      const query = queryFn(collectionRef);
+      const snapshot = await query.get();
+      return snapshot.docs.map(doc => doc.data() as T);
+    } catch (error) {
+      console.error(`Error querying documents in ${collection}:`, error);
+      throw new Error(`Could not query documents in ${collection}`);
+    }
+  }
+}
+
+export default FirestoreService;
+export const { 
+  getDocument, 
+  setDocument, 
+  updateDocument, 
+  deleteDocument, 
+  queryDocuments 
+} = FirestoreService;
+
+/**
  * Saves user credentials to Firestore.
  * @param {string} userId - A unique identifier for the user.
  * @param {object} credentials - The credential object to save (e.g., tokens).
