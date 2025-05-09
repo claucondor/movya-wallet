@@ -343,6 +343,117 @@ paths:
         '500':
           description: Server error processing the faucet request
 
+  # Añadir endpoints de wallet
+  /wallet/address:
+    post:
+      summary: Save User Wallet Address
+      description: Save or update a user's wallet address
+      tags:
+        - Wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  description: User ID from authentication
+                walletAddress:
+                  type: string
+                  description: Wallet address to save
+                  example: '0x1234567890123456789012345678901234567890'
+                network:
+                  type: string
+                  description: Blockchain network of the wallet
+                  enum: ['ethereum', 'avalanche', 'polygon', 'other']
+                type:
+                  type: string
+                  description: Type of wallet
+                  enum: ['evm', 'solana', 'other']
+              required:
+                - userId
+                - walletAddress
+      responses:
+        '200':
+          description: Wallet address saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Wallet address saved successfully"
+                  wallet:
+                    type: object
+                    properties:
+                      address:
+                        type: string
+                        example: '0x1234567890123456789012345678901234567890'
+                      network:
+                        type: string
+                        example: 'avalanche'
+                      type:
+                        type: string
+                        example: 'evm'
+        '400':
+          description: Invalid wallet address or missing required fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Wallet address is required"
+        '500':
+          description: Server error saving wallet address
+
+  /wallet/address/{userId}:
+    get:
+      summary: Get User Wallet Address
+      description: Retrieve a user's wallet address
+      tags:
+        - Wallet
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User ID to retrieve wallet address for
+      responses:
+        '200':
+          description: Wallet address retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  address:
+                    type: string
+                    example: '0x1234567890123456789012345678901234567890'
+                  network:
+                    type: string
+                    example: 'avalanche'
+                  type:
+                    type: string
+                    example: 'evm'
+        '404':
+          description: No wallet address found for the user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "No wallet address found for this user"
+        '500':
+          description: Server error retrieving wallet address
+
 components:
   securitySchemes:
     BearerAuth:
@@ -357,4 +468,6 @@ tags:
   - name: AI Assistant
     description: Interact with the AI wallet assistant for natural language transactions.
   - name: Blockchain
-    description: Blockchain-related operations like faucet requests 
+    description: Blockchain-related operations like faucet requests
+  - name: Wallet
+    description: Operations for managing user wallet addresses 

@@ -23,6 +23,8 @@ export interface UserProfile {
   createdAt?: Date;
   updatedAt?: Date;
   picture?: string;
+  walletNetwork?: string;
+  walletType?: string;
 }
 
 /**
@@ -107,6 +109,64 @@ class UserService {
       lastFaucetUse: new Date(),
       faucetCount: currentFaucetCount + 1
     });
+  }
+
+  /**
+   * Guardar o actualizar la dirección de wallet de un usuario
+   * @param userId - ID de usuario de Google
+   * @param walletAddress - Dirección de wallet a guardar
+   * @param options - Opciones adicionales para la actualización
+   */
+  static async saveWalletAddress(
+    userId: string, 
+    walletAddress: string, 
+    options?: {
+      network?: string;
+      type?: 'evm' | 'solana' | 'other';
+    }
+  ): Promise<void> {
+    // Validar dirección de wallet (ejemplo básico para direcciones EVM)
+    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      throw new Error('Dirección de wallet inválida');
+    }
+
+    // Obtener perfil existente
+    const existingProfile = await this.getUserProfile(userId);
+
+    // Preparar datos de actualización
+    const updateData: UserProfile = {
+      ...existingProfile,
+      walletAddress,
+      walletNetwork: options?.network,
+      walletType: options?.type,
+      updatedAt: new Date()
+    };
+
+    // Guardar perfil actualizado
+    await this.upsertUserProfile(userId, updateData);
+  }
+
+  /**
+   * Obtener la dirección de wallet de un usuario
+   * @param userId - ID de usuario de Google
+   * @returns Dirección de wallet o null
+   */
+  static async getWalletAddress(userId: string): Promise<{
+    address: string | null, 
+    network?: string, 
+    type?: string
+  } | null> {
+    const user = await this.getUserProfile(userId);
+    
+    if (!user || !user.walletAddress) {
+      return null;
+    }
+
+    return {
+      address: user.walletAddress,
+      network: user.walletNetwork,
+      type: user.walletType
+    };
   }
 }
 

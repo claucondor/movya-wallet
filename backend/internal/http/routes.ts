@@ -3,6 +3,10 @@ import { chatWithAgent } from './agentController';
 import { handleAuthCallback } from './authHandler'; // Assuming authHandler will be migrated and export handleAuthCallback
 import { faucetHandler } from './faucetHandler';
 import { reportAgentResult } from './resultController'; // Import the new controller
+import {
+    getWalletAddressHandler,
+    saveWalletAddressHandler
+} from './walletHandler';
 
 const routes = express.Router();
 
@@ -58,6 +62,16 @@ routes.post('/agent/report_result',
 
 // Ruta de faucet
 routes.post('/faucet', faucetHandler);
+
+// Rutas de wallet
+routes.post('/wallet/address', 
+  express.json(),          // Parse JSON body
+  saveWalletAddressHandler // Guardar dirección de wallet
+);
+
+routes.get('/wallet/address/:userId', 
+  getWalletAddressHandler  // Obtener dirección de wallet
+);
 
 // --- Default/Health Check Route (already in server.js, but can be here too) ---
 routes.get('/', (req: Request, res: Response) => {
