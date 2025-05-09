@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'; // Import viem functions
 import { storage } from './core/storage'; // Import MMKV storage
+import { saveWalletToBackend } from './internal/walletService';
 
 // Define a key for storing the private key
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
@@ -18,44 +19,54 @@ export default function AuthSuccessScreen() {
   useEffect(() => {
     console.log('Auth Success: User ID received:', userId);
 
-    const handleWallet = () => {
+    const handleWallet = async () => {
       try {
         // Use MMKV's synchronous getString
         let privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
+        let account;
 
         if (!privateKey) {
           console.log('No private key found, generating a new wallet...');
           privateKey = generatePrivateKey();
-          const account = privateKeyToAccount(privateKey as `0x${string}`);
+          account = privateKeyToAccount(privateKey as `0x${string}`);
           // Use MMKV's synchronous set
           storage.set(PRIVATE_KEY_STORAGE_KEY, privateKey);
           console.log('New wallet generated and private key stored securely for address:', account.address);
-          // You might want to associate the account.address with the userId in your backend here
         } else {
-          const account = privateKeyToAccount(privateKey as `0x${string}`);
+          account = privateKeyToAccount(privateKey as `0x${string}`);
           console.log('Existing private key loaded securely for address:', account.address);
+        }
+
+        // Si tenemos un userId, intentamos guardar la wallet en el backend (solo una vez)
+        if (userId) {
+          try {
+            const saved = await saveWalletToBackend(userId);
+            if (saved) {
+              console.log('Wallet address saved in backend for user:', userId);
+            } else {
+              console.log('Could not save wallet address in backend. Will try again on next login.');
+            }
+          } catch (backendError) {
+            console.error('Error saving wallet to backend:', backendError);
+            // No bloqueamos la navegación si falla el guardado en el backend
+          }
         }
 
         // Redirect after handling the wallet
         // Using replace to prevent going back to the success screen
-        // Correct path is '/wallet', not '/app/wallet'
         router.replace('/wallet');
 
       } catch (error) {
         console.error('Error handling wallet:', error);
         // Handle error appropriately, maybe redirect to an error screen or show an alert
-        // For now, redirecting to wallet anyway, but ideally handle this case better
         router.replace('/wallet'); // Consider redirecting to an error page or /auth-error
       }
     };
 
-    // Call the synchronous function to handle wallet logic
+    // Call the function to handle wallet logic
     handleWallet();
 
-    // We don't need the timer anymore as redirection happens inside handleWallet
-    // return () => clearTimeout(timer); // Remove timer cleanup
-
-  }, [userId]); // Dependency array remains the same
+  }, [userId]);
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? Colors.dark.background : Colors.light.background }]}>
