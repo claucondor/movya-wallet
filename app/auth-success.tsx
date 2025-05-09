@@ -2,11 +2,11 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useTheme } from '@/hooks/ThemeContext'; // Assuming ThemeContext exists
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'; // Import viem functions
 import { storage } from './core/storage'; // Import MMKV storage
-import { saveWalletToBackend } from './internal/walletService';
+import { checkBalanceAndRequestFaucet, saveWalletToBackend } from './internal/walletService'; // Importar la función para guardar en el backend
 
 // Define a key for storing the private key
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
@@ -15,6 +15,7 @@ export default function AuthSuccessScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const { colorScheme } = useTheme();
   const isDark = colorScheme === 'dark';
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('Auth Success: User ID received:', userId);
@@ -40,15 +41,27 @@ export default function AuthSuccessScreen() {
         // Si tenemos un userId, intentamos guardar la wallet en el backend (solo una vez)
         if (userId) {
           try {
+            // 1. Guardar la wallet en el backend
+            setStatusMessage('Sincronizando wallet con el backend...');
             const saved = await saveWalletToBackend(userId);
             if (saved) {
               console.log('Wallet address saved in backend for user:', userId);
             } else {
               console.log('Could not save wallet address in backend. Will try again on next login.');
             }
+
+            // 2. Verificar balance y solicitar tokens si es necesario
+            setStatusMessage('Verificando balance de la wallet...');
+            const balanceCheck = await checkBalanceAndRequestFaucet(userId);
+            
+            if (balanceCheck.faucetUsed) {
+              setStatusMessage(`Tokens solicitados del faucet. Balance actual: ${balanceCheck.currentBalance} AVAX`);
+              // Dar tiempo para que el usuario vea el mensaje
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
           } catch (backendError) {
-            console.error('Error saving wallet to backend:', backendError);
-            // No bloqueamos la navegación si falla el guardado en el backend
+            console.error('Error interacting with backend:', backendError);
+            // No bloqueamos la navegación si falla
           }
         }
 
@@ -75,7 +88,7 @@ export default function AuthSuccessScreen() {
         Authentication Successful!
       </ThemedText>
       <ThemedText style={styles.message}>
-        Welcome back! Redirecting you now...
+        {statusMessage || 'Welcome back! Redirecting you now...'}
       </ThemedText>
       {userId && (
         <ThemedText style={styles.userIdText}>
