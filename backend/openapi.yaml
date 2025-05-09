@@ -454,6 +454,189 @@ paths:
         '500':
           description: Server error retrieving wallet address
 
+  # Endpoints de Contactos
+  /contacts/address:
+    post:
+      summary: Añadir contacto por dirección de wallet
+      description: Añade un nuevo contacto usando una dirección de wallet
+      tags:
+        - Contacts
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  description: ID del usuario que añade el contacto
+                nickname:
+                  type: string
+                  description: Nickname único para el contacto
+                address:
+                  type: string
+                  description: Dirección de wallet del contacto
+              required:
+                - userId
+                - nickname
+                - address
+      responses:
+        '201':
+          description: Contacto añadido exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Contact added successfully"
+                  contact:
+                    $ref: '#/components/schemas/Contact'
+        '400':
+          description: Error en la solicitud (dirección inválida, etc.)
+        '409':
+          description: Nickname ya existe para este usuario
+
+  /contacts/email:
+    post:
+      summary: Añadir contacto por email
+      description: Añade un nuevo contacto usando un email de usuario registrado
+      tags:
+        - Contacts
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  description: ID del usuario que añade el contacto
+                nickname:
+                  type: string
+                  description: Nickname único para el contacto
+                email:
+                  type: string
+                  description: Email del contacto
+              required:
+                - userId
+                - nickname
+                - email
+      responses:
+        '201':
+          description: Contacto añadido exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Contact added successfully"
+                  contact:
+                    $ref: '#/components/schemas/Contact'
+        '400':
+          description: Error en la solicitud (email inválido, etc.)
+        '404':
+          description: No se encontró usuario con ese email
+        '409':
+          description: Nickname ya existe para este usuario
+
+  /contacts/{userId}:
+    get:
+      summary: Obtener contactos de un usuario
+      description: Recupera todos los contactos de un usuario
+      tags:
+        - Contacts
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: ID del usuario
+      responses:
+        '200':
+          description: Contactos recuperados exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Contact'
+                  count:
+                    type: integer
+                    description: Número de contactos
+
+  /contacts/{userId}/{nickname}:
+    get:
+      summary: Obtener contacto por nickname
+      description: Recupera un contacto específico de un usuario por su nickname
+      tags:
+        - Contacts
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: ID del usuario
+        - in: path
+          name: nickname
+          required: true
+          schema:
+            type: string
+          description: Nickname del contacto
+      responses:
+        '200':
+          description: Contacto recuperado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          description: Contacto no encontrado
+
+    delete:
+      summary: Eliminar contacto
+      description: Elimina un contacto de un usuario
+      tags:
+        - Contacts
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: ID del usuario
+        - in: path
+          name: nickname
+          required: true
+          schema:
+            type: string
+          description: Nickname del contacto a eliminar
+      responses:
+        '200':
+          description: Contacto eliminado exitosamente
+        '404':
+          description: Contacto no encontrado
+
 components:
   securitySchemes:
     BearerAuth:
@@ -470,4 +653,6 @@ tags:
   - name: Blockchain
     description: Blockchain-related operations like faucet requests
   - name: Wallet
-    description: Operations for managing user wallet addresses 
+    description: Operations for managing user wallet addresses
+  - name: Contacts
+    description: Gestión de contactos de usuario 

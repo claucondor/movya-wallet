@@ -168,6 +168,21 @@ class UserService {
       type: user.walletType
     };
   }
+
+  /**
+   * Obtener usuario por email
+   * @param email - Email del usuario
+   * @returns Perfil de usuario o null
+   */
+  static async getUserByEmail(email: string): Promise<UserProfile | null> {
+    // Usar queryDocuments para buscar por email
+    const users = await FirestoreService.queryDocuments<UserProfile>(
+      USERS_COLLECTION,
+      (ref) => ref.where('email', '==', email.toLowerCase())
+    );
+
+    return users[0] || null;
+  }
 }
 
 export default UserService; 
