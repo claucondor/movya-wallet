@@ -80,6 +80,13 @@ export default function AppLayout() {
           href: '/deposit',
         }} 
       />
+      <Tabs.Screen 
+        name="contacts/index" 
+        options={{ 
+          headerShown: false,
+          href: '/contacts',
+        }} 
+      />
     </Tabs>
   );
 }
