@@ -24,7 +24,7 @@ class BlockchainService {
    * @returns Configuración de red
    */
   private static getNetworkConfig(network: string) {
-    const config = NETWORK_CONFIGS[network.toLowerCase()];
+    const config = NETWORK_CONFIGS[network.toLowerCase() as keyof typeof NETWORK_CONFIGS];
     if (!config) {
       throw new Error(`Red no soportada: ${network}`);
     }
@@ -60,7 +60,7 @@ class BlockchainService {
     const { chain, rpcUrl } = this.getNetworkConfig(network);
     
     // Obtener la wallet del faucet desde variables de entorno
-    const faucetPrivateKey = process.env[`${network.toUpperCase()}_FAUCET_PK`];
+    const faucetPrivateKey = process.env.FAUCET_PK;
     if (!faucetPrivateKey) {
       throw new Error(`Faucet wallet no configurada para ${network}`);
     }

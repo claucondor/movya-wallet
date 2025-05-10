@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import BlockchainService from '../services/blockchainService'; // Asumo que este servicio existe
+import BlockchainService from '../services/blockchainService';
 import UserService from '../users/userService';
 
 /**
