@@ -4,8 +4,8 @@ import { handleAuthCallback } from './authHandler'; // Assuming authHandler will
 import { faucetHandler } from './faucetHandler';
 import { reportAgentResult } from './resultController'; // Import the new controller
 import {
-    getWalletAddressHandler,
-    saveWalletAddressHandler
+  getWalletAddressHandler,
+  saveWalletAddressHandler
 } from './walletHandler';
 
 const routes = express.Router();
@@ -60,17 +60,23 @@ routes.post('/agent/report_result',
     reportAgentResult        // Handle the result report
 );
 
+// Utility function to wrap async route handlers
+const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void | Response>) => 
+  (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+
 // Ruta de faucet
-routes.post('/faucet', faucetHandler);
+routes.post('/faucet', asyncHandler(faucetHandler));
 
 // Rutas de wallet
 routes.post('/wallet/address', 
   express.json(),          // Parse JSON body
-  saveWalletAddressHandler // Guardar dirección de wallet
+  asyncHandler(saveWalletAddressHandler) // Guardar dirección de wallet
 );
 
 routes.get('/wallet/address/:userId', 
-  getWalletAddressHandler  // Obtener dirección de wallet
+  asyncHandler(getWalletAddressHandler)  // Obtener dirección de wallet
 );
 
 // --- Default/Health Check Route (already in server.js, but can be here too) ---
