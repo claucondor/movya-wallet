@@ -1,9 +1,10 @@
+import { Contact, deleteContact, getContacts } from '@/app/internal/contactService';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Contact, deleteContact, getContacts } from '../../../internal/contactService';
 
 export default function ContactsScreen() {
   const router = useRouter();
@@ -110,7 +111,7 @@ export default function ContactsScreen() {
           headerRight: () => (
             <TouchableOpacity 
               style={styles.addButton}
-              onPress={() => router.push('/contacts/add')}
+              onPress={() => router.push("/(app)/contacts/add")}
             >
               <IconSymbol name="plus" color={Colors[colorScheme ?? 'light'].tint} size={24} />
             </TouchableOpacity>
@@ -128,7 +129,7 @@ export default function ContactsScreen() {
           </Text>
           <TouchableOpacity 
             style={[styles.addFirstButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}
-            onPress={() => router.push('/contacts/add')}
+            onPress={() => router.push("/(app)/contacts/add")}
           >
             <Text style={styles.addFirstButtonText}>Añadir contacto</Text>
           </TouchableOpacity>

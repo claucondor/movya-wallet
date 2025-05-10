@@ -1,9 +1,10 @@
+import { addContactByAddress, addContactByEmail } from '@/app/internal/contactService';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Stack, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { addContactByAddress, addContactByEmail } from '../../../internal/contactService';
 
 type ContactType = 'address' | 'email';
 
@@ -52,7 +53,7 @@ export default function AddContactScreen() {
         Alert.alert('Éxito', 'Contacto añadido correctamente', [
           { 
             text: 'OK', 
-            onPress: () => router.push('/contacts') 
+            onPress: () => router.push("/(app)/contacts") 
           }
         ]);
       } else {
