@@ -1,7 +1,7 @@
 import { avalancheFuji } from '@/constants/chains';
-import { ActionResultInput } from '@/types/agent';
 import { createPublicClient, formatEther, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { ActionResultInput } from '../../types/agent';
 import { storage } from '../storage';
 import { WalletActionResult } from '../walletActionHandler';
 

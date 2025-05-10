@@ -14,11 +14,15 @@ const MAPPING = {
   'wallet.fill': 'account-balance-wallet',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'chevron.left': 'chevron-left',
   'person.2.fill': 'people',
   'trash': 'delete',
   'plus': 'add',
   'person.2': 'people',
   'person.badge.plus': 'person-add',
+  'doc.on.doc': 'content-copy',
+  'arrow.up.right.square': 'open-in-new',
+  'qrcode': 'qr-code',
 } as Partial<
   Record<
     import('expo-symbols').SymbolViewProps['name'],

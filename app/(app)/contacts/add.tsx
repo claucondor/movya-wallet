@@ -1,3 +1,4 @@
+import { storage } from '@/app/core/storage';
 import { addContactByAddress, addContactByEmail } from '@/app/internal/contactService';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
@@ -40,7 +41,8 @@ export default function AddContactScreen() {
 
     try {
       setLoading(true);
-      const userId = 'current'; // Esto debería venir de tu sistema de autenticación
+      // Intentar obtener el userId del storage
+      const userId = storage.getString('userId') || 'current-user';
       
       let result;
       if (contactType === 'address') {

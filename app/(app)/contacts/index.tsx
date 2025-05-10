@@ -1,3 +1,4 @@
+import { storage } from '@/app/core/storage';
 import { Contact, deleteContact, getContacts } from '@/app/internal/contactService';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
@@ -17,7 +18,9 @@ export default function ContactsScreen() {
   const loadContacts = async () => {
     try {
       setLoading(true);
-      const userId = 'current'; // Esto debería venir de tu sistema de autenticación
+      // Intentar obtener el userId del storage
+      const userId = storage.getString('userId') || 'current-user';
+      
       const result = await getContacts(userId);
       
       if (result.success) {
@@ -60,7 +63,9 @@ export default function ContactsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const userId = 'current'; // Esto debería venir de tu sistema de autenticación
+              // Intentar obtener el userId del storage
+              const userId = storage.getString('userId') || 'current-user';
+              
               const result = await deleteContact(userId, contactId);
               
               if (result.success) {
@@ -108,6 +113,15 @@ export default function ContactsScreen() {
           headerTitle: 'Mis Contactos',
           headerShown: true,
           headerBackTitle: 'Atrás',
+          headerLeft: () => (
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => router.push("/(app)/wallet")}
+            >
+              <IconSymbol name="chevron.left" color={Colors[colorScheme ?? 'light'].text} size={24} />
+              <Text style={{ color: Colors[colorScheme ?? 'light'].text, marginLeft: 4 }}>Wallet</Text>
+            </TouchableOpacity>
+          ),
           headerRight: () => (
             <TouchableOpacity 
               style={styles.addButton}
@@ -220,5 +234,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     fontSize: 16,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
   },
 }); 

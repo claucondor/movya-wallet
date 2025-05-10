@@ -409,10 +409,13 @@ export default function WalletScreen() {
                   style={[
                     styles.contactsButton, 
                     {
-                      backgroundColor: 'rgba(255,255,255,0.15)',
-                      borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.2)',
-                      marginLeft: 10
+                      backgroundColor: isDark ? '#3A5AFF' : '#0A7EA4',
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: 12,
+                      marginLeft: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
                     }
                   ]}
                 >
@@ -426,12 +429,8 @@ export default function WalletScreen() {
                     style={{
                       fontSize: 12,
                       marginLeft: 4,
-                      textShadowColor: 'rgba(0, 0, 0, 0.3)',
-                      textShadowOffset: { width: 0, height: 1 },
-                      textShadowRadius: 3,
+                      color: "#FFFFFF"
                     }}
-                    lightColor="#FFFFFF"
-                    darkColor="#FFFFFF"
                   >
                     Contactos
                   </ThemedText>
@@ -525,24 +524,6 @@ export default function WalletScreen() {
                   onDeposit={() => handleAction('deposit')}
                   onSwap={() => handleAction('swap')}
                 />
-                
-                {/* Botón de contactos */}
-                <TouchableOpacity
-                  style={[styles.contactsMainButton, { backgroundColor: isDark ? '#3A5AFF' : '#0A7EA4' }]}
-                  onPress={() => router.push("/(app)/contacts")}
-                >
-                  <IconSymbol
-                    name="person.2.fill"
-                    size={18}
-                    color="#FFFFFF"
-                  />
-                  <ThemedText
-                    type="defaultSemiBold"
-                    style={{ color: '#FFFFFF', marginLeft: 8 }}
-                  >
-                    Mis Contactos
-                  </ThemedText>
-                </TouchableOpacity>
               </ScrollView>
             ) : (
               <ScrollView style={styles.tabContent}>

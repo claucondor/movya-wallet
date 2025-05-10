@@ -22,6 +22,12 @@ export default function AuthSuccessScreen() {
 
     const handleWallet = async () => {
       try {
+        // Store the userId if provided
+        if (userId) {
+          storage.set('userId', userId);
+          console.log('User ID stored in secure storage:', userId);
+        }
+        
         // Use MMKV's synchronous getString
         let privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
         let account;

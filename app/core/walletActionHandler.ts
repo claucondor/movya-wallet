@@ -5,6 +5,7 @@ import { ActionResultInput } from '../types/agent';
 import { reportActionResult } from './agentApi';
 import { storage } from './storage';
 import { fetchAvaxBalance } from './walletActions/fetchBalance';
+import { sendTransaction } from './walletActions/sendTransaction';
 
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
@@ -104,8 +105,22 @@ export async function handleWalletAction(
         return result;
       
       case 'SEND_TRANSACTION':
-        // Aquí se implementará en el futuro
-        throw new Error('La acción de enviar transacción no está implementada aún');
+        // Validamos los parámetros necesarios
+        if (!params.recipientAddress) {
+          throw new Error('La dirección del destinatario es requerida para enviar una transacción');
+        }
+        
+        if (!params.amount) {
+          throw new Error('El monto a enviar es requerido para la transacción');
+        }
+        
+        // Llamar a la función de enviar transacción
+        const txResult = await sendTransaction(
+          params.recipientAddress,
+          params.amount
+        );
+        
+        return txResult;
       
       case 'FETCH_HISTORY':
         // Aquí se implementará en el futuro
@@ -120,7 +135,7 @@ export async function handleWalletAction(
     // Retornar un formato consistente en caso de error
     return {
       success: false,
-      responseMessage: `Error al procesar la solicitud.`, // Mensaje genérico, la IA proporcionará uno mejor
+      responseMessage: `Error al procesar la solicitud: ${error.message}`, 
     };
   }
 }
