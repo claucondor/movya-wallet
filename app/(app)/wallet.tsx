@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/ThemedText';
 import ActionButtons from '@/components/ui/ActionButtons';
 import ChatInput from '@/components/ui/ChatInput';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { avalanche, avalancheFuji } from '@/constants/chains';
 import { useTheme } from '@/hooks/ThemeContext';
 import { ResizeMode, Video } from 'expo-av';
@@ -376,31 +377,66 @@ export default function WalletScreen() {
                   </View>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={switchNetwork} 
-                style={[
-                  styles.networkSwitch, 
-                  {
-                    backgroundColor: 'rgba(255,255,255,0.15)',
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.2)'
-                  }
-                ]}
-              >
-                <ThemedText 
-                  type="defaultSemiBold" 
-                  style={{
-                    fontSize: 12,
-                    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-                    textShadowOffset: { width: 0, height: 1 },
-                    textShadowRadius: 3,
-                  }}
-                  lightColor="#FFFFFF"
-                  darkColor="#FFFFFF"
+              <View style={{flexDirection: 'row', justifyContent: 'center', alignItems: 'center'}}>
+                <TouchableOpacity 
+                  onPress={switchNetwork} 
+                  style={[
+                    styles.networkSwitch, 
+                    {
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.2)'
+                    }
+                  ]}
                 >
-                  {currentChain.name}
-                </ThemedText>
-              </TouchableOpacity>
+                  <ThemedText 
+                    type="defaultSemiBold" 
+                    style={{
+                      fontSize: 12,
+                      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 3,
+                    }}
+                    lightColor="#FFFFFF"
+                    darkColor="#FFFFFF"
+                  >
+                    {currentChain.name}
+                  </ThemedText>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  onPress={() => router.push("/(app)/contacts")}
+                  style={[
+                    styles.contactsButton, 
+                    {
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.2)',
+                      marginLeft: 10
+                    }
+                  ]}
+                >
+                  <IconSymbol 
+                    name="person.2.fill" 
+                    size={16} 
+                    color="#FFFFFF" 
+                  />
+                  <ThemedText 
+                    type="defaultSemiBold" 
+                    style={{
+                      fontSize: 12,
+                      marginLeft: 4,
+                      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 3,
+                    }}
+                    lightColor="#FFFFFF"
+                    darkColor="#FFFFFF"
+                  >
+                    Contactos
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -489,6 +525,24 @@ export default function WalletScreen() {
                   onDeposit={() => handleAction('deposit')}
                   onSwap={() => handleAction('swap')}
                 />
+                
+                {/* Botón de contactos */}
+                <TouchableOpacity
+                  style={[styles.contactsMainButton, { backgroundColor: isDark ? '#3A5AFF' : '#0A7EA4' }]}
+                  onPress={() => router.push("/(app)/contacts")}
+                >
+                  <IconSymbol
+                    name="person.2.fill"
+                    size={18}
+                    color="#FFFFFF"
+                  />
+                  <ThemedText
+                    type="defaultSemiBold"
+                    style={{ color: '#FFFFFF', marginLeft: 8 }}
+                  >
+                    Mis Contactos
+                  </ThemedText>
+                </TouchableOpacity>
               </ScrollView>
             ) : (
               <ScrollView style={styles.tabContent}>
@@ -676,5 +730,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 2,
+  },
+  contactsButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  contactsMainButton: {
+    padding: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
   },
 }); 

@@ -14,6 +14,11 @@ const MAPPING = {
   'wallet.fill': 'account-balance-wallet',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'person.2.fill': 'people',
+  'trash': 'delete',
+  'plus': 'add',
+  'person.2': 'people',
+  'person.badge.plus': 'person-add',
 } as Partial<
   Record<
     import('expo-symbols').SymbolViewProps['name'],
