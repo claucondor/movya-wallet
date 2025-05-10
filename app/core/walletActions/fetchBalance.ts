@@ -76,4 +76,9 @@ export async function fetchAvaxBalance(): Promise<WalletActionResult> {
       data: actionResult
     };
   }
+}
+
+// Add a default export to suppress Expo Router "missing default export" warning
+export default function FetchBalanceExport() {
+  return null; // This will never be rendered
 } 

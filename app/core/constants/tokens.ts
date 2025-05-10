@@ -32,3 +32,8 @@ export interface TokenInfo {
     },
     // Add more tokens as needed
   ];
+
+// Add a default export to suppress Expo Router "missing default export" warning
+export default function TokensExport() {
+  return null; // This will never be rendered
+}

@@ -105,4 +105,9 @@ export async function requestFaucetTokens(userId: string, address: string, netwo
       error: error.message
     };
   }
+}
+
+// Add a default export to suppress Expo Router "missing default export" warning
+export default function FaucetServiceExport() {
+  return null; // This will never be rendered
 } 

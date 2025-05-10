@@ -142,4 +142,9 @@ export async function reportActionResultToAgent(
     console.error('[WalletActionHandler] Error al reportar resultado:', error);
     return `No pude obtener la respuesta del asistente. ${error.message || 'Error desconocido'}`;
   }
+}
+
+// Add a default export to suppress Expo Router "missing default export" warning
+export default function WalletActionHandlerExport() {
+  return null; // This will never be rendered
 } 

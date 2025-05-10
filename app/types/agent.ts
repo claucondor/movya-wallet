@@ -64,4 +64,9 @@ export interface ChatMessage {
 export interface SearchParams {
     conversationId?: string | string[];
     from?: string;
+}
+
+// Add a default export to suppress Expo Router "missing default export" warning
+export default function AgentTypesExport() {
+  return null; // This will never be rendered
 } 

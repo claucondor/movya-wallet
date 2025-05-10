@@ -210,4 +210,9 @@ export async function checkBalanceAndRequestFaucet(userId: string): Promise<{
       faucetUsed: false
     };
   }
+}
+
+// Add a default export to suppress Expo Router "missing default export" warning
+export default function WalletServiceExport() {
+  return null; // This will never be rendered
 } 

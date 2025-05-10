@@ -133,4 +133,9 @@ export interface ActionResultInput {
         errorMessage?: string;
     };
 }
-*/ 
+*/
+
+// Add a default export to suppress Expo Router "missing default export" warning
+export default function AgentApiExport() {
+  return null; // This will never be rendered
+} 

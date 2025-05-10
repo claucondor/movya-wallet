@@ -1,5 +1,12 @@
+// File: contactService.ts
+// Este archivo no es una ruta, es un servicio
 import Constants from 'expo-constants';
 import { storage } from '../core/storage';
+
+// Add a default export to suppress Expo Router "missing default export" warning
+export default function ContactServiceExport() {
+  return null; // This will never be rendered
+}
 
 const BACKEND_URL = Constants.expoConfig?.extra?.backendUrl || 'http://localhost:8080';
 
