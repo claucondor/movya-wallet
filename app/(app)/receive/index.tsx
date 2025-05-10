@@ -139,20 +139,18 @@ export default function ReceiveScreen() {
 
       <View style={[styles.content, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
         <View style={styles.qrContainer}>
-          <LinearGradient
-            colors={isDark ? ['#2D3748', '#1A202C'] : ['#FFFFFF', '#F7FAFC']}
-            style={styles.qrWrapper}
+          <View
+            style={[styles.qrWrapper, { backgroundColor: isDark ? '#2D3748' : '#FFFFFF' }]}
           >
             {address && (
               <QRCode
                 value={address}
                 size={200}
-                backgroundColor="transparent"
+                backgroundColor={isDark ? '#2D3748' : '#FFFFFF'}
                 color={isDark ? '#FFFFFF' : '#000000'}
-                logoBackgroundColor="transparent"
               />
             )}
-          </LinearGradient>
+          </View>
         </View>
 
         <View style={styles.addressContainer}>
