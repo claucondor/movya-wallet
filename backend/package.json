@@ -26,7 +26,8 @@
     "crypto-js": "^4.2.0",
     "dotenv": "^16.5.0",
     "ethers": "^5.7.2",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "viem": "^2.29.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.1",
