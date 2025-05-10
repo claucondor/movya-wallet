@@ -1,6 +1,13 @@
 import express, { NextFunction, Request, Response } from 'express';
 import { chatWithAgent } from './agentController';
 import { handleAuthCallback } from './authHandler'; // Assuming authHandler will be migrated and export handleAuthCallback
+import {
+  addContactByAddressHandler,
+  addContactByEmailHandler,
+  deleteContactHandler,
+  getContactByNicknameHandler,
+  getContactsHandler
+} from './contactHandler';
 import { faucetHandler } from './faucetHandler';
 import { reportAgentResult } from './resultController'; // Import the new controller
 import {
@@ -77,6 +84,34 @@ routes.post('/wallet/address',
 
 routes.get('/wallet/address/:userId', 
   asyncHandler(getWalletAddressHandler)  // Obtener dirección de wallet
+);
+
+// Rutas de contactos
+routes.post('/contacts/address', 
+  authMiddleware,
+  express.json(),
+  asyncHandler(addContactByAddressHandler)
+);
+
+routes.post('/contacts/email', 
+  authMiddleware,
+  express.json(),
+  asyncHandler(addContactByEmailHandler)
+);
+
+routes.get('/contacts', 
+  authMiddleware,
+  asyncHandler(getContactsHandler)
+);
+
+routes.get('/contacts/nickname/:nickname', 
+  authMiddleware,
+  asyncHandler(getContactByNicknameHandler)
+);
+
+routes.delete('/contacts/:contactId', 
+  authMiddleware,
+  asyncHandler(deleteContactHandler)
 );
 
 // --- Default/Health Check Route (already in server.js, but can be here too) ---
