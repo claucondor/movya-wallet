@@ -1,10 +1,24 @@
-import { ThemedText } from '@/components/ThemedText';
-import { useTheme } from '@/hooks/ThemeContext';
-import { Ionicons } from '@expo/vector-icons';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ResizeMode, Video } from 'expo-av';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Image, Pressable, Share, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import {
+    Alert,
+    Share,
+    StyleSheet,
+    View
+} from 'react-native';
+import {
+    Appbar,
+    Card,
+    ActivityIndicator as PaperActivityIndicator,
+    Button as PaperButton,
+    IconButton as PaperIconButton,
+    Text as PaperText,
+    TextInput as PaperTextInput,
+    Surface,
+    useTheme as usePaperTheme
+} from 'react-native-paper';
 import QRCode from 'react-native-qrcode-svg';
 import { Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -13,31 +27,13 @@ import { storage } from '../../core/storage';
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
 export default function ReceiveScreen() {
-  const { colorScheme } = useTheme();
-  const isDark = colorScheme === 'dark';
+  const paperTheme = usePaperTheme();
+  const { colors, dark: isDark } = paperTheme;
+
   const [address, setAddress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Animation values
-  const copyAnimatedValue = useRef(new Animated.Value(1)).current;
-  const shareAnimatedValue = useRef(new Animated.Value(1)).current;
-
-  const animateButton = (value: Animated.Value, callback?: () => void) => {
-    Animated.sequence([
-      Animated.timing(value, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(value, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start(callback);
-  };
-
   useEffect(() => {
     const loadAddress = () => {
       setIsLoading(true);
@@ -64,47 +60,51 @@ export default function ReceiveScreen() {
 
   const copyToClipboard = useCallback(async () => {
     if (address) {
-      animateButton(copyAnimatedValue, () => {
-        Clipboard.setString(address);
-        Alert.alert('Copied!', 'Your address has been copied to the clipboard.');
-      });
+      Clipboard.setString(address);
+      Alert.alert('Copied!', 'Your address has been copied to the clipboard.');
     }
   }, [address]);
 
   const shareAddress = useCallback(async () => {
     if (address) {
-      animateButton(shareAnimatedValue, async () => {
-        try {
-          await Share.share({
-            message: `My Movya wallet address: ${address}`,
-          });
-        } catch (error: any) {
-          Alert.alert('Error', 'Could not share address');
-        }
-      });
+      try {
+        await Share.share({
+          message: `My Movya wallet address: ${address}`,
+        });
+      } catch (error: any) {
+        Alert.alert('Error', 'Could not share address');
+      }
     }
   }, [address]);
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={isDark ? '#FFFFFF' : '#3A5AFF'} />
-        <ThemedText type="default">Loading your address...</ThemedText>
-      </View>
+      <Surface style={[styles.container, styles.center]}>
+        <PaperActivityIndicator size="large" color={colors.primary} />
+        <PaperText variant="bodyLarge" style={{marginTop: 16}}>Loading your address...</PaperText>
+      </Surface>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <Ionicons name="warning-outline" size={40} color="#E53E3E" />
-        <ThemedText type="default" style={styles.errorText}>{error}</ThemedText>
-      </View>
+      <Surface style={[styles.container, styles.center]}>
+        <PaperIconButton icon="alert-circle-outline" size={48} iconColor={colors.error} />
+        <PaperText variant="headlineSmall" style={{color: colors.error, marginTop: 16, marginBottom: 8, textAlign: 'center'}}>
+          Error Loading Address
+        </PaperText>
+        <PaperText variant="bodyMedium" style={{textAlign: 'center', paddingHorizontal: 20}}>{error}</PaperText>
+      </Surface>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <Surface style={styles.container}>
+      <Appbar.Header>
+        <Appbar.BackAction onPress={() => router.back()} />
+        <Appbar.Content title="Receive AVAX" titleStyle={{fontWeight: 'bold'}}/>
+      </Appbar.Header>
+      
       <View style={styles.videoContainer}>
         <Video
           source={require('@/assets/bg/header-bg.mp4')}
@@ -114,126 +114,61 @@ export default function ReceiveScreen() {
           shouldPlay
           isMuted
         />
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,24,69,0.3)' }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)' }]} />
       </View>
 
-      <View style={styles.header}>
-        <ThemedText
-          type="title"
-          style={styles.headerTitle}
-          lightColor="#FFFFFF"
-          darkColor="#FFFFFF"
-        >
-          Receive AVAX
-        </ThemedText>
-        <Image
-          source={require('@/assets/Avax_Token.png')}
-          style={styles.tokenLogo}
-          resizeMode="contain"
-        />
-      </View>
-
-      <View style={[styles.content, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
-        <View style={styles.qrContainer}>
-          <View
-            style={[styles.qrWrapper, { backgroundColor: isDark ? '#2D3748' : '#FFFFFF' }]}
-          >
+      <View style={styles.scrollContent}>
+        <Card style={styles.qrCard}>
+          <Card.Content style={styles.qrContainer}>
             {address && (
               <QRCode
                 value={address}
                 size={200}
-                backgroundColor={isDark ? '#2D3748' : '#FFFFFF'}
-                color={isDark ? '#FFFFFF' : '#000000'}
+                backgroundColor={colors.surfaceVariant}
+                color={isDark ? colors.onSurface : colors.onSurfaceVariant }
               />
             )}
-          </View>
-        </View>
+          </Card.Content>
+        </Card>
 
-        <View style={styles.addressContainer}>
-          <ThemedText type="defaultSemiBold" style={styles.addressLabel}>
-            Your Wallet Address
-          </ThemedText>
-          <Pressable onPress={copyToClipboard}>
-            <ThemedText 
-              type="default" 
-              style={styles.addressText}
-              numberOfLines={1}
-              ellipsizeMode="middle"
-            >
-              {address}
-            </ThemedText>
-          </Pressable>
-        </View>
+        <Card style={styles.addressCard}>
+          <Card.Content>
+            <PaperText variant="titleMedium" style={styles.addressLabel}>
+              Your Wallet Address
+            </PaperText>
+            <PaperTextInput
+              mode="outlined"
+              value={address || ''}
+              editable={false}
+              style={styles.addressTextContainer}
+              contentStyle={styles.addressTextInputContent}
+              right={<PaperTextInput.Icon icon="content-copy" onPress={copyToClipboard} />}
+            />
+          </Card.Content>
+        </Card>
 
         <View style={styles.buttonContainer}>
-          <Animated.View style={[
-            styles.buttonWrapper,
-            { transform: [{ scale: copyAnimatedValue }] }
-          ]}>
-            <View
-              style={[
-                styles.button, 
-                styles.copyButton,
-                { backgroundColor: isDark ? '#2D3748' : '#EDF2F7' }
-              ]}
-            >
-              <Pressable
-                style={styles.buttonContent}
-                onPress={copyToClipboard}
-              >
-                <Ionicons 
-                  name="copy-outline" 
-                  size={20} 
-                  color={isDark ? '#FFFFFF' : '#4A5568'} 
-                  style={styles.buttonIcon} 
-                />
-                <ThemedText 
-                  type="defaultSemiBold" 
-                  style={styles.buttonText}
-                  lightColor="#4A5568"
-                  darkColor="#FFFFFF"
-                >
-                  Copy
-                </ThemedText>
-              </Pressable>
-            </View>
-          </Animated.View>
-
-          <Animated.View style={[
-            styles.buttonWrapper,
-            { transform: [{ scale: shareAnimatedValue }] }
-          ]}>
-            <View
-              style={[
-                styles.button, 
-                styles.shareButton,
-                { backgroundColor: '#3A5AFF' }
-              ]}
-            >
-              <Pressable
-                style={styles.buttonContent}
-                onPress={shareAddress}
-              >
-                <Ionicons 
-                  name="share-social-outline" 
-                  size={20} 
-                  color="#FFFFFF" 
-                  style={styles.buttonIcon} 
-                />
-                <ThemedText 
-                  type="defaultSemiBold" 
-                  style={styles.buttonText}
-                  lightColor="#FFFFFF"
-                  darkColor="#FFFFFF"
-                >
-                  Share
-                </ThemedText>
-              </Pressable>
-            </View>
-          </Animated.View>
+          <PaperButton 
+            mode="outlined" 
+            icon="content-copy"
+            onPress={copyToClipboard}
+            style={styles.actionButton}
+            labelStyle={styles.buttonLabel}
+          >
+            Copy Address
+          </PaperButton>
+          <PaperButton 
+            mode="contained" 
+            icon="share-variant"
+            onPress={shareAddress}
+            style={styles.actionButton}
+            labelStyle={styles.buttonLabel}
+          >
+            Share Address
+          </PaperButton>
         </View>
       </View>
-    </View>
+    </Surface>
   );
 }
 
@@ -244,120 +179,52 @@ const styles = StyleSheet.create({
   center: {
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   videoContainer: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 0,
-    bottom: '60%',
+    top: 0, 
+    height: '35%',
     overflow: 'hidden',
   },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 30,
-    alignItems: 'center',
+  scrollContent: {
+    padding: 16,
+    paddingTop: '25%',
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  tokenLogo: {
-    width: 60,
-    height: 60,
-    marginBottom: 20,
-  },
-  content: {
-    flex: 1,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 5,
+  qrCard: {
+    marginBottom: 24,
   },
   qrContainer: {
     alignItems: 'center',
-    marginBottom: 30,
-  },
-  qrWrapper: {
     padding: 20,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  addressContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
+  addressCard: {
+    marginBottom: 24,
   },
   addressLabel: {
-    marginBottom: 8,
-    fontSize: 16,
+    marginBottom: 10,
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
-  addressText: {
-    fontSize: 14,
+  addressTextContainer: {
+  },
+  addressTextInputContent: {
+    paddingVertical: 12,
     fontFamily: 'monospace',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 8,
+    fontSize: 14,
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 6,
+    justifyContent: 'space-around',
+    marginTop: 16,
   },
-  buttonWrapper: {
+  actionButton: {
     flex: 1,
-    marginHorizontal: 6,
-    borderRadius: 16,
-    overflow: 'hidden',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    marginHorizontal: 8,
   },
-  button: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  copyButton: {
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
-  },
-  shareButton: {
-    backgroundColor: '#3A5AFF',
-  },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  errorText: {
-    color: '#E53E3E',
-    marginTop: 10,
-    textAlign: 'center',
+  buttonLabel: {
+    fontSize: 14,
   },
 }); 

@@ -1,15 +1,24 @@
-import { ThemedText } from '@/components/ThemedText';
 import ActionButtons from '@/components/ui/ActionButtons';
 import ChatInput from '@/components/ui/ChatInput';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { avalanche, avalancheFuji } from '@/constants/chains';
-import { useTheme } from '@/hooks/ThemeContext';
 import { ResizeMode, Video } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Clipboard, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Clipboard, Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import 'react-native-get-random-values';
+import {
+  Card,
+  Chip,
+  List,
+  ActivityIndicator as PaperActivityIndicator,
+  Button as PaperButton,
+  IconButton as PaperIconButton,
+  Text as PaperText,
+  Portal,
+  Surface,
+  useTheme as usePaperTheme
+} from 'react-native-paper';
 import 'react-native-reanimated';
 import { createPublicClient, formatEther, http } from 'viem';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
@@ -17,28 +26,47 @@ import { storage } from '../core/storage';
 
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
-// Simple placeholder component for action views
+// Estilos para ActionView
+const actionViewStyles = StyleSheet.create({
+  fullScreenView: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButton: {
+    alignSelf: 'center',
+    marginTop: 30, // Aumentar margen superior para separarlo del contenido
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+});
+
 const ActionView = ({ title, onBack, children }: { title: string; onBack: () => void; children?: React.ReactNode }) => {
-  const { colorScheme } = useTheme();
-  const isDark = colorScheme === 'dark';
+  const paperTheme = usePaperTheme();
+  
   return (
-    <View style={[styles.fullScreenView, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}>
-      <ThemedText type="title" style={{ marginBottom: 20 }} lightColor="#0A0E17" darkColor="white">{title}</ThemedText>
+    <Surface style={[actionViewStyles.fullScreenView, { backgroundColor: paperTheme.colors.background }]}>
+      <PaperText variant="headlineSmall" style={{ marginBottom: 20, color: paperTheme.colors.onBackground }}>{title}</PaperText>
       {children}
-      <TouchableOpacity
-        style={[styles.backButton, { backgroundColor: isDark ? '#252D4A' : '#E8EAF6' }]}
+      <PaperButton
+        mode="contained"
+        style={actionViewStyles.backButton}
         onPress={onBack}
+        icon="arrow-left"
       >
-        <ThemedText type="defaultSemiBold" lightColor="#0A0E17" darkColor="white">Back</ThemedText>
-      </TouchableOpacity>
-    </View>
+        Back
+      </PaperButton>
+    </Surface>
   );
 };
 
 export default function WalletScreen() {
   const [activeTab, setActiveTab] = useState<'tokens' | 'transactions'>('tokens');
   const [currentView, setCurrentView] = useState<'main' | 'send' | 'receive' | 'deposit' | 'swap'>('main');
-  const { colorScheme } = useTheme();
+  const paperTheme = usePaperTheme();
+  const { colors, dark: isDark } = paperTheme;
   
   const [account, setAccount] = useState<PrivateKeyAccount | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -46,6 +74,8 @@ export default function WalletScreen() {
 
   const [currentChain, setCurrentChain] = useState(avalancheFuji);
   const [avaxBalance, setAvaxBalance] = useState('0');
+  const [totalValueUSD, setTotalValueUSD] = useState('$0.00');
+
   const [tokens, setTokens] = useState([{
     id: "1",
     name: "Avalanche",
@@ -56,89 +86,52 @@ export default function WalletScreen() {
 
   const [isCopied, setIsCopied] = useState(false);
 
-  const isDark = colorScheme === 'dark';
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const showDialog = () => setDialogVisible(true);
+  const hideDialog = () => setDialogVisible(false);
 
   const switchNetwork = async () => {
-    // Determine the target chain
     const newChain = currentChain.id === avalanche.id ? avalancheFuji : avalanche;
-    
-    console.log(`[Network] Switching configuration from ${currentChain.name} to ${newChain.name}`);
-
-    try {
-      // Simply update the currentChain state.
-      // The useEffect hook watching [account, currentChain] will automatically
-      // trigger fetchAvaxBalance with the new chain configuration.
-      setCurrentChain(newChain);
-      
-      // Optional: Clear old balance state immediately for better UX
-      setAvaxBalance('...'); // Show loading indicator
-      setTokens([{
-        id: "1",
-        name: newChain.name,
-        symbol: newChain.nativeCurrency.symbol,
-        amount: '...',
-        value: '$?.??'
-      }]);
-
-      // No need to manually call fetchAvaxBalance here, useEffect handles it.
-      console.log(`[Network] Configuration switched to ${newChain.name}. Balance refresh triggered.`);
-
-    } catch (error) {
-      // This catch block might be less relevant now unless state updates fail
-      console.error('[Network] Unexpected error during state update for switch:', error);
-      Alert.alert('Error', 'An unexpected error occurred while switching networks');
-    }
+    setCurrentChain(newChain);
+    setAvaxBalance('...');
+    setTokens([{
+      id: "1",
+      name: newChain.name,
+      symbol: newChain.nativeCurrency.symbol,
+      amount: '...',
+      value: '$?.??'
+    }]);
   };
 
   const fetchAvaxBalance = async () => {
-    if (!account) {
-      console.log('fetchAvaxBalance: Account not loaded yet.');
-      return; // No account loaded yet
-    }
-
-    console.log(`Fetching balance for ${account.address} on ${currentChain.name}`);
-
+    if (!account) return;
     try {
-      // 1. Create Viem Public Client for the current chain
-      const client = createPublicClient({
-        chain: currentChain, // Pass the whole chain object from constants
-        transport: http(currentChain.rpcUrls.default.http[0]), // Use the default RPC URL
-      });
-
-      // 2. Fetch balance
-      const balanceWei = await client.getBalance({ 
-        address: account.address, 
-      });
-      
-      // 3. Format balance (Viem returns BigInt in wei)
+      const client = createPublicClient({ chain: currentChain, transport: http(currentChain.rpcUrls.default.http[0]) });
+      const balanceWei = await client.getBalance({ address: account.address });
       const balanceFormatted = formatEther(balanceWei);
-      // Truncate for display purposes if desired
-      const balanceDisplay = parseFloat(balanceFormatted).toFixed(4); 
-
-      console.log(`Balance fetched: ${balanceDisplay} AVAX`);
-
-      // 4. Update state
+      const balanceDisplay = parseFloat(balanceFormatted).toFixed(4);
       setAvaxBalance(balanceDisplay);
+      let calculatedValueUSD = 0;
+      const pricePerToken = currentChain.id === avalanche.id ? 35 : 0.01;
+      calculatedValueUSD = parseFloat(balanceDisplay) * pricePerToken;
+      const formattedTotalValueUSD = `$${calculatedValueUSD.toFixed(2)}`;
+      setTotalValueUSD(formattedTotalValueUSD);
       setTokens([{
-        id: "1", // Keep static ID for the native token
-        name: currentChain.name, // Use current chain name
-        symbol: currentChain.nativeCurrency.symbol, // Use symbol from chain config
-        amount: balanceDisplay,
-        // Keep approximate price calculation for now
-        value: currentChain.id === avalanche.id
-          ? "$" + (parseFloat(balanceDisplay) * 35).toFixed(2) // Approx Mainnet price
-          : "$" + (parseFloat(balanceDisplay) * 0.01).toFixed(2) // Approx Testnet price
-      }]);
-
-    } catch (error) {
-      console.error('Error fetching balance:', error);
-      // Optionally set an error state or show an alert
-      // Keep previous balance state on error for now
-       setTokens([{
         id: "1",
         name: currentChain.name,
         symbol: currentChain.nativeCurrency.symbol,
-        amount: "Error", // Indicate error in amount
+        amount: balanceDisplay,
+        value: formattedTotalValueUSD
+      }]);
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+      setAvaxBalance("Error");
+      setTotalValueUSD('$?.??');
+      setTokens([{
+        id: "1",
+        name: currentChain.name,
+        symbol: currentChain.nativeCurrency.symbol,
+        amount: "Error",
         value: "$?.??"
       }]);
     }
@@ -146,12 +139,9 @@ export default function WalletScreen() {
 
   useEffect(() => {
     if (account) {
-      console.log('Account loaded, fetching balance for:', account.address, 'on chain:', currentChain.name);
       fetchAvaxBalance();
       const interval = setInterval(fetchAvaxBalance, 15000);
       return () => clearInterval(interval);
-    } else {
-        console.log('Account not loaded yet, balance fetch skipped.');
     }
   }, [account, currentChain]);
 
@@ -162,11 +152,8 @@ export default function WalletScreen() {
         const privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
         if (privateKey) {
           const loadedAccount = privateKeyToAccount(privateKey as `0x${string}`); 
-          console.log('Wallet loaded from MMKV for address:', loadedAccount.address);
           setAccount(loadedAccount);
           setWalletAddress(loadedAccount.address);
-        } else {
-          console.error('No private key found in MMKV. User might not be properly logged in or wallet not generated.');
         }
       } catch (error) {
         console.error('Failed to load wallet from MMKV:', error);
@@ -174,514 +161,370 @@ export default function WalletScreen() {
         setIsLoading(false);
       }
     };
-
     loadAccount();
   }, []);
 
-  const handleAction = (view: 'send' | 'receive' | 'deposit' | 'swap') => {
-    // Use Expo Router navigation instead of internal view state
-    router.push(`/(app)/${view}`);
-  };
-
-  const handleBack = () => {
-    setCurrentView('main');
-  };
+  const handleAction = (view: 'send' | 'receive' | 'deposit' | 'swap') => router.push(`/(app)/${view}`);
+  const handleBack = () => setCurrentView('main');
 
   const copyWalletAddress = () => {
     if (walletAddress) {
-      // Use React Native's Clipboard API directly
       Clipboard.setString(walletAddress);
-      
-      // Show copied feedback
       setIsCopied(true);
-      
-      // Reset copied state after 2 seconds
-      setTimeout(() => {
-        setIsCopied(false);
-      }, 2000);
+      setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA', justifyContent: 'center', alignItems: 'center' }]}>
-        <ThemedText type="title">Loading Wallet...</ThemedText>
-      </View>
+      <Surface style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <PaperActivityIndicator animating={true} size="large" color={colors.primary} />
+        <PaperText variant="titleMedium" style={{marginTop: 16, color: colors.onSurface}}>Loading Wallet...</PaperText>
+      </Surface>
     );
   }
   
   if (!account) {
       return (
-         <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA', justifyContent: 'center', alignItems: 'center' }]}>
-             <ThemedText type="title" style={{color: 'red', marginBottom: 10}}>Error Loading Wallet</ThemedText>
-             <ThemedText>Could not load wallet details.</ThemedText>
-             <ThemedText>Please try logging out and back in.</ThemedText>
-         </View>
+         <Surface style={[styles.container, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }]}>
+             <PaperIconButton icon="alert-circle-outline" size={48} iconColor={colors.error} />
+             <PaperText variant="headlineSmall" style={{color: colors.error, marginTop: 16, marginBottom: 8, textAlign: 'center'}}>Error Loading Wallet</PaperText>
+             <PaperText style={{textAlign: 'center', color: colors.onSurfaceVariant}}>Could not load wallet details.</PaperText>
+             <PaperText style={{textAlign: 'center', color: colors.onSurfaceVariant}}>Please try logging out and back in.</PaperText>
+         </Surface>
       )
   }
 
   if (currentView !== 'main') {
     switch (currentView) {
-      case 'send':
-        return (
-          <ActionView title="Send Crypto" onBack={handleBack}>
-            <ThemedText>Send UI Placeholder</ThemedText>
-          </ActionView>
-        );
-      case 'receive':
       case 'deposit':
         return (
-          <ActionView title={currentView === 'receive' ? "Receive Crypto" : "Deposit Crypto"} onBack={handleBack}>
-            <ThemedText style={{ marginBottom: 10 }}>Your Wallet Address:</ThemedText>
-            <TouchableOpacity 
-              onPress={copyWalletAddress} 
-              style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}
-            >
-              <Image
-                source={require('@/assets/logo/logo@SD.png')}
-                style={{width: 16, height: 16, marginRight: 8}}
-              />
-              <ThemedText
-                type="defaultSemiBold"
-                style={[styles.walletAddress, {
-                  textShadowColor: 'rgba(0, 0, 0, 0.3)',
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 3,
-                }]}
-                lightColor="#FFFFFF"
-                darkColor="#FFFFFF"
-              >
-                {walletAddress 
-                  ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-                  : 'Loading address...'}
-              </ThemedText>
-              {isCopied && (
-                <View style={{
-                  marginLeft: 8,
-                  backgroundColor: 'rgba(0,255,0,0.2)', 
-                  paddingHorizontal: 8, 
-                  paddingVertical: 4, 
-                  borderRadius: 12
-                }}>
-                  <ThemedText 
-                    type="default" 
-                    style={{
-                      color: 'green', 
-                      fontSize: 10
-                    }}
-                  >
-                    Copied!
-                  </ThemedText>
-                </View>
-              )}
-            </TouchableOpacity>
-            <ThemedText>(QR Code Placeholder)</ThemedText>
+          <ActionView title="Deposit Crypto" onBack={handleBack}>
+            <PaperText variant="bodyLarge" style={{color: colors.onSurface}}>Deposit UI Placeholder</PaperText>
+            <PaperText style={{marginTop:10, color: colors.onSurfaceVariant}}>Your address for deposit:</PaperText>
+            <Chip icon="content-copy" style={{marginTop:8}} onPress={copyWalletAddress}>
+                {walletAddress ? `${walletAddress.slice(0,10)}...${walletAddress.slice(-8)}` : 'Loading...'}
+            </Chip>
+            {isCopied && <Chip style={{marginTop:8, backgroundColor:colors.tertiaryContainer}} textStyle={{color:colors.onTertiaryContainer}}>Copied!</Chip>}
           </ActionView>
         );
       case 'swap':
         return (
           <ActionView title="Swap Tokens" onBack={handleBack}>
-            <ThemedText>Swap UI Placeholder</ThemedText>
+            <PaperText variant="bodyLarge" style={{color: colors.onSurface}}>Swap UI Placeholder</PaperText>
           </ActionView>
         );
       default:
-        setCurrentView('main');
+        setCurrentView('main'); 
         return null;
     }
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}>
-      <View style={styles.videoContainer}>
-        <Video
-          source={require('@/assets/bg/header-bg.mp4')}
-          style={StyleSheet.absoluteFill}
-          resizeMode={ResizeMode.COVER}
-          isLooping
-          shouldPlay
-          isMuted
-        />
-        <LinearGradient
-          colors={['rgba(0,24,69,0.2)', 'rgba(0,24,69,0.4)']}
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
+    <Portal.Host>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.videoContainer}>
+          <Video
+            source={require('@/assets/bg/header-bg.mp4')}
+            style={StyleSheet.absoluteFill}
+            resizeMode={ResizeMode.COVER}
+            isLooping
+            shouldPlay
+            isMuted
+          />
+          <LinearGradient
+            colors={isDark ? ['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.3)'] : ['rgba(0,10,30,0.5)', 'rgba(0,10,30,0.3)']}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
 
-      {currentView === 'main' && (
-        <>
-          <View style={styles.header}>
-            <ThemedText
-              type="title"
-              style={[styles.balanceText, {marginTop: 20}]}
-              lightColor="#FFFFFF"
-              darkColor="#FFFFFF"
-            >
-              <View style={{flexDirection: 'column', alignItems: 'center'}}>
-                <ThemedText
-                  type="title"
-                  style={{
-                    fontSize: 22,
-                    fontWeight: '600',
-                    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-                    textShadowOffset: { width: 0, height: 1 },
-                    textShadowRadius: 4,
-                  }}
-                  lightColor="#FFFFFF"
-                  darkColor="#FFFFFF"
-                >
-                  {'Welcome to Movya Wallet'}
-                </ThemedText>
-              </View>
-            </ThemedText>
+        {currentView === 'main' && (
+          <>
+            <Surface style={[styles.headerSurface, {backgroundColor: 'transparent'}]} elevation={0}>
+              <PaperText variant="labelLarge" style={[styles.totalBalanceText, { color: '#FFFFFF' }]}>
+                Total Estimated Balance
+              </PaperText>
+              <PaperText variant="displaySmall" style={[styles.totalBalanceValue, { color: '#FFFFFF', textShadowColor: 'rgba(0, 0, 0, 0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }]}>
+                {totalValueUSD}
+              </PaperText>
 
-            <View style={{flexDirection: 'column', alignItems: 'center', marginTop: 16}}>
-              <TouchableOpacity 
-                onPress={copyWalletAddress} 
-                style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}
-              >
-                <Image
-                  source={require('@/assets/logo/logo@SD.png')}
-                  style={{width: 16, height: 16, marginRight: 8}}
-                />
-                <ThemedText
-                  type="defaultSemiBold"
-                  style={[styles.walletAddress, {
-                    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-                    textShadowOffset: { width: 0, height: 1 },
-                    textShadowRadius: 3,
-                  }]}
-                  lightColor="#FFFFFF"
-                  darkColor="#FFFFFF"
-                >
-                  {walletAddress 
-                    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-                    : 'Loading address...'}
-                </ThemedText>
-                {isCopied && (
-                  <View style={{
-                    marginLeft: 8,
-                    backgroundColor: 'rgba(0,255,0,0.2)', 
-                    paddingHorizontal: 8, 
-                    paddingVertical: 4, 
-                    borderRadius: 12
-                  }}>
-                    <ThemedText 
-                      type="default" 
-                      style={{
-                        color: 'green', 
-                        fontSize: 10
-                      }}
-                    >
-                      Copied!
-                    </ThemedText>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View style={{flexDirection: 'row', justifyContent: 'center', alignItems: 'center'}}>
+              <View style={styles.addressAndControlsContainer}>
                 <TouchableOpacity 
-                  onPress={switchNetwork} 
-                  style={[
-                    styles.networkSwitch, 
-                    {
-                      backgroundColor: 'rgba(255,255,255,0.15)',
-                      borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.2)'
-                    }
-                  ]}
+                  onPress={copyWalletAddress} 
+                  style={styles.addressTouchable}
                 >
-                  <ThemedText 
-                    type="defaultSemiBold" 
-                    style={{
-                      fontSize: 12,
-                      textShadowColor: 'rgba(0, 0, 0, 0.3)',
-                      textShadowOffset: { width: 0, height: 1 },
-                      textShadowRadius: 3,
-                    }}
-                    lightColor="#FFFFFF"
-                    darkColor="#FFFFFF"
+                  <PaperIconButton 
+                      icon="wallet-outline" 
+                      size={20} 
+                      iconColor={'#FFFFFF'}
+                      style={{marginRight:0}} 
+                  />
+                  <PaperText
+                    variant="bodyMedium"
+                    style={[styles.walletAddressText, { color: '#FFFFFF', textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }]} 
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
                   >
-                    {currentChain.name}
-                  </ThemedText>
+                    {walletAddress 
+                      ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}` 
+                      : 'Loading address...'}
+                  </PaperText>
+                  {isCopied && (
+                    <Chip 
+                      icon="check-circle" 
+                      mode="flat" 
+                      style={[styles.copiedChip, { backgroundColor: 'rgba(0,255,0,0.2)' }]}
+                      textStyle={{ color: '#FFFFFF', fontSize: 11, fontWeight:'bold' }}
+                    >
+                      COPIED
+                    </Chip>
+                  )}
                 </TouchableOpacity>
                 
-                <TouchableOpacity 
-                  onPress={() => router.push("/(app)/contacts")}
-                  style={[
-                    styles.contactsButton, 
-                    {
-                      backgroundColor: isDark ? '#3A5AFF' : '#0A7EA4',
-                      paddingVertical: 8,
-                      paddingHorizontal: 12,
-                      borderRadius: 12,
-                      marginLeft: 10,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                    }
-                  ]}
-                >
-                  <IconSymbol 
-                    name="person.2.fill" 
-                    size={16} 
-                    color="#FFFFFF" 
-                  />
-                  <ThemedText 
-                    type="defaultSemiBold" 
-                    style={{
-                      fontSize: 12,
-                      marginLeft: 4,
-                      color: "#FFFFFF"
-                    }}
+                <View style={styles.headerControls}>
+                  <Chip 
+                    icon="swap-horizontal-bold" 
+                    onPress={switchNetwork} 
+                    mode="outlined"
+                    selected={currentChain.id === avalanche.id}
+                    style={[styles.networkChip, {backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.3)'}]}
+                    textStyle={{ color: '#FFFFFF', fontWeight: 'bold' }}
                   >
-                    Contactos
-                  </ThemedText>
+                    {currentChain.name}
+                  </Chip>
+                  
+                  <PaperButton 
+                    mode="outlined"
+                    onPress={() => router.push("/(app)/contacts")}
+                    icon="account-multiple"
+                    style={[styles.contactsHeaderButton, {borderColor: 'rgba(255,255,255,0.3)'}]}
+                    labelStyle={{ fontSize: 12, fontWeight:'bold', color: '#FFFFFF' }}
+                    compact
+                  >
+                    Contacts
+                  </PaperButton>
+                </View>
+              </View>
+            </Surface>
+
+            <Surface style={[
+              styles.content,
+              { 
+                backgroundColor: colors.surface,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -3 },
+                shadowOpacity: 0.1,
+                shadowRadius: 6,
+                elevation: 1,
+              }
+            ]}>
+              <View style={styles.tabs}>
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'tokens' && { borderBottomColor: colors.primary, borderBottomWidth: 3 }]}
+                  onPress={() => setActiveTab('tokens')}
+                >
+                  <PaperIconButton 
+                    icon="format-list-bulleted-square"
+                    size={20} 
+                    iconColor={activeTab === 'tokens' ? colors.primary : colors.onSurfaceVariant}
+                  />
+                  <PaperText
+                    variant="labelLarge"
+                    style={{ fontWeight: activeTab === 'tokens' ? 'bold' : 'normal', color: activeTab === 'tokens' ? colors.primary : colors.onSurfaceVariant, marginLeft: 4 }}
+                  >
+                    Tokens
+                  </PaperText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'transactions' && { borderBottomColor: colors.primary, borderBottomWidth: 3 }]}
+                  onPress={() => setActiveTab('transactions')}
+                >
+                  <PaperIconButton 
+                    icon="history" 
+                    size={20} 
+                    iconColor={activeTab === 'transactions' ? colors.primary : colors.onSurfaceVariant}
+                  />
+                  <PaperText
+                    variant="labelLarge"
+                    style={{ fontWeight: activeTab === 'transactions' ? 'bold' : 'normal', color: activeTab === 'transactions' ? colors.primary : colors.onSurfaceVariant, marginLeft: 4 }}
+                  >
+                    Transactions
+                  </PaperText>
                 </TouchableOpacity>
               </View>
-            </View>
-          </View>
 
-          <View style={[styles.content, { 
-            backgroundColor: isDark ? '#1A1F38' : '#FFFFFF',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -3 },
-            shadowOpacity: 0.1,
-            shadowRadius: 6,
-            elevation: 5,
-          }]}>
-            <View style={styles.tabs}>
-              <TouchableOpacity
-                style={[styles.tab, activeTab === 'tokens' && styles.activeTab]}
-                onPress={() => setActiveTab('tokens')}
-              >
-                <ThemedText
-                  type="defaultSemiBold"
-                  lightColor="#0A0E17"
-                  darkColor="white"
-                >
-                  Tokens
-                </ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tab, activeTab === 'transactions' && styles.activeTab]}
-                onPress={() => setActiveTab('transactions')}
-              >
-                <ThemedText
-                  type="defaultSemiBold"
-                  lightColor="#0A0E17"
-                  darkColor="white"
-                >
-                  Transactions
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-
-            {activeTab === 'tokens' ? (
-              <ScrollView style={styles.tabContent}>
-                {tokens.map(token => (
-                  <View key={token.id} style={[styles.tokenCard, { backgroundColor: isDark ? '#252D4A' : '#E8EAF6' }]}>
-                    <Image
-                      source={require('@/assets/Avax_Token.png')}
-                      style={styles.tokenIcon}
-                      resizeMode="contain"
-                    />
-                    <View style={styles.tokenInfo}>
-                      <ThemedText
-                        type="defaultSemiBold"
-                        lightColor="#0A0E17"
-                        darkColor="white"
-                      >
-                        {token.symbol}
-                      </ThemedText>
-                      <ThemedText
-                        type="default"
-                        lightColor="#6C7A9C"
-                        darkColor="#9BA1A6"
-                      >
-                        {token.name}
-                      </ThemedText>
+              {activeTab === 'tokens' ? (
+                <View style={{ flex: 1 }}>
+                  {tokens.length === 0 || (tokens.length === 1 && tokens[0].amount === "Error") ? (
+                    <View style={styles.emptyStateContainer}>
+                        <PaperIconButton icon="cancel" size={48} iconColor={colors.onSurfaceDisabled} />
+                        <PaperText variant="titleMedium" style={{marginTop:16, color: colors.onSurfaceDisabled}}>No Tokens Found</PaperText>
+                        <PaperText variant="bodyMedium" style={{marginTop:8, color: colors.onSurfaceDisabled, textAlign:'center'}}>Could not load token balances or your wallet is empty.</PaperText>
                     </View>
-                    <View style={styles.tokenAmount}>
-                      <ThemedText
-                        type="defaultSemiBold"
-                        lightColor="#0A0E17"
-                        darkColor="white"
-                      >
-                        {token.amount}
-                      </ThemedText>
-                      <ThemedText
-                        type="default"
-                        lightColor="#6C7A9C"
-                        darkColor="#9BA1A6"
-                      >
-                        {token.value}
-                      </ThemedText>
-                    </View>
-                  </View>
-                ))}
-
-                <ActionButtons
-                  onSend={() => handleAction('send')}
-                  onReceive={() => handleAction('receive')}
-                  onDeposit={() => handleAction('deposit')}
-                  onSwap={() => handleAction('swap')}
-                />
-              </ScrollView>
-            ) : (
-              <ScrollView style={styles.tabContent}>
-                {[
-                  { id: "1", type: "Received", amount: "+1.50 AVAX", value: "$55.70", date: "Today" },
-                  { id: "2", type: "Sent", amount: "-0.75 AVAX", value: "$27.85", date: "Yesterday" }
-                ].map((tx: { id: string; type: string; amount: string; value: string; date: string }) => {
-                  return (
-                    <View key={tx.id} style={[styles.transactionItem, { backgroundColor: isDark ? '#252D4A' : '#E8EAF6' }]}>
-                      <View style={styles.transactionDetails}>
-                        <ThemedText type="defaultSemiBold" lightColor="#0A0E17" darkColor="white">
-                          {tx.type}
-                        </ThemedText>
-                        <ThemedText type="default" lightColor="#6C7A9C" darkColor="#9BA1A6">
-                          {tx.date}
-                        </ThemedText>
+                  ) : (
+                    <ScrollView style={styles.tokenListContainer}>
+                    {tokens.map(token => (
+                        <Card key={token.id} style={[styles.tokenCard, {backgroundColor: colors.surfaceVariant}]} elevation={1}>
+                        <Card.Content style={styles.tokenCardContent}>
+                            <Image
+                            source={require('@/assets/Avax_Token.png')}
+                            style={styles.tokenIcon}
+                            resizeMode="contain"
+                            />
+                            <View style={styles.tokenInfo}>
+                            <PaperText variant="titleMedium" style={{color: colors.onSurface}}>{token.symbol}</PaperText>
+                            <PaperText variant="bodyMedium" style={{ color: colors.onSurfaceVariant }}>{token.name}</PaperText>
+                            </View>
+                            <View style={styles.tokenAmount}>
+                            <PaperText variant="titleMedium" style={{color: colors.onSurface}}>{token.amount}</PaperText>
+                            <PaperText variant="bodyMedium" style={{ color: colors.onSurfaceVariant }}>{token.value}</PaperText>
+                            </View>
+                        </Card.Content>
+                        </Card>
+                    ))}
+                    </ScrollView>
+                  )}
+                  <ActionButtons
+                    onSend={() => handleAction('send')}
+                    onReceive={() => handleAction('receive')}
+                    onDeposit={() => handleAction('deposit')}
+                    onSwap={() => handleAction('swap')}
+                  />
+                </View>
+              ) : (
+                <View style={{ flex: 1 }}>
+                   { (true) ? (
+                    <ScrollView style={styles.transactionListContainer}>
+                    {[
+                        { id: "1", type: "Received", amount: "+1.50 AVAX", value: "$55.70", date: "Today, 10:45 AM", from: "0x123...abc" },
+                        { id: "2", type: "Sent", amount: "-0.75 AVAX", value: "$27.85", date: "Yesterday, 03:20 PM", to: "0x456...def" },
+                        { id: "3", type: "Swapped", amount: "-10 USDC for +0.2 AVAX", value: "~$35.00", date: "Jan 15, 2024", details: "USDC/AVAX" }
+                    ].map((tx) => {
+                        const isReceived = tx.type === "Received";
+                        let amountColor = colors.onSurface;
+                        let iconName = "history";
+                        if (tx.type === "Received") {
+                            amountColor = 'green';
+                            iconName = "arrow-down-bold-circle-outline";
+                        } else if (tx.type === "Sent") {
+                            amountColor = colors.error;
+                            iconName = "arrow-up-bold-circle-outline";
+                        } else if (tx.type === "Swapped") {
+                            amountColor = colors.primary;
+                            iconName = "swap-horizontal-bold";
+                        }
+                        return (
+                        <List.Item
+                            key={tx.id}
+                            title={tx.type}
+                            description={`${tx.date}${tx.from ? ` from ${tx.from}` : tx.to ? ` to ${tx.to}` : tx.details ? ` (${tx.details})` : ''}`}
+                            left={props => <List.Icon {...props} icon={iconName} color={amountColor} />}
+                            right={props => <PaperText {...props} variant="bodyLarge" style={{ color: amountColor, alignSelf: 'center', marginRight: 8 }}>{tx.amount.split(' ')[0] + ' ' + tx.amount.split(' ')[1]}</PaperText>}
+                            style={[styles.transactionListItem, { backgroundColor: colors.surfaceVariant }]}
+                            titleStyle={{ fontWeight: 'bold', color: colors.onSurface}}
+                            descriptionStyle={{ color: colors.onSurfaceVariant, fontSize: 12 }}
+                            onPress={() => Alert.alert("Transaction Details", `ID: ${tx.id}\nValue: ${tx.value}`)}
+                        />
+                        );
+                    })}
+                    </ScrollView>
+                  ) : (
+                      <View style={styles.emptyStateContainer}>
+                          <PaperIconButton icon="format-list-bulleted" size={48} iconColor={colors.onSurfaceDisabled} />
+                          <PaperText variant="titleMedium" style={{marginTop:16, color: colors.onSurfaceDisabled}}>No Transactions Yet</PaperText>
+                          <PaperText variant="bodyMedium" style={{marginTop:8, color: colors.onSurfaceDisabled, textAlign:'center'}}>Your transaction history will appear here.</PaperText>
                       </View>
-                      <View style={styles.transactionAmount}>
-                        <ThemedText type="defaultSemiBold" lightColor="#0A0E17" darkColor="white">
-                          {tx.amount}
-                        </ThemedText>
-                        <ThemedText type="default" lightColor="#6C7A9C" darkColor="#9BA1A6">
-                          {tx.value}
-                        </ThemedText>
-                      </View>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            )}
-          </View>
-        </>
-      )}
-      
-      <ChatInput
-        onSendMessage={(message) => {
-          console.log('Navigating to chat with message:', message);
-          // Navigate to chat screen with the message as a parameter
-          router.push({
-            pathname: '/(app)/chat',
-            params: { 
-              initialMessage: message,
-              from: 'wallet'
-            }
-          });
-        }}
-      />
-    </View>
+                  )}
+                </View>
+              )}
+            </Surface>
+          </>
+        )}
+        
+        <ChatInput
+          onSendMessage={(message) => {
+            router.push({
+              pathname: '/(app)/chat',
+              params: { initialMessage: message, from: 'wallet' }
+            });
+          }}
+        />
+      </View>
+    </Portal.Host>
   );
 }
 
 const styles = StyleSheet.create({
-  initialsContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  container: { flex: 1 },
+  videoContainer: { position: 'absolute', left: 0, right: 0, top: 0, height: '30%', overflow: 'hidden' },
+  headerSurface: { 
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30, 
+    alignItems: 'center',
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    marginBottom: -24, 
+  },
+  totalBalanceText: { marginBottom: 2, opacity: 0.9, fontWeight: '500' },
+  totalBalanceValue: { marginBottom: 12, fontWeight: '700', letterSpacing: 0.5 },
+  addressAndControlsContainer: { width: '100%', alignItems: 'center', marginTop: 8 },
+  addressTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16, 
+    backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+  },
+  addressIcon: { width: 18,  height: 18, marginRight: 8 },
+  walletAddressText: {
+    flexShrink: 1, 
+    fontSize: 13, 
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  copiedChip: {
+    marginLeft: 10,
+    paddingHorizontal:6, 
+    height: 26, 
+    alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 8,
+  },
+  headerControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  container: {
-    flex: 1,
-  },
-  videoContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: '60%', // Solo cubre la parte superior
-    overflow: 'hidden',
-  },
-  videoBackground: {
     width: '100%',
-    height: '100%',
+    paddingHorizontal: 4, 
   },
-  header: {
-    padding: 20,
-    paddingTop: 50,
-    alignItems: 'center',
-  },
-  logo: {
-    width: 50,
-    height: 50,
-    marginBottom: 16,
-  },
-  balanceText: {
-    fontSize: 32,
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  walletAddress: {
-    fontSize: 14,
-  },
-  content: {
-    flex: 1,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    marginTop: -20,
-  },
+  networkChip: { paddingHorizontal: 6, height: 36, alignItems: 'center', justifyContent:'center' },
+  contactsHeaderButton: { /* Estilos específicos si se necesitan */ },
+  content: { flex: 1, paddingHorizontal: 16, paddingTop: 40 },
   tabs: {
     flexDirection: 'row',
-    marginBottom: 20,
-  },
-  tab: {
-    flex: 1,
-    padding: 12,
-    alignItems: 'center',
-    borderBottomWidth: 2,
+    marginBottom: 16, 
+    borderBottomWidth: 1,
     borderBottomColor: 'transparent',
   },
-  activeTab: {
-    borderBottomColor: '#3A5AFF',
-  },
-  tabContent: {
-    flex: 1,
-  },
-  tokenCard: {
+  tab: {
+    flex: 1, paddingVertical: 12, paddingHorizontal: 4, alignItems: 'center',
+    borderBottomWidth: 3, borderBottomColor: 'transparent',
     flexDirection: 'row',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    alignItems: 'center',
+    justifyContent: 'center', marginHorizontal: 4,
   },
-  tokenIcon: {
-    width: 40,
-    height: 40,
-    marginRight: 12,
-  },
-  tokenInfo: {
-    flex: 1,
-  },
-  tokenAmount: {
-    alignItems: 'flex-end',
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  actionButton: {
-  },
-  transactionItem: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  transactionDetails: {
-    flex: 1,
-  },
-  transactionAmount: {
-    alignItems: 'flex-end',
-  },
+  tokenListContainer: { flex: 1 },
+  emptyStateContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  tokenCard: { borderRadius: 16, marginBottom: 12 },
+  tokenCardContent: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+  tokenIcon: { width: 42, height: 42, marginRight: 16 },
+  tokenInfo: { flex: 1 },
+  tokenAmount: { alignItems: 'flex-end' },
+  transactionListContainer: { flex: 1 },
+  transactionListItem: { marginBottom: 10, borderRadius: 16, paddingVertical: 4 },
   fullScreenView: {
     flex: 1,
     padding: 20,
@@ -689,38 +532,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButton: {
-    position: 'absolute',
-    bottom: 40,
     alignSelf: 'center',
-    marginTop: 20,
+    marginTop: 30,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
   },
-  networkSwitch: {
-    marginTop: 8,
-    marginLeft: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  contactsButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-  contactsMainButton: {
-    padding: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-}); 
+});

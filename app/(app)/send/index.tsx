@@ -1,21 +1,25 @@
 import { handleWalletAction } from '@/app/core/walletActionHandler';
-import { ThemedText } from '@/components/ThemedText';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { avalancheFuji } from '@/constants/chains';
-import { useTheme } from '@/hooks/ThemeContext';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
   View
 } from 'react-native';
+import {
+  Appbar,
+  Card,
+  ActivityIndicator as PaperActivityIndicator,
+  Button as PaperButton,
+  Text as PaperText,
+  TextInput as PaperTextInput,
+  Surface,
+  useTheme as usePaperTheme
+} from 'react-native-paper';
 import { createPublicClient, formatEther, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { storage } from '../../core/storage';
@@ -23,8 +27,9 @@ import { storage } from '../../core/storage';
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
 export default function SendScreen() {
-  const { colorScheme } = useTheme();
-  const isDark = colorScheme === 'dark';
+  const paperTheme = usePaperTheme();
+  const { colors } = paperTheme;
+  const isDark = paperTheme.dark;
   
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
@@ -93,7 +98,7 @@ export default function SendScreen() {
 
     Alert.alert(
       'Confirm Transaction',
-      `Are you sure you want to send ${amount} AVAX to ${recipient}?`,
+      `Are you sure you want to send ${amount} ${avalancheFuji.nativeCurrency.symbol} to ${recipient}?`,
       [
         {
           text: 'Cancel',
@@ -109,7 +114,7 @@ export default function SendScreen() {
                 recipientAddress: recipient,
                 amount: amount,
                 recipientEmail: null,
-                currency: 'AVAX'
+                currency: avalancheFuji.nativeCurrency.symbol
               });
 
               if (result.success) {
@@ -155,182 +160,103 @@ export default function SendScreen() {
     Alert.alert('Coming Soon', 'QR scanner will be available in a future update');
   };
 
-  // Completely rebuilt UI with careful attention to nesting
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={100}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
+    <Surface style={styles.container}>
+      <Appbar.Header>
+        <Appbar.BackAction onPress={() => router.back()} />
+        <Appbar.Content title={`Send ${avalancheFuji.nativeCurrency.symbol}`} />
+        <View style={{ width: 40 }} />{/* Spacer for centering title */}
+      </Appbar.Header>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0} // Adjust as needed
+      >
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          <IconSymbol
-            name="chevron.left"
-            size={24}
-            color={isDark ? "#FFFFFF" : "#0A0E17"}
-          />
-          <ThemedText style={styles.backText}>Back</ThemedText>
-        </TouchableOpacity>
-        
-        <ThemedText type="title" style={styles.headerTitle}>
-          {`Send ${avalancheFuji.nativeCurrency.symbol}`}
-        </ThemedText>
-        
-        <View style={{ width: 40 }}></View>
-      </View>
+          <Card style={styles.card}>
+            <Card.Content>
+              <PaperText variant="labelLarge" style={styles.balanceLabel}>Current Balance</PaperText>
+              {isLoading ? (
+                <PaperActivityIndicator size="small" color={colors.primary} style={{alignSelf: 'center'}} />
+              ) : (
+                <PaperText variant="headlineSmall" style={styles.balanceValue}>
+                  {balance ? `${balance} ${avalancheFuji.nativeCurrency.symbol}` : 'Loading...'}
+                </PaperText>
+              )}
+            </Card.Content>
+          </Card>
 
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.scrollContent}>
-          {/* Balance Card */}
-          <View style={[styles.balanceCard, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
-            <ThemedText style={styles.balanceLabel}>Current Balance</ThemedText>
-            {isLoading ? (
-              <ActivityIndicator size="small" color={isDark ? '#3A5AFF' : '#0A7EA4'} />
-            ) : (
-              <ThemedText type="title" style={styles.balanceValue}>
-                {balance ? `${balance} ${avalancheFuji.nativeCurrency.symbol}` : 'Loading...'}
-              </ThemedText>
-            )}
-          </View>
-
-          {/* Form Card */}
-          <View style={[styles.formCard, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
-            {/* Recipient */}
-            <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Recipient Address</ThemedText>
-              
-              <View style={styles.addressInputContainer}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    { 
-                      backgroundColor: isDark ? '#252D4A' : '#E8EAF6',
-                      color: isDark ? '#FFFFFF' : '#0A0E17',
-                      flex: 1,
-                    }
-                  ]}
+          <Card style={styles.card}>
+            <Card.Content>
+              {/* Recipient */}
+              <View style={styles.inputGroup}>
+                <PaperTextInput
+                  mode="outlined"
+                  label="Recipient Address"
                   placeholder="Enter 0x address"
-                  placeholderTextColor={isDark ? '#9BA1A6' : '#6C7A9C'}
                   value={recipient}
                   onChangeText={setRecipient}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  style={styles.input}
+                  right={<PaperTextInput.Icon icon="qrcode-scan" onPress={handleScanQR} />}
                 />
-                
-                <TouchableOpacity 
-                  style={[
-                    styles.scanButton,
-                    { backgroundColor: isDark ? '#3A5AFF' : '#0A7EA4' }
-                  ]}
-                  onPress={handleScanQR}
-                >
-                  <IconSymbol
-                    name="qrcode"
-                    size={20}
-                    color="#FFFFFF"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={styles.contactsButton}
-                onPress={() => router.push('/(app)/contacts')}
-              >
-                <IconSymbol
-                  name="person.2.fill"
-                  size={16}
-                  color={isDark ? '#3A5AFF' : '#0A7EA4'}
-                />
-                <ThemedText
-                  style={[styles.contactsText, { color: isDark ? '#3A5AFF' : '#0A7EA4' }]}
+                <PaperButton 
+                  mode="text" 
+                  icon="contacts"
+                  onPress={() => router.push('/(app)/contacts')}
+                  style={styles.contactsButton}
                 >
                   Select from Contacts
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
+                </PaperButton>
+              </View>
 
-            {/* Amount */}
-            <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>
-                {`Amount (${avalancheFuji.nativeCurrency.symbol})`}
-              </ThemedText>
-              
-              <View style={styles.amountInputContainer}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    { 
-                      backgroundColor: isDark ? '#252D4A' : '#E8EAF6',
-                      color: isDark ? '#FFFFFF' : '#0A0E17',
-                      flex: 1,
-                    }
-                  ]}
-                  placeholder={`0.0 ${avalancheFuji.nativeCurrency.symbol}`}
-                  placeholderTextColor={isDark ? '#9BA1A6' : '#6C7A9C'}
+              {/* Amount */}
+              <View style={styles.inputGroup}>
+                <PaperTextInput
+                  mode="outlined"
+                  label={`Amount (${avalancheFuji.nativeCurrency.symbol})`}
+                  placeholder={`0.00 ${avalancheFuji.nativeCurrency.symbol}`}
                   value={amount}
                   onChangeText={setAmount}
                   keyboardType="decimal-pad"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  style={styles.input}
+                  right={<PaperButton onPress={handleMaxAmount} compact>MAX</PaperButton>}
                 />
-                
-                <TouchableOpacity 
-                  style={[
-                    styles.maxButton,
-                    { backgroundColor: isDark ? '#3A5AFF' : '#0A7EA4' }
-                  ]}
-                  onPress={handleMaxAmount}
-                >
-                  <ThemedText style={{ color: '#FFFFFF', fontWeight: '600' }}>
-                    MAX
-                  </ThemedText>
-                </TouchableOpacity>
+                <PaperText variant="bodySmall" style={styles.gasFeeNote}>
+                  Note: Transaction will require gas fees (approx. 0.01 {avalancheFuji.nativeCurrency.symbol})
+                </PaperText>
               </View>
-              
-              <ThemedText style={styles.gasFeeNote}>
-                Note: Transaction will require gas fees (~0.01 AVAX)
-              </ThemedText>
-            </View>
+            </Card.Content>
+            <Card.Actions>
+              <PaperButton
+                mode="contained"
+                onPress={handleSend}
+                loading={isSending}
+                disabled={!recipient || !amount || isSending || isLoading}
+                icon="send"
+                style={styles.sendButtonFill}
+              >
+                {isSending ? 'Sending...' : 'Send Transaction'}
+              </PaperButton>
+            </Card.Actions>
+          </Card>
 
-            {/* Send Button */}
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                { backgroundColor: isSending ? (isDark ? '#324499' : '#086483') : (isDark ? '#3A5AFF' : '#0A7EA4') },
-                (!recipient || !amount || isSending) && styles.disabledButton
-              ]}
-              onPress={handleSend}
-              disabled={!recipient || !amount || isSending}
-            >
-              {isSending ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <View style={styles.buttonContent}>
-                  <IconSymbol
-                    name="paperplane.fill"
-                    size={18}
-                    color="#FFFFFF"
-                  />
-                  <ThemedText style={styles.sendButtonText}>
-                    Send Transaction
-                  </ThemedText>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Warning Note */}
           <View style={styles.warningContainer}>
-            <ThemedText style={styles.warningText}>
+            <PaperText variant="bodySmall" style={styles.warningText}>
               ⚠️ Always double-check the recipient address before sending. Transactions cannot be reversed.
-            </ThemedText>
+            </PaperText>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Surface>
   );
 }
 
@@ -338,138 +264,48 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backText: {
-    marginLeft: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: 16,
   },
-  balanceCard: {
-    borderRadius: 12,
-    padding: 16,
+  card: {
     marginBottom: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   balanceLabel: {
-    fontSize: 14,
+    textAlign: 'center',
     marginBottom: 8,
     opacity: 0.7,
   },
   balanceValue: {
-    fontSize: 24,
-  },
-  formCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
   inputGroup: {
     marginBottom: 16,
   },
-  inputLabel: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  addressInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   input: {
-    height: 48,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-  },
-  scanButton: {
-    marginLeft: 8,
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    // backgroundColor: 'transparent', // TextInput manages its own background with theme
   },
   contactsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginTop: 8,
-  },
-  contactsText: {
-    marginLeft: 4,
-    textDecorationLine: 'underline',
-    fontSize: 14,
-  },
-  amountInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  maxButton: {
-    marginLeft: 8,
-    paddingHorizontal: 12,
-    height: 48,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
   gasFeeNote: {
-    fontSize: 12,
     marginTop: 8,
     opacity: 0.7,
+    textAlign: 'center',
   },
-  sendButton: {
-    borderRadius: 8,
-    paddingVertical: 16,
-    marginTop: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  sendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+  sendButtonFill: {
+    flex: 1, // Make button take full width in Card.Actions
   },
   warningContainer: {
     marginTop: 8,
-    marginBottom: 24,
+    marginBottom: 24, // Extra space at the bottom
+    paddingHorizontal: 16,
   },
   warningText: {
-    fontSize: 14,
     textAlign: 'center',
     opacity: 0.7,
   },
