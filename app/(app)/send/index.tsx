@@ -6,15 +6,15 @@ import { useTheme } from '@/hooks/ThemeContext';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { createPublicClient, formatEther, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -33,7 +33,6 @@ export default function SendScreen() {
   const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
-    // Load current balance
     fetchBalance();
   }, []);
 
@@ -47,18 +46,15 @@ export default function SendScreen() {
 
       const account = privateKeyToAccount(privateKey as `0x${string}`);
       
-      // Create a public client to interact with the blockchain
       const client = createPublicClient({
         chain: avalancheFuji,
         transport: http(avalancheFuji.rpcUrls.default.http[0])
       });
 
-      // Fetch balance
       const balanceWei = await client.getBalance({
         address: account.address
       });
 
-      // Convert to AVAX
       const balanceFormatted = formatEther(balanceWei);
       setBalance(parseFloat(balanceFormatted).toFixed(4));
     } catch (error) {
@@ -69,7 +65,6 @@ export default function SendScreen() {
   };
 
   const handleSend = async () => {
-    // Basic validation
     if (!recipient) {
       Alert.alert('Error', 'Please enter a recipient address');
       return;
@@ -96,7 +91,6 @@ export default function SendScreen() {
       return;
     }
 
-    // Ask for confirmation
     Alert.alert(
       'Confirm Transaction',
       `Are you sure you want to send ${amount} AVAX to ${recipient}?`,
@@ -109,7 +103,6 @@ export default function SendScreen() {
           text: 'Send',
           style: 'destructive',
           onPress: async () => {
-            // Execute the transaction
             setIsSending(true);
             try {
               const result = await handleWalletAction('SEND_TRANSACTION', {
@@ -119,7 +112,6 @@ export default function SendScreen() {
                 currency: 'AVAX'
               });
 
-              // Handle the result
               if (result.success) {
                 Alert.alert(
                   'Success',
@@ -128,11 +120,9 @@ export default function SendScreen() {
                     { 
                       text: 'OK', 
                       onPress: () => {
-                        // Clear form and refresh balance
                         setRecipient('');
                         setAmount('');
                         fetchBalance();
-                        // Navigate back to wallet
                         router.push('/(app)/wallet');
                       }
                     }
@@ -155,26 +145,23 @@ export default function SendScreen() {
 
   const handleMaxAmount = () => {
     if (balance) {
-      // Set the maximum amount (with a small buffer for gas)
       const balanceNum = parseFloat(balance);
-      // Leave 0.01 AVAX for gas
       const max = Math.max(0, balanceNum - 0.01).toFixed(4);
       setAmount(max);
     }
   };
 
   const handleScanQR = () => {
-    // For future QR scanner implementation
     Alert.alert('Coming Soon', 'QR scanner will be available in a future update');
   };
 
+  // Completely rebuilt UI with careful attention to nesting
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={100}
     >
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -187,153 +174,160 @@ export default function SendScreen() {
           />
           <ThemedText style={styles.backText}>Back</ThemedText>
         </TouchableOpacity>
-        <ThemedText type="title" style={styles.headerTitle}>Send {avalancheFuji.nativeCurrency.symbol}</ThemedText>
-        <View style={{ width: 40 }} /> {/* Placeholder for symmetry */}
+        
+        <ThemedText type="title" style={styles.headerTitle}>
+          {`Send ${avalancheFuji.nativeCurrency.symbol}`}
+        </ThemedText>
+        
+        <View style={{ width: 40 }}></View>
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Balance Display */}
-        <View style={[styles.balanceCard, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
-          <ThemedText style={styles.balanceLabel}>Current Balance</ThemedText>
-          {isLoading ? (
-            <ActivityIndicator size="small" color={isDark ? '#3A5AFF' : '#0A7EA4'} />
-          ) : (
-            <ThemedText type="title" style={styles.balanceValue}>
-              {balance ? `${balance} ${avalancheFuji.nativeCurrency.symbol}` : 'Loading...'}
-            </ThemedText>
-          )}
-        </View>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.scrollContent}>
+          {/* Balance Card */}
+          <View style={[styles.balanceCard, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
+            <ThemedText style={styles.balanceLabel}>Current Balance</ThemedText>
+            {isLoading ? (
+              <ActivityIndicator size="small" color={isDark ? '#3A5AFF' : '#0A7EA4'} />
+            ) : (
+              <ThemedText type="title" style={styles.balanceValue}>
+                {balance ? `${balance} ${avalancheFuji.nativeCurrency.symbol}` : 'Loading...'}
+              </ThemedText>
+            )}
+          </View>
 
-        {/* Send Form */}
-        <View style={[styles.formCard, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
-          {/* Recipient */}
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Recipient Address</ThemedText>
-            
-            <View style={styles.addressInputContainer}>
-              <TextInput
-                style={[
-                  styles.input,
-                  { 
-                    backgroundColor: isDark ? '#252D4A' : '#E8EAF6',
-                    color: isDark ? '#FFFFFF' : '#0A0E17',
-                    flex: 1,
-                  }
-                ]}
-                placeholder="Enter 0x address"
-                placeholderTextColor={isDark ? '#9BA1A6' : '#6C7A9C'}
-                value={recipient}
-                onChangeText={setRecipient}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+          {/* Form Card */}
+          <View style={[styles.formCard, { backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' }]}>
+            {/* Recipient */}
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.inputLabel}>Recipient Address</ThemedText>
               
-              <TouchableOpacity 
-                style={[
-                  styles.scanButton,
-                  { backgroundColor: isDark ? '#3A5AFF' : '#0A7EA4' }
-                ]}
-                onPress={handleScanQR}
+              <View style={styles.addressInputContainer}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { 
+                      backgroundColor: isDark ? '#252D4A' : '#E8EAF6',
+                      color: isDark ? '#FFFFFF' : '#0A0E17',
+                      flex: 1,
+                    }
+                  ]}
+                  placeholder="Enter 0x address"
+                  placeholderTextColor={isDark ? '#9BA1A6' : '#6C7A9C'}
+                  value={recipient}
+                  onChangeText={setRecipient}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.scanButton,
+                    { backgroundColor: isDark ? '#3A5AFF' : '#0A7EA4' }
+                  ]}
+                  onPress={handleScanQR}
+                >
+                  <IconSymbol
+                    name="qrcode"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.contactsButton}
+                onPress={() => router.push('/(app)/contacts')}
               >
                 <IconSymbol
-                  name="qrcode"
-                  size={20}
-                  color="#FFFFFF"
+                  name="person.2.fill"
+                  size={16}
+                  color={isDark ? '#3A5AFF' : '#0A7EA4'}
                 />
+                <ThemedText
+                  style={[styles.contactsText, { color: isDark ? '#3A5AFF' : '#0A7EA4' }]}
+                >
+                  Select from Contacts
+                </ThemedText>
               </TouchableOpacity>
             </View>
 
-            {/* Contact Selection in future updates */}
-            <TouchableOpacity
-              style={styles.contactsButton}
-              onPress={() => router.push('/(app)/contacts')}
-            >
-              <IconSymbol
-                name="person.2.fill"
-                size={16}
-                color={isDark ? '#3A5AFF' : '#0A7EA4'}
-              />
-              <ThemedText
-                style={[styles.contactsText, { color: isDark ? '#3A5AFF' : '#0A7EA4' }]}
-              >
-                Select from Contacts
+            {/* Amount */}
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.inputLabel}>
+                {`Amount (${avalancheFuji.nativeCurrency.symbol})`}
               </ThemedText>
+              
+              <View style={styles.amountInputContainer}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { 
+                      backgroundColor: isDark ? '#252D4A' : '#E8EAF6',
+                      color: isDark ? '#FFFFFF' : '#0A0E17',
+                      flex: 1,
+                    }
+                  ]}
+                  placeholder={`0.0 ${avalancheFuji.nativeCurrency.symbol}`}
+                  placeholderTextColor={isDark ? '#9BA1A6' : '#6C7A9C'}
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="decimal-pad"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.maxButton,
+                    { backgroundColor: isDark ? '#3A5AFF' : '#0A7EA4' }
+                  ]}
+                  onPress={handleMaxAmount}
+                >
+                  <ThemedText style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                    MAX
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+              
+              <ThemedText style={styles.gasFeeNote}>
+                Note: Transaction will require gas fees (~0.01 AVAX)
+              </ThemedText>
+            </View>
+
+            {/* Send Button */}
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                { backgroundColor: isSending ? (isDark ? '#324499' : '#086483') : (isDark ? '#3A5AFF' : '#0A7EA4') },
+                (!recipient || !amount || isSending) && styles.disabledButton
+              ]}
+              onPress={handleSend}
+              disabled={!recipient || !amount || isSending}
+            >
+              {isSending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <View style={styles.buttonContent}>
+                  <IconSymbol
+                    name="paperplane.fill"
+                    size={18}
+                    color="#FFFFFF"
+                  />
+                  <ThemedText style={styles.sendButtonText}>
+                    Send Transaction
+                  </ThemedText>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
 
-          {/* Amount */}
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Amount ({avalancheFuji.nativeCurrency.symbol})</ThemedText>
-            
-            <View style={styles.amountInputContainer}>
-              <TextInput
-                style={[
-                  styles.input,
-                  { 
-                    backgroundColor: isDark ? '#252D4A' : '#E8EAF6',
-                    color: isDark ? '#FFFFFF' : '#0A0E17',
-                    flex: 1,
-                  }
-                ]}
-                placeholder={`0.0 ${avalancheFuji.nativeCurrency.symbol}`}
-                placeholderTextColor={isDark ? '#9BA1A6' : '#6C7A9C'}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              
-              <TouchableOpacity 
-                style={[
-                  styles.maxButton,
-                  { backgroundColor: isDark ? '#3A5AFF' : '#0A7EA4' }
-                ]}
-                onPress={handleMaxAmount}
-              >
-                <ThemedText style={{ color: '#FFFFFF', fontWeight: '600' }}>
-                  MAX
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-            
-            <ThemedText style={styles.gasFeeNote}>
-              Note: Transaction will require gas fees (~0.01 AVAX)
+          {/* Warning Note */}
+          <View style={styles.warningContainer}>
+            <ThemedText style={styles.warningText}>
+              ⚠️ Always double-check the recipient address before sending. Transactions cannot be reversed.
             </ThemedText>
           </View>
-
-          {/* Send Button */}
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              { backgroundColor: isSending ? (isDark ? '#324499' : '#086483') : (isDark ? '#3A5AFF' : '#0A7EA4') },
-              (!recipient || !amount || isSending) && styles.disabledButton
-            ]}
-            onPress={handleSend}
-            disabled={!recipient || !amount || isSending}
-          >
-            {isSending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <IconSymbol
-                  name="paperplane.fill"
-                  size={18}
-                  color="#FFFFFF"
-                />
-                <ThemedText style={styles.sendButtonText}>
-                  Send Transaction
-                </ThemedText>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Warning Note */}
-        <View style={styles.warningContainer}>
-          <ThemedText style={styles.warningText}>
-            ⚠️ Always double-check the recipient address before sending. Transactions cannot be reversed.
-          </ThemedText>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -450,12 +444,16 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   sendButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: 8,
     paddingVertical: 16,
     marginTop: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   disabledButton: {
     opacity: 0.5,
