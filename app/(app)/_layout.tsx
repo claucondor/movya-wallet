@@ -53,35 +53,35 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen 
-        name="send/index" 
+        name="send"
         options={{ 
           headerShown: false,
           href: '/send',
         }} 
       />
       <Tabs.Screen 
-        name="receive/index" 
+        name="receive"
         options={{ 
           headerShown: false,
           href: '/receive',
         }} 
       />
       <Tabs.Screen 
-        name="swap/index" 
+        name="swap"
         options={{ 
           headerShown: false,
           href: '/swap',
         }} 
       />
       <Tabs.Screen 
-        name="deposit/index" 
+        name="deposit"
         options={{ 
           headerShown: false,
           href: '/deposit',
         }} 
       />
       <Tabs.Screen 
-        name="contacts/index" 
+        name="contacts"
         options={{ 
           headerShown: false,
           href: '/contacts',

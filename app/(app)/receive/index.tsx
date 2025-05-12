@@ -3,7 +3,6 @@ import { useTheme } from '@/hooks/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ResizeMode, Video } from 'expo-av';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Image, Pressable, Share, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
@@ -115,10 +114,7 @@ export default function ReceiveScreen() {
           shouldPlay
           isMuted
         />
-        <LinearGradient
-          colors={['rgba(0,24,69,0.2)', 'rgba(0,24,69,0.4)']}
-          style={StyleSheet.absoluteFill}
-        />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,24,69,0.3)' }]} />
       </View>
 
       <View style={styles.header}>
@@ -174,11 +170,12 @@ export default function ReceiveScreen() {
             styles.buttonWrapper,
             { transform: [{ scale: copyAnimatedValue }] }
           ]}>
-            <LinearGradient
-              colors={isDark ? ['#2D3748', '#1A202C'] : ['#EDF2F7', '#E2E8F0']}
-              style={[styles.button, styles.copyButton]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <View
+              style={[
+                styles.button, 
+                styles.copyButton,
+                { backgroundColor: isDark ? '#2D3748' : '#EDF2F7' }
+              ]}
             >
               <Pressable
                 style={styles.buttonContent}
@@ -199,18 +196,19 @@ export default function ReceiveScreen() {
                   Copy
                 </ThemedText>
               </Pressable>
-            </LinearGradient>
+            </View>
           </Animated.View>
 
           <Animated.View style={[
             styles.buttonWrapper,
             { transform: [{ scale: shareAnimatedValue }] }
           ]}>
-            <LinearGradient
-              colors={['#3A5AFF', '#2541CC']}
-              style={[styles.button, styles.shareButton]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <View
+              style={[
+                styles.button, 
+                styles.shareButton,
+                { backgroundColor: '#3A5AFF' }
+              ]}
             >
               <Pressable
                 style={styles.buttonContent}
@@ -231,7 +229,7 @@ export default function ReceiveScreen() {
                   Share
                 </ThemedText>
               </Pressable>
-            </LinearGradient>
+            </View>
           </Animated.View>
         </View>
       </View>

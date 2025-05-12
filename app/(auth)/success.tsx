@@ -5,8 +5,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'; // Import viem functions
-import { storage } from './core/storage'; // Import MMKV storage
-import { checkBalanceAndRequestFaucet, saveWalletToBackend } from './internal/walletService'; // Importar la función para guardar en el backend
+import { storage } from '../core/storage'; // UPDATED PATH
+import { checkBalanceAndRequestFaucet, saveWalletToBackend } from '../internal/walletService'; // UPDATED PATH
 
 // Define a key for storing the private key
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';

@@ -41,8 +41,14 @@ export default function AddContactScreen() {
 
     try {
       setLoading(true);
-      // Intentar obtener el userId del storage
-      const userId = storage.getString('userId') || 'current-user';
+      const userId = storage.getString('userId');
+      
+      if (!userId) {
+        Alert.alert('Error de Autenticación', 'No se pudo obtener el ID de usuario. Por favor, intente iniciar sesión de nuevo.');
+        setLoading(false);
+        // Opcionalmente, redirigir a login: router.replace('/(auth)/login');
+        return;
+      }
       
       let result;
       if (contactType === 'address') {
@@ -55,7 +61,7 @@ export default function AddContactScreen() {
         Alert.alert('Éxito', 'Contacto añadido correctamente', [
           { 
             text: 'OK', 
-            onPress: () => router.push("/(app)/contacts") 
+            onPress: () => router.back()
           }
         ]);
       } else {

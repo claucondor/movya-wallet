@@ -4,7 +4,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } fro
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import * as Linking from 'expo-linking';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
@@ -12,6 +12,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import "react-native-get-random-values";
 import 'react-native-reanimated';
 import { createAndSaveWallet, getWalletAddress, loadWallet } from '../internal/walletService';
+import { storage } from './core/storage'; // Import MMKV storage
 // import { avalanche, avalancheFuji } from 'viem/chains'; // Keep if needed elsewhere, remove if only for Privy
 
 // Backend Callback URL (as configured in Google Cloud Console)
@@ -47,6 +48,8 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const router = useRouter();
+  const segments = useSegments();
 
   // Function to manually start the Google Login flow
   const startGoogleLogin = useCallback(async () => {
@@ -102,23 +105,34 @@ export default function RootLayout() {
 
       if (path === 'auth-success') {
         console.log('Authentication successful via backend redirect!');
-        console.log('User ID from backend:', queryParams?.userId);
+        const currentUserId = queryParams?.userId as string || null;
+        console.log('User ID from backend:', currentUserId);
+
+        // Store userId if available (using MMKV or SecureStore as appropriate)
+        if (currentUserId) {
+          storage.set('userId', currentUserId); // Storing userId
+          console.log('User ID stored after deep link in MMKV:', currentUserId);
+        } else {
+          console.warn('No userId received from backend in auth-success deep link.');
+        }
 
         let wallet = await loadWallet();
         if (!wallet) {
           console.log('No existing wallet found, creating a new one...');
           wallet = await createAndSaveWallet();
         }
-        setWalletAddress(wallet.address);
+        setWalletAddress(wallet.address); // This will trigger the effect below
         console.log('Wallet address after login:', wallet.address);
-
-        // TODO: Store other user info (userId?) and navigate
-        // e.g., await SecureStore.setItemAsync('userId', queryParams?.userId);
-        // router.replace('/(tabs)/'); // Example navigation
+        
+        // Explicitly navigate to the app section
+        // Using replace to prevent going back to the auth flow via back button
+        router.replace('/(app)/wallet'); // Or '/(app)' if you have a specific index screen there
 
       } else if (path === 'auth-error') {
         console.error('Authentication failed via backend redirect:', queryParams?.message);
-        // TODO: Handle failed login (show error message)
+        const errorMessage = queryParams?.message as string || 'Authentication failed via backend.';
+        // Navigate to the error screen within the (auth) group
+        router.replace({ pathname: '/(auth)/error', params: { message: errorMessage } });
       }
     };
 
@@ -127,13 +141,35 @@ export default function RootLayout() {
 
     // Clean up the subscription on unmount
     return () => subscription.remove();
-  }, []);
+  }, [router]); // Add router to dependency array
 
-  // TODO: You need to EXPOSE `startGoogleLogin` to your UI
-  // Option 1: Pass it via Context
-  // Option 2: Define it within a screen component (like login screen) and call it from a button
-  // Example (conceptual - place in your login button's onPress):
-  // <Button title="Login with Google" onPress={startGoogleLogin} />
+  // Effect to handle redirection based on walletAddress and current route
+  useEffect(() => {
+    if (!loaded) return; // Don't run until fonts are loaded (and initial wallet check might be in progress)
+
+    const inAuthGroup = segments[0] === '(auth)';
+    const inAppGroup = segments[0] === '(app)';
+
+    console.log(`RootLayout Auth Redirect: walletAddress: ${walletAddress}, segments: ${segments.join('/')}, inAuthGroup: ${inAuthGroup}, inAppGroup: ${inAppGroup}`);
+
+    if (walletAddress && (inAuthGroup || segments.length === 0 || segments[0] === 'index')) {
+      // User is authenticated but is in auth group, at root, or on the initial index.tsx
+      // Redirect to main app screen.
+      // Avoid redirecting if already in (app) group to prevent loops, unless it's from root index.
+      // Also, allow staying on auth/success or auth/error if those are the current deep link targets.
+      if (segments[1] !== 'success' && segments[1] !== 'error') {
+         console.log('Redirecting to /(app)/wallet due to walletAddress and current segment');
+         router.replace('/(app)/wallet'); // Or your preferred app entry point
+      }
+    } else if (!walletAddress && inAppGroup) {
+      // User is not authenticated but is in the app group. Redirect to login.
+      console.log('Redirecting to /(auth)/login due to no walletAddress and in-app segment');
+      router.replace('/(auth)/login');
+    }
+    // If on app/index.tsx and no wallet, app/index.tsx itself should redirect to /(auth)/login.
+    // If on app/index.tsx and has wallet, this effect will push to /(app)/wallet.
+
+  }, [walletAddress, segments, loaded, router]);
 
   // Value provided by the context
   const authContextValue: AuthContextType = {
