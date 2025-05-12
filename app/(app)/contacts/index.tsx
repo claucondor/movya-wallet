@@ -1,22 +1,17 @@
 import { storage } from '@/app/core/storage';
 import { Contact, deleteContact, getContacts } from '@/app/internal/contactService';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Appbar, Button, IconButton, ActivityIndicator as PaperActivityIndicator, Text as PaperText, useTheme as usePaperTheme } from 'react-native-paper';
+import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { Appbar, Button, IconButton, List, ActivityIndicator as PaperActivityIndicator, Text as PaperText, useTheme as usePaperTheme } from 'react-native-paper';
 
 export default function ContactsScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
   const paperTheme = usePaperTheme();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Función para cargar contactos
   const loadContacts = async () => {
     try {
       setLoading(true);
@@ -46,18 +41,15 @@ export default function ContactsScreen() {
     }
   };
 
-  // Cargar contactos al iniciar
   useEffect(() => {
     loadContacts();
   }, []);
 
-  // Función para refrescar
   const onRefresh = () => {
     setRefreshing(true);
     loadContacts();
   };
 
-  // Función para eliminar contacto
   const handleDeleteContact = (contactId: string) => {
     Alert.alert(
       'Eliminar contacto',
@@ -73,16 +65,12 @@ export default function ContactsScreen() {
           onPress: async () => {
             try {
               const userId = storage.getString('userId');
-              
               if (!userId) {
-                Alert.alert('Error de Autenticación', 'No se pudo obtener el ID de usuario. Por favor, intente iniciar sesión de nuevo.');
+                Alert.alert('Error de Autenticación', 'No se pudo obtener el ID de usuario.');
                 return;
               }
-              
               const result = await deleteContact(userId, contactId);
-              
               if (result.success) {
-                // Actualizar lista de contactos
                 setContacts(contacts.filter(contact => contact.id !== contactId));
                 Alert.alert('Éxito', 'Contacto eliminado correctamente');
               } else {
@@ -98,25 +86,26 @@ export default function ContactsScreen() {
     );
   };
 
-  // Renderizar cada contacto
   const renderContact = ({ item }: { item: Contact }) => (
-    <View style={[styles.contactCard, { backgroundColor: Colors[colorScheme ?? 'light'].cardBackground }]}>
-      <View style={styles.contactInfo}>
-        <Text style={[styles.nickname, { color: Colors[colorScheme ?? 'light'].text }]}>
-          {item.nickname}
-        </Text>
-        <Text style={[styles.value, { color: Colors[colorScheme ?? 'light'].secondaryText }]}>
-          {item.type === 'email' ? '📧 ' : '👛 '}
-          {item.value.length > 25 ? `${item.value.substring(0, 10)}...${item.value.substring(item.value.length - 10)}` : item.value}
-        </Text>
-      </View>
-      <TouchableOpacity 
-        style={styles.deleteButton}
-        onPress={() => handleDeleteContact(item.id || '')}
-      >
-        <IconSymbol name="trash" color={Colors[colorScheme ?? 'light'].danger} size={20} />
-      </TouchableOpacity>
-    </View>
+    <List.Item
+      title={item.nickname}
+      description={item.value.length > 30 ? `${item.value.substring(0, 15)}...${item.value.substring(item.value.length - 10)}` : item.value}
+      descriptionNumberOfLines={1}
+      titleStyle={{ fontWeight: 'bold' }}
+      left={props => <List.Icon {...props} icon={item.type === 'email' ? 'email-outline' : 'wallet-outline'} />}
+      right={props => 
+        <IconButton 
+          {...props} 
+          icon="trash-can-outline" 
+          iconColor={paperTheme.colors.error}
+          onPress={() => handleDeleteContact(item.id || '')} 
+        />
+      }
+      style={[styles.listItem, { backgroundColor: paperTheme.colors.surfaceVariant }]}
+      onPress={() => {
+        console.log('Pressed contact:', item.nickname);
+      }}
+    />
   );
 
   return (
@@ -184,33 +173,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    padding: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 0,
   },
-  contactCard: {
-    flexDirection: 'row',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  contactInfo: {
-    flex: 1,
-  },
-  nickname: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  value: {
-    fontSize: 14,
-  },
-  deleteButton: {
-    justifyContent: 'center',
-    paddingHorizontal: 10,
+  listItem: {
+    marginBottom: 8,
+    marginHorizontal: 16,
+    borderRadius: 8,
+    elevation: 1,
   },
   emptyState: {
     flex: 1,
@@ -223,8 +193,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 24,
   },
-  addFirstButton: {
-  },
+  addFirstButton: {},
   addFirstButtonText: {
     fontWeight: '600',
     fontSize: 16,
