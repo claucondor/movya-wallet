@@ -282,27 +282,23 @@ export default function WalletScreen() {
                 </TouchableOpacity>
                 
                 <View style={styles.headerControls}>
-                  <Chip 
-                    icon="swap-horizontal-bold" 
-                    onPress={switchNetwork} 
-                    mode="outlined"
-                    selected={currentChain.id === avalanche.id}
-                    style={[styles.networkChip, {backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.3)'}]}
-                    textStyle={{ color: '#FFFFFF', fontWeight: 'bold' }}
-                  >
-                    {currentChain.name}
-                  </Chip>
+                  <View style={styles.networkControlContainer}> 
+                    <PaperIconButton 
+                      icon="swap-horizontal-bold" 
+                      iconColor="#FFFFFF"
+                      size={28}
+                      onPress={switchNetwork} 
+                      style={styles.headerIconButton}
+                    />
+                  </View>
                   
-                  <PaperButton 
-                    mode="outlined"
+                  <PaperIconButton 
+                    icon="account-multiple-outline"
+                    iconColor="#FFFFFF"
+                    size={28}
                     onPress={() => router.push("/(app)/contacts")}
-                    icon="account-multiple"
-                    style={[styles.contactsHeaderButton, {borderColor: 'rgba(255,255,255,0.3)'}]}
-                    labelStyle={{ fontSize: 12, fontWeight:'bold', color: '#FFFFFF' }}
-                    compact
-                  >
-                    Contacts
-                  </PaperButton>
+                    style={styles.headerIconButton}
+                  />
                 </View>
               </View>
             </Surface>
@@ -461,7 +457,7 @@ const styles = StyleSheet.create({
   videoContainer: { position: 'absolute', left: 0, right: 0, top: 0, height: '30%', overflow: 'hidden' },
   headerSurface: { 
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingVertical: 10,
     paddingTop: Platform.OS === 'ios' ? 50 : 30, 
     alignItems: 'center',
     borderBottomLeftRadius: 28,
@@ -474,13 +470,12 @@ const styles = StyleSheet.create({
   addressTouchable: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 16, 
     backgroundColor: 'rgba(255, 255, 255, 0.1)', 
   },
-  addressIcon: { width: 18,  height: 18, marginRight: 8 },
   walletAddressText: {
     flexShrink: 1, 
     fontSize: 13, 
@@ -499,10 +494,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    paddingHorizontal: 4, 
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    marginTop: 0,
   },
-  networkChip: { paddingHorizontal: 6, height: 36, alignItems: 'center', justifyContent:'center' },
-  contactsHeaderButton: { /* Estilos específicos si se necesitan */ },
+  networkControlContainer: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  headerIconButton: {
+  },
   content: { flex: 1, paddingHorizontal: 16, paddingTop: 40 },
   tabs: {
     flexDirection: 'row',
