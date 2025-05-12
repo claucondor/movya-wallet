@@ -2,17 +2,17 @@ import express, { NextFunction, Request, Response } from 'express';
 import { chatWithAgent } from './agentController';
 import { handleAuthCallback } from './authHandler'; // Assuming authHandler will be migrated and export handleAuthCallback
 import {
-  addContactByAddressHandler,
-  addContactByEmailHandler,
-  deleteContactHandler,
-  getContactByNicknameHandler,
-  getContactsHandler
+    addContactByAddressHandler,
+    addContactByEmailHandler,
+    deleteContactHandler,
+    getContactByNicknameHandler,
+    getContactsHandler
 } from './contactHandler';
 import { faucetHandler } from './faucetHandler';
 import { reportAgentResult } from './resultController'; // Import the new controller
 import {
-  getWalletAddressHandler,
-  saveWalletAddressHandler
+    getWalletAddressHandler,
+    saveWalletAddressHandler
 } from './walletHandler';
 
 const routes = express.Router();
@@ -99,7 +99,7 @@ routes.post('/contacts/email',
   asyncHandler(addContactByEmailHandler)
 );
 
-routes.get('/contacts', 
+routes.get('/contacts/:userId',
   authMiddleware,
   asyncHandler(getContactsHandler)
 );
