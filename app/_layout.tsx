@@ -100,48 +100,71 @@ export default function RootLayout() {
   // Effect to handle the DEEP LINK redirect FROM the backend
   useEffect(() => {
     const handleDeepLink = async (event: { url: string }) => {
-      console.log('Deep Link Received:', event.url);
+      console.log('[HANDLEDLINK] Deep Link Received:', event.url);
       const { path, queryParams } = Linking.parse(event.url);
 
-      if (path === 'auth-success') {
-        console.log('Authentication successful via backend redirect!');
-        const currentUserId = queryParams?.userId as string || null;
-        console.log('User ID from backend:', currentUserId);
+      console.log('[HANDLEDLINK] Parsed Path:', path);
+      console.log('[HANDLEDLINK] Parsed Query Params:', queryParams);
 
-        // Store userId if available (using MMKV or SecureStore as appropriate)
+      let recognizedPathType = null;
+
+      // Intentar reconocer por path parseado
+      if (path === 'auth-success' || path === '/auth-success') {
+        recognizedPathType = 'success';
+      } else if (path === 'auth-error' || path === '/auth-error') {
+        recognizedPathType = 'error';
+      }
+
+      // Si el path no fue reconocido, intentar por la URL completa
+      // Esto es útil para esquemas como exp:// donde el path puede ser null
+      if (!recognizedPathType && event.url) {
+        if (event.url.includes('auth-success')) {
+          recognizedPathType = 'success';
+          console.log(`[HANDLEDLINK] Recognized 'auth-success' from event.url`);
+        } else if (event.url.includes('auth-error')) {
+          recognizedPathType = 'error';
+          console.log(`[HANDLEDLINK] Recognized 'auth-error' from event.url`);
+        }
+      }
+
+      if (recognizedPathType === 'success') {
+        console.log('[HANDLEDLINK] Processing auth-success...');
+        const currentUserId = queryParams?.userId as string || null;
+        console.log('[HANDLEDLINK] User ID from backend:', currentUserId);
+
         if (currentUserId) {
-          storage.set('userId', currentUserId); // Storing userId
-          console.log('User ID stored after deep link in MMKV:', currentUserId);
+          storage.set('userId', currentUserId);
+          console.log('[HANDLEDLINK] User ID stored after deep link in MMKV:', currentUserId);
         } else {
-          console.warn('No userId received from backend in auth-success deep link.');
+          console.warn('[HANDLEDLINK] No userId received from backend in auth-success deep link.');
         }
 
         let wallet = await loadWallet();
         if (!wallet) {
-          console.log('No existing wallet found, creating a new one...');
+          console.log('[HANDLEDLINK] No existing wallet found, creating a new one...');
           wallet = await createAndSaveWallet();
         }
-        setWalletAddress(wallet.address); // This will trigger the effect below
-        console.log('Wallet address after login:', wallet.address);
+        setWalletAddress(wallet.address);
+        console.log('[HANDLEDLINK] Wallet address after login:', wallet.address);
         
-        // Explicitly navigate to the app section
-        // Using replace to prevent going back to the auth flow via back button
-        router.replace('/(app)/wallet'); // Or '/(app)' if you have a specific index screen there
+        console.log('[HANDLEDLINK] Attempting to replace route to /(app)/wallet');
+        router.replace('/(app)/wallet');
+        console.log('[HANDLEDLINK] Route replace to /(app)/wallet called.');
 
-      } else if (path === 'auth-error') {
-        console.error('Authentication failed via backend redirect:', queryParams?.message);
+      } else if (recognizedPathType === 'error') {
+        console.error('[HANDLEDLINK] Processing auth-error...');
         const errorMessage = queryParams?.message as string || 'Authentication failed via backend.';
-        // Navigate to the error screen within the (auth) group
+        console.log('[HANDLEDLINK] Attempting to replace route to /(auth)/error');
         router.replace({ pathname: '/(auth)/error', params: { message: errorMessage } });
+        console.log('[HANDLEDLINK] Route replace to /(auth)/error called.');
+      } else {
+        console.warn('[HANDLEDLINK] Deep link event.url not recognized for auth-success or auth-error:', event.url);
       }
     };
 
-    // Subscribe to incoming links
     const subscription = Linking.addEventListener('url', handleDeepLink);
-
-    // Clean up the subscription on unmount
     return () => subscription.remove();
-  }, [router]); // Add router to dependency array
+  }, [router]);
 
   // Effect to handle redirection based on walletAddress and current route
   useEffect(() => {
