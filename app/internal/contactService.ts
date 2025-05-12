@@ -32,6 +32,17 @@ export async function getContacts(userId: string): Promise<{
   count: number;
   message?: string;
 }> {
+  // Asegurarse de que userId sea una cadena válida y no vacía antes de usarla en la URL
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    console.error('[ContactService] getContacts: userId is invalid or missing.');
+    return {
+      success: false,
+      contacts: [],
+      count: 0,
+      message: 'User ID is invalid or missing for frontend request.'
+    };
+  }
+
   try {
     // Obtener el token si existe
     const token = storage.getString('userToken');
@@ -45,7 +56,8 @@ export async function getContacts(userId: string): Promise<{
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${BACKEND_URL}/contacts`, {
+    // Modificar la URL para incluir el userId como parámetro de ruta
+    const response = await fetch(`${BACKEND_URL}/contacts/${userId}`, {
       method: 'GET',
       headers,
     });
