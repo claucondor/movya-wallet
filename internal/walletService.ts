@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import { storage } from '../app/core/storage'; // Import MMKV storage
 
 // Key used to store the private key
-const STORAGE_KEY = 'ethereumPrivateKey'; // Renamed for clarity
+const STORAGE_KEY = 'userPrivateKey'; // Renamed for clarity
 
 /**
  * Creates a new random Ethereum wallet and saves its private key.
