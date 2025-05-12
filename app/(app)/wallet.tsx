@@ -4,10 +4,12 @@ import { avalanche, avalancheFuji } from '@/constants/chains';
 import { ResizeMode, Video } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { Alert, Clipboard, Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Clipboard, Image, Platform, StatusBar as ReactNativeStatusBar, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import 'react-native-get-random-values';
 import {
+  Appbar,
   Card,
   Chip,
   List,
@@ -223,24 +225,41 @@ export default function WalletScreen() {
   return (
     <Portal.Host>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={isDark ? "light" : "dark"} translucent={true} backgroundColor="transparent" />
+
         <View style={styles.videoContainer}>
           <Video
             source={require('@/assets/bg/header-bg.mp4')}
             style={StyleSheet.absoluteFill}
             resizeMode={ResizeMode.COVER}
-            isLooping
-            shouldPlay
-            isMuted
+            isLooping shouldPlay isMuted
           />
           <LinearGradient
-            colors={isDark ? ['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.3)'] : ['rgba(0,10,30,0.5)', 'rgba(0,10,30,0.3)']}
+            colors={isDark ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.4)'] : ['rgba(0,10,30,0.6)', 'rgba(0,10,30,0.4)']}
             style={StyleSheet.absoluteFill}
           />
         </View>
 
+        <Appbar.Header 
+          mode="center-aligned"
+          style={[styles.appbar, { backgroundColor: 'transparent'}]} 
+        >
+          <Appbar.Content 
+            title="Movya Wallet" 
+            subtitle={currentChain.name} 
+            titleStyle={styles.appbarTitle}
+            subtitleStyle={styles.appbarSubtitle}
+            style={{paddingTop: Platform.OS === 'android' ? ReactNativeStatusBar.currentHeight : 0 }}
+          />
+          <View style={{paddingTop: Platform.OS === 'android' ? ReactNativeStatusBar.currentHeight : 0, flexDirection: 'row' }}>
+            <Appbar.Action icon="swap-horizontal-bold" onPress={switchNetwork} color="#FFFFFF" rippleColor="rgba(255,255,255,0.3)"/>
+            <Appbar.Action icon="account-multiple-outline" onPress={() => router.push("/(app)/contacts")} color="#FFFFFF" rippleColor="rgba(255,255,255,0.3)"/>
+          </View>
+        </Appbar.Header>
+
         {currentView === 'main' && (
           <>
-            <Surface style={[styles.headerSurface, {backgroundColor: 'transparent'}]} elevation={0}>
+            <View style={styles.balanceHeaderContent}> 
               <PaperText variant="labelLarge" style={[styles.totalBalanceText, { color: '#FFFFFF' }]}>
                 Total Estimated Balance
               </PaperText>
@@ -248,7 +267,7 @@ export default function WalletScreen() {
                 {totalValueUSD}
               </PaperText>
 
-              <View style={styles.addressAndControlsContainer}>
+              <View style={styles.addressAndControlsContainer}>                
                 <TouchableOpacity 
                   onPress={copyWalletAddress} 
                   style={styles.addressTouchable}
@@ -256,7 +275,7 @@ export default function WalletScreen() {
                   <PaperIconButton 
                       icon="wallet-outline" 
                       size={20} 
-                      iconColor={'#FFFFFF'}
+                      iconColor={'#FFFFFF'} 
                       style={{marginRight:0}} 
                   />
                   <PaperText
@@ -273,47 +292,27 @@ export default function WalletScreen() {
                     <Chip 
                       icon="check-circle" 
                       mode="flat" 
-                      style={[styles.copiedChip, { backgroundColor: 'rgba(0,255,0,0.2)' }]}
+                      style={[styles.copiedChip, { backgroundColor: 'rgba(0,255,0,0.2)' }]} 
                       textStyle={{ color: '#FFFFFF', fontSize: 11, fontWeight:'bold' }}
                     >
                       COPIED
                     </Chip>
                   )}
                 </TouchableOpacity>
-                
-                <View style={styles.headerControls}>
-                  <View style={styles.networkControlContainer}> 
-                    <PaperIconButton 
-                      icon="swap-horizontal-bold" 
-                      iconColor="#FFFFFF"
-                      size={28}
-                      onPress={switchNetwork} 
-                      style={styles.headerIconButton}
-                    />
-                  </View>
-                  
-                  <PaperIconButton 
-                    icon="account-multiple-outline"
-                    iconColor="#FFFFFF"
-                    size={28}
-                    onPress={() => router.push("/(app)/contacts")}
-                    style={styles.headerIconButton}
-                  />
-                </View>
               </View>
-            </Surface>
+            </View>
 
             <Surface style={[
-              styles.content,
+              styles.contentSurface,
               { 
-                backgroundColor: colors.surface,
+                backgroundColor: colors.surface, 
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: -3 },
                 shadowOpacity: 0.1,
                 shadowRadius: 6,
-                elevation: 1,
+                elevation: 5, 
               }
             ]}>
               <View style={styles.tabs}>
@@ -454,15 +453,24 @@ export default function WalletScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  videoContainer: { position: 'absolute', left: 0, right: 0, top: 0, height: '30%', overflow: 'hidden' },
-  headerSurface: { 
+  appbar: {
+    elevation: 0,
+  },
+  appbarTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: '#FFFFFF' },
+  appbarSubtitle: { fontSize: 12, opacity: 0.8, textAlign: 'center', color: '#FFFFFF' },
+  videoContainer: {
+    position: 'absolute',
+    left: 0, right: 0, top: 0, 
+    height: '40%',
+    overflow: 'hidden',
+    zIndex: 0,
+  },
+  balanceHeaderContent: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30, 
+    paddingTop: 15,
+    paddingBottom: 15,
     alignItems: 'center',
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    marginBottom: -24, 
+    zIndex: 1,
   },
   totalBalanceText: { marginBottom: 2, opacity: 0.9, fontWeight: '500' },
   totalBalanceValue: { marginBottom: 12, fontWeight: '700', letterSpacing: 0.5 },
@@ -470,13 +478,13 @@ const styles = StyleSheet.create({
   addressTouchable: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 0,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 16, 
     backgroundColor: 'rgba(255, 255, 255, 0.1)', 
   },
-  walletAddressText: {
+  walletAddressText: { 
     flexShrink: 1, 
     fontSize: 13, 
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -489,22 +497,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 8,
   },
-  headerControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    paddingHorizontal: 10,
-    paddingBottom: 10,
+  contentSurface: {
+    flex: 1, 
+    paddingHorizontal: 16, 
+    paddingTop: 20, 
+    zIndex: 1,
     marginTop: 0,
   },
-  networkControlContainer: {
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  headerIconButton: {
-  },
-  content: { flex: 1, paddingHorizontal: 16, paddingTop: 40 },
   tabs: {
     flexDirection: 'row',
     marginBottom: 16, 
