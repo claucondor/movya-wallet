@@ -1,6 +1,6 @@
-import { ThemeProvider } from '@/hooks/ThemeContext';
+import { ThemeProvider as CustomThemeProvider } from '@/hooks/ThemeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
+import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationDefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import * as Linking from 'expo-linking';
@@ -10,13 +10,14 @@ import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import "react-native-get-random-values";
+import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
 import { createAndSaveWallet, getWalletAddress, loadWallet } from '../internal/walletService';
-import { storage } from './core/storage'; // Import MMKV storage
+import { storage } from './core/storage';
 // import { avalanche, avalancheFuji } from 'viem/chains'; // Keep if needed elsewhere, remove if only for Privy
 
 // Backend Callback URL (as configured in Google Cloud Console)
-const BACKEND_CALLBACK_URL = 'https://auth-callback-backend-466947410626.us-central1.run.app/auth/callback';
+const BACKEND_CALLBACK_URL = Constants.expoConfig?.extra?.backendUrl + '/auth/callback';
 
 // Google Client IDs read from app.json extra section
 const GOOGLE_WEB_CLIENT_ID = Constants.expoConfig?.extra?.googleOAuth?.webClientId;
@@ -201,20 +202,29 @@ export default function RootLayout() {
     // Add other state here
   };
 
+  // Determinar el tema para PaperProvider y NavigationThemeProvider
+  const paperTheme = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
+  const navigationTheme = colorScheme === 'dark' ? NavigationDarkTheme : NavigationDefaultTheme;
+
+  if (!loaded) {
+    return null; // O un componente de carga si prefieres, mientras las fuentes cargan
+  }
+
   return (
-    // Wrap with AuthContext.Provider
     <AuthContext.Provider value={authContextValue}>
-      <ThemeProvider>
-        <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(app)" />
-            <Stack.Screen name="index" options={{ animation: 'none' }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        </NavigationThemeProvider>
-      </ThemeProvider>
+      <CustomThemeProvider>
+        <PaperProvider theme={paperTheme}>
+          <NavigationThemeProvider value={navigationTheme}>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(app)" />
+              <Stack.Screen name="index" options={{ animation: 'none' }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          </NavigationThemeProvider>
+        </PaperProvider>
+      </CustomThemeProvider>
     </AuthContext.Provider>
   );
 }

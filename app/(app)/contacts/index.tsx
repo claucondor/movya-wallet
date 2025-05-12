@@ -3,13 +3,15 @@ import { Contact, deleteContact, getContacts } from '@/app/internal/contactServi
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Appbar, Button, IconButton, ActivityIndicator as PaperActivityIndicator, Text as PaperText, useTheme as usePaperTheme } from 'react-native-paper';
 
 export default function ContactsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
+  const paperTheme = usePaperTheme();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -19,15 +21,15 @@ export default function ContactsScreen() {
     try {
       setLoading(true);
       const userId = storage.getString('userId');
-      
+      console.log('[ContactsScreen] Attempting to load contacts. Retrieved userId from storage:', userId);
       if (!userId) {
+        console.error('[ContactsScreen] userId is null or undefined. Cannot load contacts.');
         Alert.alert('Error de Autenticación', 'No se pudo obtener el ID de usuario. Por favor, intente iniciar sesión de nuevo.');
         setLoading(false);
         setRefreshing(false);
-        // Opcionalmente, redirigir a login: router.replace('/(auth)/login');
         return;
       }
-      
+      console.log('[ContactsScreen] Calling getContacts with userId:', userId);
       const result = await getContacts(userId);
       
       if (result.success) {
@@ -74,7 +76,6 @@ export default function ContactsScreen() {
               
               if (!userId) {
                 Alert.alert('Error de Autenticación', 'No se pudo obtener el ID de usuario. Por favor, intente iniciar sesión de nuevo.');
-                // Opcionalmente, redirigir a login: router.replace('/(auth)/login');
                 return;
               }
               
@@ -119,45 +120,35 @@ export default function ContactsScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-      <Stack.Screen 
-        options={{
-          headerTitle: 'Mis Contactos',
-          headerShown: true,
-          headerBackTitle: 'Atrás',
-          headerLeft: () => (
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
-              <IconSymbol name="chevron.left" color={Colors[colorScheme ?? 'light'].text} size={24} />
-            </TouchableOpacity>
-          ),
-          headerRight: () => (
-            <TouchableOpacity 
-              style={styles.addButton}
-              onPress={() => router.push("/(app)/contacts/add")}
-            >
-              <IconSymbol name="plus" color={Colors[colorScheme ?? 'light'].tint} size={24} />
-            </TouchableOpacity>
-          ),
-        }} 
-      />
+    <View style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
+      <Appbar.Header>
+        <Appbar.BackAction onPress={() => router.back()} />
+        <Appbar.Content title="Mis Contactos" />
+        <Appbar.Action icon="plus" onPress={() => router.push("/(app)/contacts/add")} />
+      </Appbar.Header>
       
       {loading && !refreshing ? (
-        <ActivityIndicator style={styles.loader} size="large" color={Colors[colorScheme ?? 'light'].tint} />
+        <View style={styles.loaderContainer}>
+          <PaperActivityIndicator animating={true} size="large" color={paperTheme.colors.primary} />
+        </View>
       ) : contacts.length === 0 ? (
         <View style={styles.emptyState}>
-          <IconSymbol name="person.2" color={Colors[colorScheme ?? 'light'].secondaryText} size={50} />
-          <Text style={[styles.emptyText, { color: Colors[colorScheme ?? 'light'].secondaryText }]}>
+          <IconButton 
+            icon="account-group-outline"
+            size={50} 
+            iconColor={paperTheme.colors.onSurfaceDisabled} 
+          />
+          <PaperText variant="titleMedium" style={[styles.emptyText, { color: paperTheme.colors.onSurfaceDisabled }]}>
             No tienes contactos guardados
-          </Text>
-          <TouchableOpacity 
-            style={[styles.addFirstButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}
+          </PaperText>
+          <Button 
+            mode="contained" 
             onPress={() => router.push("/(app)/contacts/add")}
+            style={styles.addFirstButton}
+            labelStyle={styles.addFirstButtonText}
           >
-            <Text style={styles.addFirstButtonText}>Añadir contacto</Text>
-          </TouchableOpacity>
+            Añadir contacto
+          </Button>
         </View>
       ) : (
         <FlatList
@@ -170,8 +161,8 @@ export default function ContactsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={[Colors[colorScheme ?? 'light'].tint]}
-              tintColor={Colors[colorScheme ?? 'light'].tint}
+              colors={[paperTheme.colors.primary]}
+              tintColor={paperTheme.colors.primary}
             />
           }
         />
@@ -183,6 +174,11 @@ export default function ContactsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loaderContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   list: {
     flex: 1,
@@ -216,14 +212,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
-  addButton: {
-    padding: 8,
-  },
-  loader: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   emptyState: {
     flex: 1,
     alignItems: 'center',
@@ -231,24 +219,14 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   emptyText: {
-    fontSize: 16,
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 24,
   },
   addFirstButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
   },
   addFirstButtonText: {
-    color: 'white',
     fontWeight: '600',
     fontSize: 16,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
   },
 }); 
