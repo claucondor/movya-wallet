@@ -6,10 +6,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { Alert, Clipboard, Image, Platform, StatusBar as ReactNativeStatusBar, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Clipboard, Image, Platform, StatusBar as ReactNativeStatusBar, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import 'react-native-get-random-values';
 import {
-  Appbar,
   Card,
   Chip,
   List,
@@ -240,22 +239,28 @@ export default function WalletScreen() {
           />
         </View>
 
-        <Appbar.Header 
-          mode="center-aligned"
-          style={[styles.appbar, { backgroundColor: 'transparent'}]} 
-        >
-          <Appbar.Content 
-            title="Movya Wallet" 
-            subtitle={currentChain.name} 
-            titleStyle={styles.appbarTitle}
-            subtitleStyle={styles.appbarSubtitle}
-            style={{paddingTop: Platform.OS === 'android' ? ReactNativeStatusBar.currentHeight : 0 }}
-          />
-          <View style={{paddingTop: Platform.OS === 'android' ? ReactNativeStatusBar.currentHeight : 0, flexDirection: 'row' }}>
-            <Appbar.Action icon="swap-horizontal-bold" onPress={switchNetwork} color="#FFFFFF" rippleColor="rgba(255,255,255,0.3)"/>
-            <Appbar.Action icon="account-multiple-outline" onPress={() => router.push("/(app)/contacts")} color="#FFFFFF" rippleColor="rgba(255,255,255,0.3)"/>
+        {/* Encabezado personalizado para evitar el recorte del texto */}
+        <View style={styles.safeTopArea} />
+        <View style={styles.customHeader}>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Movya Wallet</Text>
+            <Text style={styles.headerSubtitle}>{currentChain.name}</Text>
           </View>
-        </Appbar.Header>
+          <View style={styles.headerActions}>
+            <PaperIconButton 
+              icon="swap-horizontal-bold" 
+              onPress={switchNetwork} 
+              color="#FFFFFF" 
+              rippleColor="rgba(255,255,255,0.3)"
+            />
+            <PaperIconButton 
+              icon="account-multiple-outline" 
+              onPress={() => router.push("/(app)/contacts")} 
+              color="#FFFFFF" 
+              rippleColor="rgba(255,255,255,0.3)"
+            />
+          </View>
+        </View>
 
         {currentView === 'main' && (
           <>
@@ -453,11 +458,42 @@ export default function WalletScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  appbar: {
-    elevation: 0,
+  safeTopArea: {
+    height: Platform.OS === 'ios' ? 50 : ReactNativeStatusBar.currentHeight || 0,
   },
-  appbarTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: '#FFFFFF' },
-  appbarSubtitle: { fontSize: 12, opacity: 0.8, textAlign: 'center', color: '#FFFFFF' },
+  customHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: 60,
+  },
+  headerTitleContainer: {
+    justifyContent: 'center',
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    lineHeight: 28,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    opacity: 0.8,
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   videoContainer: {
     position: 'absolute',
     left: 0, right: 0, top: 0, 
@@ -467,7 +503,7 @@ const styles = StyleSheet.create({
   },
   balanceHeaderContent: {
     paddingHorizontal: 16,
-    paddingTop: 15,
+    paddingTop: 5,
     paddingBottom: 15,
     alignItems: 'center',
     zIndex: 1,

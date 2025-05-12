@@ -49,6 +49,7 @@
     "react-native": "0.76.9",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-get-random-values": "^1.11.0",
+    "react-native-linear-gradient": "^2.8.3",
     "react-native-mmkv": "^3.2.0",
     "react-native-paper": "^5.14.1",
     "react-native-qrcode-svg": "^6.3.15",

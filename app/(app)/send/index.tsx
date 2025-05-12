@@ -14,6 +14,7 @@ import {
 import {
   Appbar,
   Card,
+  Chip,
   Dialog,
   ActivityIndicator as PaperActivityIndicator,
   Button as PaperButton,
@@ -142,14 +143,18 @@ export default function SendScreen() {
   }
 
   const handleMaxAmount = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (balance) {
       const balanceNum = parseFloat(balance);
-      const max = Math.max(0, balanceNum - 0.01).toFixed(4);
-      setAmount(max);
+      // Considerar una pequeña reserva para gas, por ejemplo 0.01 o 0.005
+      const gasReserve = 0.01;
+      const maxSendable = balanceNum > gasReserve ? balanceNum - gasReserve : 0;
+      setAmount(maxSendable.toFixed(4)); // Ajustar decimales según sea necesario
     }
   };
 
   const handleScanQR = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert('Coming Soon', 'QR scanner will be available in a future update');
   };
 
@@ -224,9 +229,14 @@ export default function SendScreen() {
                     style={styles.input}
                     right={<PaperButton onPress={handleMaxAmount} compact>MAX</PaperButton>}
                   />
-                  <PaperText variant="bodySmall" style={styles.gasFeeNote}>
-                    Note: Transaction will require gas fees (approx. 0.01 {avalancheFuji.nativeCurrency.symbol})
-                  </PaperText>
+                  <Chip 
+                    icon="information-outline" 
+                    style={[styles.gasFeeChip, { backgroundColor: colors.surfaceVariant }]}
+                    textStyle={[styles.gasFeeChipText, { color: colors.onSurfaceVariant }]}
+                    onPress={() => Alert.alert("Gas Fee Information", "A small network fee (gas) is required for every transaction on the Avalanche network. This fee is paid to network validators and is not collected by Movya Wallet. The amount displayed is an approximation.")}
+                  >
+                    Gas fee: ~0.01 {avalancheFuji.nativeCurrency.symbol}
+                  </Chip>
                 </View>
               </Card.Content>
               <Card.Actions>
@@ -328,17 +338,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
     alignSelf: 'flex-start',
   },
-  gasFeeNote: {
-    marginTop: 8,
-    opacity: 0.7,
-    textAlign: 'center',
+  gasFeeChip: {
+    marginTop: 10,
+    // backgroundColor se aplica en línea ahora
+  },
+  gasFeeChipText: {
+    fontSize: 12,
+    // color se aplica en línea ahora
   },
   sendButtonFill: {
-    flex: 1, // Make button take full width in Card.Actions
+    flex: 1,
   },
   warningContainer: {
     marginTop: 8,
-    marginBottom: 24, // Extra space at the bottom
+    marginBottom: 24,
     paddingHorizontal: 16,
   },
   warningText: {

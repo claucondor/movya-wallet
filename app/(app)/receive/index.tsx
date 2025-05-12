@@ -1,23 +1,30 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ResizeMode, Video } from 'expo-av';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Alert,
-    Share,
-    StyleSheet,
-    View
+  Platform,
+  StatusBar as ReactNativeStatusBar,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  View
 } from 'react-native';
 import {
-    Appbar,
-    Card,
-    ActivityIndicator as PaperActivityIndicator,
-    Button as PaperButton,
-    IconButton as PaperIconButton,
-    Text as PaperText,
-    TextInput as PaperTextInput,
-    Surface,
-    useTheme as usePaperTheme
+  Card,
+  ActivityIndicator as PaperActivityIndicator,
+  Button as PaperButton,
+  IconButton as PaperIconButton,
+  Text as PaperText,
+  TextInput as PaperTextInput,
+  Portal,
+  Snackbar,
+  Surface,
+  useTheme as usePaperTheme
 } from 'react-native-paper';
 import QRCode from 'react-native-qrcode-svg';
 import { Hex } from 'viem';
@@ -34,6 +41,10 @@ export default function ReceiveScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarIsError, setSnackbarIsError] = useState(false);
+  
   useEffect(() => {
     const loadAddress = () => {
       setIsLoading(true);
@@ -48,8 +59,11 @@ export default function ReceiveScreen() {
         setAddress(account.address);
       } catch (err: any) {
         console.error("Failed to load address:", err);
-        setError(err.message || 'Failed to load wallet address.');
-        Alert.alert('Error', err.message || 'Could not load your wallet address.');
+        const msg = err.message || 'Failed to load wallet address.';
+        setError(msg);
+        setSnackbarMessage(msg);
+        setSnackbarIsError(true);
+        setSnackbarVisible(true);
       } finally {
         setIsLoading(false);
       }
@@ -60,19 +74,26 @@ export default function ReceiveScreen() {
 
   const copyToClipboard = useCallback(async () => {
     if (address) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       Clipboard.setString(address);
-      Alert.alert('Copied!', 'Your address has been copied to the clipboard.');
+      setSnackbarMessage('Address copied to clipboard!');
+      setSnackbarIsError(false);
+      setSnackbarVisible(true);
     }
   }, [address]);
 
   const shareAddress = useCallback(async () => {
     if (address) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       try {
         await Share.share({
           message: `My Movya wallet address: ${address}`,
         });
-      } catch (error: any) {
-        Alert.alert('Error', 'Could not share address');
+      } catch (shareError: any) {
+        console.error("Share error:", shareError);
+        setSnackbarMessage(shareError.message || 'Could not share address.');
+        setSnackbarIsError(true);
+        setSnackbarVisible(true);
       }
     }
   }, [address]);
@@ -86,7 +107,7 @@ export default function ReceiveScreen() {
     );
   }
 
-  if (error) {
+  if (error && !address) {
     return (
       <Surface style={[styles.container, styles.center]}>
         <PaperIconButton icon="alert-circle-outline" size={48} iconColor={colors.error} />
@@ -99,76 +120,120 @@ export default function ReceiveScreen() {
   }
 
   return (
-    <Surface style={styles.container}>
-      <Appbar.Header>
-        <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="Receive AVAX" titleStyle={{fontWeight: 'bold'}}/>
-      </Appbar.Header>
-      
-      <View style={styles.videoContainer}>
+    <Portal.Host>
+      <View style={styles.container}>
+        <StatusBar style="dark" translucent={true} backgroundColor="transparent"/>
+        
         <Video
-          source={require('@/assets/bg/header-bg.mp4')}
+          source={require('@/assets/bg/start-screen-bg.mp4')}
           style={StyleSheet.absoluteFill}
           resizeMode={ResizeMode.COVER}
           isLooping
           shouldPlay
           isMuted
         />
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)' }]} />
-      </View>
 
-      <View style={styles.scrollContent}>
-        <Card style={styles.qrCard}>
-          <Card.Content style={styles.qrContainer}>
-            {address && (
-              <QRCode
-                value={address}
-                size={200}
-                backgroundColor={colors.surfaceVariant}
-                color={isDark ? colors.onSurface : colors.onSurfaceVariant }
-              />
-            )}
-          </Card.Content>
-        </Card>
+        <LinearGradient
+          colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.1)']}
+          style={StyleSheet.absoluteFill}
+        />
 
-        <Card style={styles.addressCard}>
-          <Card.Content>
-            <PaperText variant="titleMedium" style={styles.addressLabel}>
-              Your Wallet Address
-            </PaperText>
-            <PaperTextInput
-              mode="outlined"
-              value={address || ''}
-              editable={false}
-              style={styles.addressTextContainer}
-              contentStyle={styles.addressTextInputContent}
-              right={<PaperTextInput.Icon icon="content-copy" onPress={copyToClipboard} />}
+        <View style={styles.safeTopArea} />
+        
+        <View style={styles.topBar}>
+          <View style={styles.backButtonContainer}>
+            <PaperIconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => router.back()}
+              iconColor="#333333"
+              style={styles.backButton}
             />
-          </Card.Content>
-        </Card>
-
-        <View style={styles.buttonContainer}>
-          <PaperButton 
-            mode="outlined" 
-            icon="content-copy"
-            onPress={copyToClipboard}
-            style={styles.actionButton}
-            labelStyle={styles.buttonLabel}
-          >
-            Copy Address
-          </PaperButton>
-          <PaperButton 
-            mode="contained" 
-            icon="share-variant"
-            onPress={shareAddress}
-            style={styles.actionButton}
-            labelStyle={styles.buttonLabel}
-          >
-            Share Address
-          </PaperButton>
+          </View>
         </View>
+        
+        <View style={styles.titleContainer}>
+          <Text style={styles.titleText}>Receive Crypto</Text>
+        </View>
+
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.qrWrapper}>
+            <View style={styles.qrBackground}>
+              {address && (
+                <QRCode
+                  value={address}
+                  size={220}
+                  backgroundColor="#FFFFFF"
+                  color="#000000"
+                />
+              )}
+            </View>
+          </View>
+
+          <Card style={[styles.addressCard, {backgroundColor: 'rgba(255,255,255,0.92)'}]}>
+            <Card.Content>
+              <PaperText variant="titleMedium" style={[styles.addressLabel, {color: colors.onSurface}]}>
+                Your Wallet Address
+              </PaperText>
+              <PaperTextInput
+                mode="outlined"
+                value={address ? `${address.slice(0, 10)}...${address.slice(-8)}` : ''}
+                editable={false}
+                style={styles.addressTextContainer}
+                contentStyle={styles.addressTextInputContent}
+                outlineStyle={{borderColor: colors.outline}}
+                right={<PaperTextInput.Icon icon="content-copy" onPress={copyToClipboard} color={colors.primary}/>}
+              />
+            </Card.Content>
+          </Card>
+
+          <View style={styles.buttonContainer}>
+            <PaperButton 
+              mode="outlined" 
+              icon="content-copy"
+              onPress={copyToClipboard}
+              style={[styles.actionButton, {borderColor: colors.primary, backgroundColor: 'rgba(255,255,255,0.92)'}] }
+              labelStyle={[styles.buttonLabel, {color: colors.primary}]}
+              rippleColor={colors.primaryContainer}
+              compact={true}
+            >
+              Copy Address
+            </PaperButton>
+            <PaperButton 
+              mode="contained" 
+              icon="share-variant"
+              onPress={shareAddress}
+              style={[styles.actionButton, {backgroundColor: colors.primary}] }
+              labelStyle={[styles.buttonLabel, {color: colors.onPrimary}]}
+              rippleColor={colors.onPrimaryContainer}
+              compact={true}
+            >
+              Share Address
+            </PaperButton>
+          </View>
+        </ScrollView>
+
+        <Snackbar
+          visible={snackbarVisible}
+          onDismiss={() => setSnackbarVisible(false)}
+          duration={Snackbar.DURATION_SHORT}
+          style={snackbarIsError ? { backgroundColor: colors.errorContainer } : { backgroundColor: colors.primaryContainer }}
+          action={{
+            label: 'OK',
+            textColor: snackbarIsError ? colors.onErrorContainer : colors.onPrimaryContainer,
+            onPress: () => setSnackbarVisible(false),
+          }}
+        >
+          <PaperText style={{color: snackbarIsError ? colors.onErrorContainer : colors.onPrimaryContainer}}>
+            {snackbarMessage}
+          </PaperText>
+        </Snackbar>
       </View>
-    </Surface>
+    </Portal.Host>
   );
 }
 
@@ -181,50 +246,84 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  videoContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0, 
-    height: '35%',
-    overflow: 'hidden',
+  safeTopArea: {
+    height: Platform.OS === 'ios' ? 50 : ReactNativeStatusBar.currentHeight || 0,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 50,
+  },
+  backButtonContainer: {
+    width: 60,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButton: {
+    margin: 0,
+  },
+  titleContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  titleText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333333',
+    lineHeight: 32,
   },
   scrollContent: {
     padding: 16,
-    paddingTop: '25%',
-  },
-  qrCard: {
-    marginBottom: 24,
-  },
-  qrContainer: {
+    paddingTop: 10,
+    paddingBottom: 30,
     alignItems: 'center',
-    padding: 20,
   },
-  addressCard: {
+  qrWrapper: {
+    marginBottom: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrBackground: {
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  addressCard: { 
     marginBottom: 24,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    width: '100%',
+    borderRadius: 12,
   },
-  addressLabel: {
-    marginBottom: 10,
-    textAlign: 'center',
-    fontWeight: 'bold',
+  addressLabel: { marginBottom: 10, textAlign: 'center', fontWeight: 'bold' },
+  addressTextContainer: { backgroundColor: 'transparent' },
+  addressTextInputContent: { paddingVertical: 10, fontFamily: 'monospace', fontSize: 13 },
+  buttonContainer: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-around', 
+    marginTop: 24,
+    width: '100%',
   },
-  addressTextContainer: {
+  actionButton: { 
+    flex: 1, 
+    marginHorizontal: 6, 
+    borderWidth: 1.5,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    borderRadius: 30,
+    paddingVertical: 5,
   },
-  addressTextInputContent: {
-    paddingVertical: 12,
-    fontFamily: 'monospace',
-    fontSize: 14,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 16,
-  },
-  actionButton: {
-    flex: 1,
-    marginHorizontal: 8,
-  },
-  buttonLabel: {
-    fontSize: 14,
-  },
+  buttonLabel: { fontSize: 14, fontWeight: 'bold' },
 }); 
