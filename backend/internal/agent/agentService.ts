@@ -92,7 +92,38 @@ export class AgentService {
             console.log('AI Raw Response:', responseJsonString);
             console.log('AI Parsed Response:', aiResponse);
 
-            // Si la acción es un envío y no requiere confirmación (listo para procesar)
+            // MODIFICACIÓN: Intentar resolver el destinatario incluso para acciones CLARIFY
+            // si recipientEmail está presente pero recipientAddress no
+            if (aiResponse.parameters && 
+                aiResponse.parameters.recipientEmail && 
+                !aiResponse.parameters.recipientAddress && 
+                (aiResponse.action === 'SEND' || aiResponse.action === 'CLARIFY')) {
+                
+                console.log(`Attempting to resolve recipient from email/nickname: ${aiResponse.parameters.recipientEmail}`);
+                await this.resolveRecipient(aiResponse, userId);
+                
+                // Si estamos en CLARIFY y pudimos resolver el destinatario,
+                // podríamos considerar cambiar a SEND si tenemos todos los demás parámetros
+                if (aiResponse.action === 'CLARIFY' && 
+                    aiResponse.parameters.recipientAddress && 
+                    aiResponse.parameters.amount && 
+                    aiResponse.parameters.currency) {
+                    
+                    console.log(`Successfully resolved ${aiResponse.parameters.recipientEmail} to ${aiResponse.parameters.recipientAddress}. Upgrading action from CLARIFY to SEND.`);
+                    
+                    // Cambiar de CLARIFY a SEND con confirmación requerida
+                    aiResponse.action = 'SEND';
+                    aiResponse.confirmationRequired = true;
+                    
+                    // Actualizar los mensajes para reflejar el cambio
+                    const originalRecipient = aiResponse.parameters.recipientEmail;
+                    aiResponse.confirmationMessage = `¡Encontré a ${originalRecipient} en tus contactos! ¿Quieres enviar ${aiResponse.parameters.amount} ${aiResponse.parameters.currency} a ${originalRecipient} (${aiResponse.parameters.recipientAddress})?`;
+                    aiResponse.responseMessage = `Por favor confirma los detalles para enviar ${aiResponse.parameters.amount} ${aiResponse.parameters.currency} a ${originalRecipient}.`;
+                }
+            }
+
+            // El código existente para SEND sin confirmación requerida
+            // (Esto podría ser redundante ahora para algunos casos, pero lo mantenemos como salvaguarda)
             if (aiResponse.action === 'SEND' && !aiResponse.confirmationRequired && aiResponse.parameters) {
                 // Resolver nickname/email a dirección de wallet si es necesario
                 await this.resolveRecipient(aiResponse, userId);

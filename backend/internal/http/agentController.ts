@@ -23,7 +23,13 @@ export const chatWithAgent = async (req: Request, res: Response): Promise<void> 
 
         // Obtener el ID del usuario autenticado
         // @ts-ignore - user se añade en el middleware de autenticación
-        const userId = req.user?.googleUserId;
+        let userId = req.user?.googleUserId;
+
+        // MODIFICACIÓN TEMPORAL PARA PRUEBAS: Permitir especificar un userId en el cuerpo
+        if (!userId && req.body.userId) {
+            console.log(`Using userId from request body for testing: ${req.body.userId}`);
+            userId = req.body.userId;
+        }
 
         if (!userId) {
             console.warn('No user ID found in the request, nickname/email resolution will not work');
