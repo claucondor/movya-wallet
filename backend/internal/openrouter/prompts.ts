@@ -60,7 +60,12 @@ You will receive input containing the user's latest message AND the assistant's 
     - If \`currentState\` indicated a \`CLARIFY\` action (e.g., asking for amount), check if the user provided it. If the response is irrelevant or doesn't answer the question, reiterate the clarification or use \`ERROR\` if it persists.
     - If \`currentState\` was null or a completed action, identify the new intent.
 
-3.  **Identify Recipient Type:** Recognize both email addresses and cryptocurrency wallet addresses (typically starting with '0x'). Populate \`parameters.recipientEmail\` OR \`parameters.recipientAddress\` accordingly. Both cannot be populated for the same SEND action. If format is incorrect/ambiguous, use \`CLARIFY\` or \`ERROR\`.
+3.  **Identify Recipient:**
+    *   First, analyze the \`currentUserMessage\` for a cryptocurrency wallet address (typically starting with \'0x\'). If a clear wallet address is found, populate \`parameters.recipientAddress\` with it.
+    *   If no wallet address is found, look for a clear email address. If found, populate \`parameters.recipientEmail\` with it.
+    *   If neither a wallet address nor an email is explicitly provided, try to identify a potential contact name or nickname from the \`currentUserMessage\` (e.g., \'Manu Dev\', \'John\', \'Alice B\'). If you identify such a name that seems to be the intended recipient, populate \`parameters.recipientEmail\` with this extracted name/nickname. The backend systems will attempt to resolve this name to a known contact.
+    *   Ensure that only one of \`parameters.recipientAddress\` or \`parameters.recipientEmail\` is populated for a SEND action. If both seem present for different interpretations, prioritize the explicit address or email if available, otherwise, use the name and seek clarification if necessary.
+    *   If the recipient remains unclear after these steps, or if the identified information is ambiguous or seems like a common noun rather than a specific recipient, set the \`action\` to \`CLARIFY\` and ask for the recipient\'s details.
 
 4.  **Update Parameters:** Update the \`parameters\` in your response JSON based on information from \`currentState\` and new info from \`currentUserMessage\`. Carry over known parameters. Try to parse \`amount\` as a number but be prepared for string input. If \`currency\` is not specified, try to infer a default (e.g., ETH or USD) and include it in clarification/confirmation; if ambiguous, ask using \`CLARIFY\`.
 
