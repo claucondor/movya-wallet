@@ -64,19 +64,13 @@ class ContactService {
       updatedAt: new Date()
     };
 
-    // Generar ID en Firestore
-    const contactId = await FirestoreService.setDocument(
+    // Usar addDocument para que Firestore genere el ID
+    const contactId = await FirestoreService.addDocument(
       this.CONTACTS_COLLECTION, 
-      '',  // Usar cadena vacía en lugar de null o undefined
       newContact
     );
 
-    // Generar un ID aleatorio si no se obtiene de Firestore
-    const finalContactId = typeof contactId === 'string' 
-      ? contactId 
-      : `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    return { ...newContact, id: finalContactId };
+    return { ...newContact, id: contactId };
   }
 
   /**
@@ -118,19 +112,13 @@ class ContactService {
       updatedAt: new Date()
     };
 
-    // Generar ID en Firestore
-    const contactId = await FirestoreService.setDocument(
+    // Usar addDocument para que Firestore genere el ID
+    const contactId = await FirestoreService.addDocument(
       this.CONTACTS_COLLECTION, 
-      '',  // Usar cadena vacía en lugar de null o undefined
       newContact
     );
 
-    // Generar un ID aleatorio si no se obtiene de Firestore
-    const finalContactId = typeof contactId === 'string' 
-      ? contactId 
-      : `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    return { ...newContact, id: finalContactId };
+    return { ...newContact, id: contactId };
   }
 
   /**

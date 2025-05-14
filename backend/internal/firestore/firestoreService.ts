@@ -53,6 +53,25 @@ class FirestoreService {
   }
 
   /**
+   * Add a document to a specific collection with an auto-generated ID
+   * @param collection - Collection name
+   * @param data - Document data
+   * @returns The ID of the newly created document
+   */
+  static async addDocument(
+    collection: string, 
+    data: any
+  ): Promise<string> {
+    try {
+      const docRef = await firestore.collection(collection).add(data);
+      return docRef.id;
+    } catch (error) {
+      console.error(`Error adding document to ${collection}:`, error);
+      throw new Error(`Could not add document to ${collection}`);
+    }
+  }
+
+  /**
    * Update specific fields of a document
    * @param collection - Collection name
    * @param documentId - Document ID
@@ -116,6 +135,7 @@ export default FirestoreService;
 export const { 
   getDocument, 
   setDocument, 
+  addDocument,
   updateDocument, 
   deleteDocument, 
   queryDocuments 
