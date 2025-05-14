@@ -25,8 +25,28 @@ export const reportAgentResult = async (req: Request, res: Response): Promise<vo
             return;
         }
 
+        // Obtener el ID del usuario autenticado
+        // @ts-ignore - user se añade en el middleware de autenticación
+        let userId = req.user?.googleUserId;
+
+        // Permitir especificar un userId en el cuerpo
+        if (!userId && req.body.userId) {
+            console.log(`Using userId from request body: ${req.body.userId}`);
+            userId = req.body.userId;
+        }
+
+        if (!userId) {
+            console.warn('No user ID found in the request, using anonymous');
+        }
+
+        // Añadir el userId al contexto si está disponible (para futuros usos)
+        const contextWithUser = {
+            ...resultInput,
+            userId: userId || 'anonymous'
+        };
+
         // Process the result through the AgentService
-        const response = await agentService.processActionResult(resultInput);
+        const response = await agentService.processActionResult(contextWithUser);
 
         // Return the generated response message
         res.status(200).json(response); // Sends back { responseMessage: "..." }

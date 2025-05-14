@@ -42,6 +42,7 @@ interface ActionResultInput {
         errorCode?: string;
         errorMessage?: string;
     };
+    userId?: string; // Añadir userId como campo opcional
 }
 
 export class AgentService {
@@ -220,7 +221,8 @@ export class AgentService {
     // New method to process action results and generate a response message
     async processActionResult(resultInput: ActionResultInput): Promise<{ responseMessage: string }> {
         console.log('Processing action result:', resultInput);
-        const inputJsonString = JSON.stringify(resultInput);
+        const { userId, ...inputData } = resultInput; // Extraer userId del input
+        const inputJsonString = JSON.stringify(inputData);
 
         try {
             // Call chat with the result data and the ActionResultSystemPrompt

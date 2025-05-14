@@ -20,9 +20,11 @@ console.log('[agentApi] Usando URL del backend:', BACKEND_URL);
  */
 export const sendMessageToAgent = async (message: string, currentState: AIResponse | null): Promise<AgentServiceResponse> => {
     const token = storage.getString('userToken'); // Obtener el token si existe
+    const userId = storage.getString('userId'); // Obtener el userId de storage
 
     console.log(`[agentApi] Sending message to ${BACKEND_URL}/agent/chat`);
     console.log('[agentApi] Current state being sent:', currentState);
+    console.log('[agentApi] Using userId:', userId);
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -39,7 +41,11 @@ export const sendMessageToAgent = async (message: string, currentState: AIRespon
         const response = await fetch(`${BACKEND_URL}/agent/chat`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ message, currentState }),
+            body: JSON.stringify({ 
+                message, 
+                currentState,
+                userId: userId || undefined // Incluir el userId en el cuerpo si está disponible
+            }),
         });
 
         if (!response.ok) {
@@ -67,12 +73,14 @@ export const sendMessageToAgent = async (message: string, currentState: AIRespon
  */
 export const reportActionResult = async (resultData: ActionResultInput): Promise<{ responseMessage: string }> => {
     const token = storage.getString('userToken');
+    const userId = storage.getString('userId'); // Obtener el userId de storage
     // Comentado para permitir llamadas sin token por ahora
     // if (!token) {
     //     throw new Error('Authentication token not found.');
     // }
 
     console.log(`[agentApi] Reporting action result to ${BACKEND_URL}/agent/report_result:`, resultData);
+    console.log('[agentApi] Using userId:', userId);
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -88,7 +96,10 @@ export const reportActionResult = async (resultData: ActionResultInput): Promise
     const response = await fetch(`${BACKEND_URL}/agent/report_result`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(resultData),
+        body: JSON.stringify({
+            ...resultData,
+            userId: userId || undefined // Incluir el userId en el cuerpo si está disponible
+        }),
     });
 
     if (!response.ok) {
