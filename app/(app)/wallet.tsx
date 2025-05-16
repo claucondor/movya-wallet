@@ -21,6 +21,7 @@ import {
   useTheme as usePaperTheme
 } from 'react-native-paper';
 import 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createPublicClient, formatEther, http } from 'viem';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import { storage } from '../core/storage';
@@ -68,6 +69,7 @@ export default function WalletScreen() {
   const [currentView, setCurrentView] = useState<'main' | 'send' | 'receive' | 'deposit' | 'swap'>('main');
   const paperTheme = usePaperTheme();
   const { colors, dark: isDark } = paperTheme;
+  const insets = useSafeAreaInsets();
   
   const [account, setAccount] = useState<PrivateKeyAccount | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -240,7 +242,7 @@ export default function WalletScreen() {
         </View>
 
         {/* Encabezado personalizado para evitar el recorte del texto */}
-        <View style={styles.safeTopArea} />
+        <View style={{ height: insets.top }} />
         <View style={styles.customHeader}>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Movya Wallet</Text>
@@ -458,9 +460,6 @@ export default function WalletScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  safeTopArea: {
-    height: Platform.OS === 'ios' ? 50 : ReactNativeStatusBar.currentHeight || 0,
-  },
   customHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
