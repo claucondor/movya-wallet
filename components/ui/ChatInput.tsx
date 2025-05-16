@@ -3,7 +3,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useTheme } from '@/hooks/ThemeContext';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Image, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 interface ChatInputProps {

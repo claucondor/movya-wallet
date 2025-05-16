@@ -12,6 +12,8 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import "react-native-get-random-values";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StyleSheet } from 'react-native';
 import { createAndSaveWallet, getWalletAddress, loadWallet } from '../internal/walletService';
 import { storage } from './core/storage';
 // import { avalanche, avalancheFuji } from 'viem/chains'; // Keep if needed elsewhere, remove if only for Privy
@@ -223,20 +225,29 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthContext.Provider value={authContextValue}>
-      <CustomThemeProvider>
-        <PaperProvider theme={paperThemeToUse}>
-          <NavigationThemeProvider value={navigationThemeToUse}>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(app)" />
-              <Stack.Screen name="index" options={{ animation: 'none' }} />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          </NavigationThemeProvider>
-        </PaperProvider>
-      </CustomThemeProvider>
-    </AuthContext.Provider>
+    <GestureHandlerRootView style={styles.rootContainer}>
+      <AuthContext.Provider value={authContextValue}>
+        <CustomThemeProvider>
+          <PaperProvider theme={paperThemeToUse}>
+            <NavigationThemeProvider value={navigationThemeToUse}>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(app)" />
+                <Stack.Screen name="index" options={{ animation: 'none' }} />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+              <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+            </NavigationThemeProvider>
+          </PaperProvider>
+        </CustomThemeProvider>
+      </AuthContext.Provider>
+    </GestureHandlerRootView>
   );
 }
+
+// Add styles for GestureHandlerRootView
+const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+  },
+});
