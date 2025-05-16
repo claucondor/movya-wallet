@@ -252,13 +252,13 @@ export default function WalletScreen() {
             <PaperIconButton 
               icon="swap-horizontal-bold" 
               onPress={switchNetwork} 
-              color="#FFFFFF" 
+              iconColor="#FFFFFF" 
               rippleColor="rgba(255,255,255,0.3)"
             />
             <PaperIconButton 
               icon="account-multiple-outline" 
               onPress={() => router.push("/(app)/contacts")} 
-              color="#FFFFFF" 
+              iconColor="#FFFFFF" 
               rippleColor="rgba(255,255,255,0.3)"
             />
           </View>
