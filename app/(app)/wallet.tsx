@@ -408,7 +408,13 @@ export default function WalletScreen() {
     }
   }, [isCopied, chipOpacity, chipScale]);
 
-  const handleAction = (view: 'send' | 'receive' | 'deposit' | 'swap') => router.push(`/(app)/${view}`);
+  const handleAction = (view: 'send' | 'receive' | 'deposit' | 'swap') => {
+    if (view === 'send' || view === 'receive') {
+      router.push(`/(app)/${view}`);
+    } else {
+      setCurrentView(view); // Use setCurrentView for deposit and swap
+    }
+  };
   const handleBack = () => setCurrentView('main');
 
   const copyWalletAddress = () => {
@@ -591,15 +597,6 @@ export default function WalletScreen() {
         );
   }
   
-  if (currentView !== 'main') {
-        setCurrentView('main'); 
-    return (
-        <Surface style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-            <PaperActivityIndicator animating={true} size="large" color={colors.primary} />
-        </Surface>
-    );
-  }
-
   return (
     <Portal.Host>
       <KeyboardAvoidingView 
