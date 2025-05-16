@@ -258,6 +258,13 @@ export default function WalletScreen() {
     value: "$0.00"
   }]);
 
+  // State for transactions
+  const [transactionsData, setTransactionsData] = useState([
+    { id: "1", type: "Received", amount: "+1.50 AVAX", value: "$55.70", date: "Today, 10:45 AM", from: "0x123...abc" },
+    { id: "2", type: "Sent", amount: "-0.75 AVAX", value: "$27.85", date: "Yesterday, 03:20 PM", to: "0x456...def" },
+    { id: "3", type: "Swapped", amount: "-10 USDC for +0.2 AVAX", value: "~$35.00", date: "Jan 15, 2024", details: "USDC/AVAX" }
+  ]);
+
   const [isCopied, setIsCopied] = useState(false);
 
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -493,7 +500,6 @@ export default function WalletScreen() {
     return (
       <Swipeable renderRightActions={renderRightActions} key={tx.id}>
         <List.Item
-          key={tx.id}
           title={tx.type}
           description={`${tx.date}${tx.from ? ` from ${tx.from}` : tx.to ? ` to ${tx.to}` : tx.details ? ` (${tx.details})` : ''}`}
           left={props => <List.Icon {...props} icon={iconName} color={amountColor} />}
@@ -792,17 +798,13 @@ export default function WalletScreen() {
                 </View>
               ) : (
                 <View style={{ flex: 1 }}>
-                   { (true) ? (
+                   {transactionsData.length > 0 ? (
                     <Animated.ScrollView 
                       style={styles.transactionListContainer}
                       onScroll={scrollHandler}
                       scrollEventThrottle={16}
                     >
-                    {[
-                        { id: "1", type: "Received", amount: "+1.50 AVAX", value: "$55.70", date: "Today, 10:45 AM", from: "0x123...abc" },
-                        { id: "2", type: "Sent", amount: "-0.75 AVAX", value: "$27.85", date: "Yesterday, 03:20 PM", to: "0x456...def" },
-                        { id: "3", type: "Swapped", amount: "-10 USDC for +0.2 AVAX", value: "~$35.00", date: "Jan 15, 2024", details: "USDC/AVAX" }
-                    ].map(renderTransactionItem)}
+                    {transactionsData.map(renderTransactionItem)}
                     </Animated.ScrollView>
                   ) : (
                       <View style={styles.emptyStateContainer}>

@@ -14,7 +14,8 @@ import {
     StyleSheet,
     TextInput,
     TouchableOpacity,
-    View
+    View,
+    Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { sendMessageToAgent } from '../core/agentApi';
@@ -376,36 +377,77 @@ export default function ChatScreen() {
     }), [isDark]);
 
     // --- Render Logic ---
-    const renderItem = useCallback(({ item }: { item: ChatMessage }) => (
-        <View
-            style={[
-                styles.messageBubble,
-                item.sender === 'user' ? styles.userBubble : styles.agentBubble,
-                {
-                    backgroundColor: item.sender === 'user'
-                        ? (isDark ? 'rgba(0, 87, 255, 0.95)' : 'rgba(0, 98, 255, 1)') 
-                        : (isDark ? 'rgba(44, 48, 58, 0.92)' : 'rgba(252, 253, 255, 0.98)'),
-                    borderColor: item.sender === 'user'
-                        ? (isDark ? 'rgba(0, 69, 204, 0.9)' : 'rgba(0, 80, 208, 1)')
-                        : (isDark ? 'rgba(68, 73, 87, 0.85)' : 'rgba(218, 223, 230, 0.95)'),
-                    borderWidth: 1,
-                }
-            ]}
-        >
-            <ThemedText
-                style={[
-                    styles.messageText,
-                    {
-                        color: item.sender === 'user'
-                            ? '#FFFFFF' 
-                            : (isDark ? '#E8ECF5' : '#1C2026') // Mejor contraste para texto del agente
-                    }
-                ]}
-            >
-                {item.text}
-            </ThemedText>
-        </View>
-    ), [isDark]);
+    const renderItem = useCallback(({ item, index }: { item: ChatMessage, index: number }) => {
+        // Animation for each message item
+        // const itemFadeAnim = useRef(new Animated.Value(0)).current;
+        // const itemSlideAnim = useRef(new Animated.Value(10)).current; // Start 10px down
+
+        // useEffect(() => {
+        //     Animated.parallel([
+        //         Animated.timing(itemFadeAnim, {
+        //             toValue: 1,
+        //             duration: 300,
+        //             delay: index < 5 ? index * 50 : 0, // Stagger initial messages slightly, then instant for new ones if list is long
+        //             useNativeDriver: true,
+        //         }),
+        //         Animated.timing(itemSlideAnim, {
+        //             toValue: 0,
+        //             duration: 300,
+        //             delay: index < 5 ? index * 50 : 0,
+        //             useNativeDriver: true,
+        //         })
+        //     ]).start();
+        // }, [itemFadeAnim, itemSlideAnim, index]);
+
+        return (
+            // <Animated.View 
+            //     style={{
+            //         opacity: itemFadeAnim, 
+            //         transform: [{ translateY: itemSlideAnim }]
+            //     }}
+            // >
+                <View
+                    style={[
+                        styles.messageBubble,
+                        item.sender === 'user' ? styles.userBubble : styles.agentBubble,
+                        {
+                            backgroundColor: item.sender === 'user'
+                                ? (isDark ? 'rgba(0, 87, 255, 0.95)' : 'rgba(0, 98, 255, 1)') 
+                                : (isDark ? 'rgba(44, 48, 58, 0.92)' : 'rgba(252, 253, 255, 0.98)'),
+                            borderColor: item.sender === 'user'
+                                ? (isDark ? 'rgba(0, 69, 204, 0.9)' : 'rgba(0, 80, 208, 1)')
+                                : (isDark ? 'rgba(68, 73, 87, 0.85)' : 'rgba(218, 223, 230, 0.95)'),
+                            borderWidth: 1,
+                            // flexDirection: item.sender === 'agent' ? 'row' : 'column', // Reverted
+                            // alignItems: item.sender === 'agent' ? 'flex-start' : 'stretch', // Reverted
+                        }
+                    ]}
+                >
+                    {/* {item.sender === 'agent' && ( // Reverted
+                        <Ionicons 
+                            name="sparkles-outline" 
+                            size={18} 
+                            color={isDark ? '#A0B0D0' : '#506080'} 
+                            style={styles.agentIcon} 
+                        />
+                    )} */}
+                    <ThemedText
+                        style={[
+                            styles.messageText,
+                            {
+                                color: item.sender === 'user'
+                                    ? '#FFFFFF' 
+                                    : (isDark ? '#E8ECF5' : '#1C2026'),
+                                // flexShrink: item.sender === 'agent' ? 1 : 0, // Reverted
+                            }
+                        ]}
+                    >
+                        {item.text}
+                    </ThemedText>
+                </View>
+            // </Animated.View>
+        );
+    }, [isDark]);
 
     // Confirm before clearing chat history
     const confirmClearHistory = useCallback(() => {
@@ -549,16 +591,16 @@ export default function ChatScreen() {
                             disabled={isLoading} 
                             style={[styles.sendButton, {
                                 backgroundColor: isLoading 
-                                    ? (isDark ? 'rgba(80, 90, 110, 0.7)' : '#CAD5FF') // Gris oscuro translúcido (dark), Azul pálido (light)
+                                    ? (isDark ? 'rgba(80, 90, 110, 0.7)' : '#CAD5FF')
                                     : (isDark ? '#0062FF' : '#0057FF'), 
-                                shadowColor: isDark ? '#002A66' : '#003C99', // Ajustada la sombra para modo oscuro
-                                shadowOffset: { width: 0, height: 3 }, // Sombra ligeramente más pronunciada
+                                shadowColor: isDark ? '#002A66' : '#003C99',
+                                shadowOffset: { width: 0, height: 3 }, 
                                 shadowOpacity: 0.35,
                                 shadowRadius: 4,
                             }]}
                         >
                             {isLoading ? (
-                                <ActivityIndicator size="small" color="#FFFFFF" />
+                                <ActivityIndicator size="small" color={isDark ? '#FFFFFF' : '#003C99'} />
                             ) : (
                                 <Ionicons name="send" size={20} color="#FFFFFF" />
                             )}
@@ -649,11 +691,15 @@ const styles = StyleSheet.create({
     },
     agentBubble: {
         alignSelf: 'flex-start',
-        borderBottomLeftRadius: 8, // Ajuste de radio
+        borderBottomLeftRadius: 8, 
         borderTopLeftRadius: 22,
         borderBottomRightRadius: 22,
         borderTopRightRadius: 22,
     },
+    // agentIcon: { // Reverted - Style for the agent's icon in the bubble
+    //     marginRight: 8,
+    //     marginTop: 2, // Fine-tune vertical alignment with text
+    // },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center', 
