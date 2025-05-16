@@ -2,6 +2,7 @@ import ActionButtons from '@/components/ui/ActionButtons';
 import ChatInput from '@/components/ui/ChatInput';
 import SpeedDialFAB from '@/components/ui/SpeedDialFAB';
 import { avalanche, avalancheFuji } from '@/constants/chains';
+import { ResizeMode, Video } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -604,8 +605,13 @@ export default function WalletScreen() {
         <StatusBar style={isDark ? "light" : "dark"} translucent={true} backgroundColor="transparent" />
 
         <View style={styles.videoContainer}>
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? '#1A2035' : '#2C3E69' }]}>
-            {/* Eliminamos la ImageBackground que causaba el error */}
+          <View style={StyleSheet.absoluteFill}>
+            <Video
+              source={require('@/assets/bg/header-bg.mp4')}
+              style={StyleSheet.absoluteFill}
+              resizeMode={ResizeMode.COVER}
+              isLooping shouldPlay isMuted
+            />
           </View>
           <LinearGradient
             colors={isDark ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.4)'] : ['rgba(0,10,30,0.6)', 'rgba(0,10,30,0.4)']}

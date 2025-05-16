@@ -23,6 +23,7 @@ interface SpeedDialFABProps {
   fabIconColor?: string;
   actionsBackgroundColor?: string;
   actionsIconColor?: string;
+  actionsLabelColor?: string;
 }
 
 // Usar una constante para la duración de la animación
