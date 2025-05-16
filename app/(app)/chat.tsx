@@ -361,28 +361,18 @@ export default function ChatScreen() {
     const memoizedStyles = useMemo(() => ({
         safeAreaStyle: { 
             ...styles.safeArea, 
-            backgroundColor: isDark ? '#0A0E17' : '#F5F7FA' 
         },
         headerStyle: { 
             ...styles.header, 
-            backgroundColor: isDark ? '#1A1F38' : '#FFFFFF' 
         },
         inputContainerStyle: { 
-            ...styles.inputContainer, 
-            backgroundColor: isDark ? '#1A1F38' : '#FFFFFF',
-            borderTopColor: isDark ? '#252D4A' : '#E8EAF6',
+            ...styles.inputContainer,
+            // backgroundColor se aplicará con LinearGradient directamente en el JSX
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.1)',
         },
-        textInputStyle: {
+        textInputStyle: { 
             ...styles.input,
-            backgroundColor: isDark ? '#252D4A' : '#E8EAF6',
-            color: isDark ? '#FFFFFF' : '#0A0E17'
         },
-        headerIconColor: isDark ? '#FFFFFF' : '#3A5AFF',
-        sendIconColor: isDark ? '#FFFFFF' : '#3A5AFF',
-        placeholderColor: isDark ? '#9BA1A6' : '#6C7A9C',
-        userBubbleColor: isDark ? '#3A5AFF' : '#D1E4FF',
-        agentBubbleColor: isDark ? '#252D4A' : '#E8EAF6',
-        clearButtonBg: isDark ? '#252D4A' : '#E8EAF6',
     }), [isDark]);
 
     // --- Render Logic ---
@@ -391,22 +381,31 @@ export default function ChatScreen() {
             style={[
                 styles.messageBubble,
                 item.sender === 'user' ? styles.userBubble : styles.agentBubble,
-                { 
-                    backgroundColor: item.sender === 'user' 
-                        ? 'rgba(58, 90, 255, 0.8)' 
-                        : 'rgba(255, 255, 255, 0.15)' 
+                {
+                    backgroundColor: item.sender === 'user'
+                        ? (isDark ? 'rgba(0, 87, 255, 0.95)' : 'rgba(0, 98, 255, 1)') 
+                        : (isDark ? 'rgba(44, 48, 58, 0.92)' : 'rgba(252, 253, 255, 0.98)'),
+                    borderColor: item.sender === 'user'
+                        ? (isDark ? 'rgba(0, 69, 204, 0.9)' : 'rgba(0, 80, 208, 1)')
+                        : (isDark ? 'rgba(68, 73, 87, 0.85)' : 'rgba(218, 223, 230, 0.95)'),
+                    borderWidth: 1,
                 }
             ]}
         >
-            <ThemedText 
-                lightColor="#FFFFFF" 
-                darkColor="#FFFFFF"
-                style={styles.messageText}
+            <ThemedText
+                style={[
+                    styles.messageText,
+                    {
+                        color: item.sender === 'user'
+                            ? '#FFFFFF' 
+                            : (isDark ? '#E8ECF5' : '#1C2026') // Mejor contraste para texto del agente
+                    }
+                ]}
             >
                 {item.text}
             </ThemedText>
         </View>
-    ), []);
+    ), [isDark]);
 
     // Confirm before clearing chat history
     const confirmClearHistory = useCallback(() => {
@@ -498,10 +497,7 @@ export default function ChatScreen() {
                         style={styles.clearButton}
                         onPress={confirmClearHistory}
                     >
-                        <View style={[styles.clearButtonInner, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]}>
-                            <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
-                            <ThemedText style={[styles.clearButtonText, { color: '#FFFFFF' }]}>Clear</ThemedText>
-                        </View>
+                        <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
                     </TouchableOpacity>
                 </View>
                 
@@ -526,18 +522,22 @@ export default function ChatScreen() {
                         maxToRenderPerBatch={10}
                         windowSize={10}
                     />
-                    <View style={[memoizedStyles.inputContainerStyle, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}>
+                    <LinearGradient
+                        colors={isDark 
+                            ? ['rgba(12, 18, 30, 0.85)', 'rgba(20, 28, 45, 0.75)'] 
+                            : ['rgba(250, 252, 255, 0.9)', 'rgba(240, 243, 248, 0.8)']}
+                        style={memoizedStyles.inputContainerStyle} // Aplica padding y borderTopColor del StyleSheet
+                    >
                         <TextInput
-                            style={[memoizedStyles.textInputStyle, { 
-                                backgroundColor: 'rgba(255, 255, 255, 0.15)', 
-                                color: '#FFFFFF',
-                                borderColor: 'rgba(255, 255, 255, 0.3)',
-                                borderWidth: 1
+                            style={[styles.input, { 
+                                backgroundColor: isDark ? '#181C25' : '#FFFFFF', 
+                                color: isDark ? '#E8ECF5' : '#0A1A3A',
+                                borderColor: isDark ? 'rgba(80, 90, 110, 0.7)' : 'rgba(190, 195, 205, 1)',
                             }]}
                             value={inputMessage}
                             onChangeText={setInputMessage}
                             placeholder="Type your message..."
-                            placeholderTextColor="rgba(255,255,255,0.5)"
+                            placeholderTextColor={isDark ? 'rgba(200,210,230,0.5)' : 'rgba(10,26,58,0.5)'}
                             editable={!isLoading}
                             keyboardType="default"
                             returnKeyType="send"
@@ -548,7 +548,13 @@ export default function ChatScreen() {
                             onPress={handleSend} 
                             disabled={isLoading} 
                             style={[styles.sendButton, {
-                                backgroundColor: isLoading ? 'rgba(255, 255, 255, 0.2)' : 'rgba(58, 90, 255, 0.8)',
+                                backgroundColor: isLoading 
+                                    ? (isDark ? 'rgba(80, 90, 110, 0.7)' : '#CAD5FF') // Gris oscuro translúcido (dark), Azul pálido (light)
+                                    : (isDark ? '#0062FF' : '#0057FF'), 
+                                shadowColor: isDark ? '#002A66' : '#003C99', // Ajustada la sombra para modo oscuro
+                                shadowOffset: { width: 0, height: 3 }, // Sombra ligeramente más pronunciada
+                                shadowOpacity: 0.35,
+                                shadowRadius: 4,
                             }]}
                         >
                             {isLoading ? (
@@ -557,7 +563,7 @@ export default function ChatScreen() {
                                 <Ionicons name="send" size={20} color="#FFFFFF" />
                             )}
                         </TouchableOpacity>
-                    </View>
+                    </LinearGradient>
                 </KeyboardAvoidingView>
             </SafeAreaView>
         </View>
@@ -582,93 +588,96 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        borderBottomWidth: 0,
+        paddingHorizontal: 16, 
+        paddingVertical: 12,
+        paddingTop: Platform.OS === 'ios' ? 12 : (Platform.OS === 'android' ? 20 : 12), // Adjusted paddingTop for Android status bar
+        borderBottomWidth: 0, // Removing border as background video provides separation
     },
     backButton: {
-        padding: 10,
-        borderRadius: 20,
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        padding: 12,
+        borderRadius: 28, // Consistent with chat-history
+        backgroundColor: 'rgba(0, 0, 0, 0.4)', // Consistent with chat-history
+        marginRight: 10,
     },
     headerTitle: {
         flex: 1,
         textAlign: 'center',
-        fontSize: 18,
-        fontWeight: '600',
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: 0, height: 1 },
+        fontSize: 22, 
+        fontWeight: '700', 
+        color: '#FFFFFF', // Ensure color for visibility on video
+        textShadowColor: 'rgba(0, 0, 0, 0.7)', // Consistent with chat-history
+        textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 5,
     },
     clearButton: {
-        paddingHorizontal: 4,
-    },
-    clearButtonInner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
-    },
-    clearButtonText: {
-        fontSize: 14,
-        marginLeft: 4,
-        fontWeight: '500',
+        padding: 12, // Consistent touch target
+        borderRadius: 28, // Consistent with chat-history
+        backgroundColor: 'rgba(0,0,0,0.4)', // Consistent with chat-history
+        marginLeft: 10, // Spacing
     },
     messageList: {
         flex: 1,
-        paddingHorizontal: 16,
+        paddingHorizontal: 12, // Slightly reduced for wider bubbles
     },
     messageListContent: {
-        paddingVertical: 16,
-        paddingBottom: 24,
+        paddingVertical: 20, // Increased padding for better spacing
+        paddingBottom: 24, // Ensure space above input
     },
     messageBubble: {
-        padding: 12,
-        borderRadius: 20,
-        marginBottom: 12,
-        maxWidth: '80%',
-        alignSelf: 'flex-start', // Default to agent alignment
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
+        paddingVertical: 12,
+        paddingHorizontal: 18, 
+        borderRadius: 22, 
+        marginBottom: 14, 
+        maxWidth: '85%', 
+        elevation: 6, // Sombra más notable
+        shadowColor: '#000000', 
+        shadowOffset: { width: 0, height: 4 }, // Sombra más larga
+        shadowOpacity: 0.3, // Sombra más oscura
+        shadowRadius: 6, // Sombra más difusa
+        // borderWidth y borderColor se aplican dinámicamente en renderItem
     },
     messageText: {
-        fontSize: 15, 
-        lineHeight: 22,
+        fontSize: 16.5, // Ligeramente más grande
+        lineHeight: 24, // Mejor interlineado
     },
     userBubble: {
         alignSelf: 'flex-end',
-        borderBottomRightRadius: 4,
+        borderBottomRightRadius: 8, // Ajuste de radio
+        borderTopRightRadius: 22,
+        borderBottomLeftRadius: 22,
+        borderTopLeftRadius: 22,
     },
     agentBubble: {
         alignSelf: 'flex-start',
-        borderBottomLeftRadius: 4,
+        borderBottomLeftRadius: 8, // Ajuste de radio
+        borderTopLeftRadius: 22,
+        borderBottomRightRadius: 22,
+        borderTopRightRadius: 22,
     },
     inputContainer: {
         flexDirection: 'row',
-        padding: 12,
-        borderTopWidth: 0,
-        paddingHorizontal: 16,
+        alignItems: 'center', 
+        paddingVertical: 12, // Aumentado para más espacio
+        paddingHorizontal: 14,
+        borderTopWidth: 1, // Añadir una línea superior sutil
+        // backgroundColor se establece en memoizedStyles
     },
     input: {
         flex: 1,
-        height: 48,
-        borderRadius: 24,
-        paddingHorizontal: 16,
-        marginRight: 12,
-        fontSize: 16,
+        height: 50, // Altura estándar, ligeramente reducida de la anterior
+        borderRadius: 25, // Redondeo completo
+        paddingHorizontal: 18, 
+        marginRight: 10, 
+        fontSize: 16.5,
+        borderWidth: 1, // Asegurar que el borde se muestre si se define color
+        // backgroundColor, color, borderColor se establecen en JSX
     },
     sendButton: {
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 12,
-        borderRadius: 24,
-        width: 48,
-        height: 48,
-        marginLeft: 8,
+        width: 50, // Botón circular estándar
+        height: 50, 
+        borderRadius: 25, 
+        elevation: 4, // Sombra para el botón
     },
 }); 
