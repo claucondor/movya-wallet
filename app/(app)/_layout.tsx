@@ -11,6 +11,7 @@ export default function AppLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="chat" />
       <Stack.Screen name="wallet" />
       <Stack.Screen name="send/index" options={{ presentation: 'modal' }} />
       <Stack.Screen name="receive/index" options={{ presentation: 'modal' }} />

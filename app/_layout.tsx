@@ -197,16 +197,14 @@ export default function RootLayout() {
       // Also, allow staying on auth/success or auth/error if those are the current deep link targets.
       if (segments[1] !== 'success' && segments[1] !== 'error') {
          console.log('Redirecting to /(app)/wallet due to walletAddress and current segment');
-         router.replace('/(app)/wallet'); // Or your preferred app entry point
+         router.replace('/(app)/chat'); // Changed from '/(app)/wallet' to '/(app)/chat'
       }
-    } else if (!walletAddress && inAppGroup) {
-      // User is not authenticated but is in the app group. Redirect to login.
-      console.log('Redirecting to /(auth)/login due to no walletAddress and in-app segment');
+    } else if (!walletAddress && !inAuthGroup) {
+      // User is not authenticated and is not in the auth group
+      // Redirect to login screen.
+      console.log('Redirecting to /(auth)/login due to no walletAddress and not in auth group');
       router.replace('/(auth)/login');
     }
-    // If on app/index.tsx and no wallet, app/index.tsx itself should redirect to /(auth)/login.
-    // If on app/index.tsx and has wallet, this effect will push to /(app)/wallet.
-
   }, [walletAddress, segments, loaded, router]);
 
   // Value provided by the context
