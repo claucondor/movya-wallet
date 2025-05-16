@@ -12,6 +12,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import "react-native-get-random-values";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
+import '../global.css';
 import { createAndSaveWallet, getWalletAddress, loadWallet } from '../internal/walletService';
 import { storage } from './core/storage';
 // import { avalanche, avalancheFuji } from 'viem/chains'; // Keep if needed elsewhere, remove if only for Privy
@@ -188,7 +189,7 @@ export default function RootLayout() {
 
     console.log(`RootLayout Auth Redirect: walletAddress: ${walletAddress}, segments: ${segments.join('/')}, inAuthGroup: ${inAuthGroup}, inAppGroup: ${inAppGroup}`);
 
-    if (walletAddress && (inAuthGroup || segments.length === 0 || segments[0] === 'index')) {
+    if (walletAddress && (inAuthGroup || !segments.length)) {
       // User is authenticated but is in auth group, at root, or on the initial index.tsx
       // Redirect to main app screen.
       // Avoid redirecting if already in (app) group to prevent loops, unless it's from root index.

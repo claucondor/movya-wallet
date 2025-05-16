@@ -1,4 +1,5 @@
 const { getDefaultConfig, mergeConfig } = require("@expo/metro-config");
+const { withNativeWind } = require('nativewind/metro');
 
 /**
  * Metro configuration
@@ -8,5 +9,5 @@ const { getDefaultConfig, mergeConfig } = require("@expo/metro-config");
  */
 const config = getDefaultConfig(__dirname);
 // Configuración simplificada sin referencias a @privy-io/expo
-
-module.exports = config;
+ 
+module.exports = withNativeWind(config, { input: './global.css' })
