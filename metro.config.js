@@ -1,12 +1,22 @@
-const { getDefaultConfig, mergeConfig } = require("@expo/metro-config");
+const { getDefaultConfig } = require('expo/metro-config');
 
-/**
- * Metro configuration
- * https://metrobundler.dev/docs/configuration
- *
- * @type {import('metro-config').MetroConfig}
- */
-const config = getDefaultConfig(__dirname);
-// Configuración simplificada sin referencias a @privy-io/expo
+const defaultConfig = getDefaultConfig(__dirname);
 
-module.exports = config;
+module.exports = (async () => {
+  const {
+    resolver: { sourceExts, assetExts },
+  } = defaultConfig;
+
+  return {
+    ...defaultConfig,
+    transformer: {
+      ...defaultConfig.transformer,
+      babelTransformerPath: require.resolve('react-native-svg-transformer'),
+    },
+    resolver: {
+      ...defaultConfig.resolver,
+      assetExts: assetExts.filter((ext) => ext !== 'svg'),
+      sourceExts: [...sourceExts, 'svg'],
+    },
+  };
+})();

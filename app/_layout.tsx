@@ -118,7 +118,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    Geist: require('../assets/fonts/Geist.ttf'), // Changed from SpaceMono
   });
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const router = useRouter();

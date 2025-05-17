@@ -19,6 +19,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { StatusBar } from 'expo-status-bar';
+import ArrowIcon from '../../assets/vectors/arrow.svg';
 
 const Chat = () => {
   	
@@ -84,7 +85,8 @@ const Chat = () => {
             						</View>
             						<View style={[styles.swipe, styles.swipeFlexBox]}>
               							<Text style={[styles.swipe1, styles.timeTypo]}>Swipe to change view</Text>
-              							<MaterialIcons name="arrow-forward" size={24} style={styles.swipeChild} />
+              							{/* Replace MaterialIcons with your SVG */}
+              							<ArrowIcon width={24} height={24} style={styles.swipeChild} />
             						</View>
           					</View>
           					<View style={[styles.bottomContainer, styles.textCenteredFlexBox]}>
@@ -172,8 +174,8 @@ n                       											<View style={[styles.chatContainer, styles.sw
                         												textAlign: "left",
                         												lineHeight: 40,
                         												fontSize: 32,
-                        												fontFamily: "Roboto-Medium",
-                        												fontWeight: "500"
+                        												fontFamily: "Geist",
+                        												fontWeight: "700" // Changed from "500" to "700" for bold
                       											},
                       											swipeFlexBox: {
                         												gap: 10,
@@ -184,12 +186,12 @@ n                       											<View style={[styles.chatContainer, styles.sw
                         												lineHeight: 20,
                         												fontSize: 14,
                         												textAlign: "left",
-                        												fontFamily: "Roboto-Medium",
+                        												fontFamily: "Geist", // Changed from Roboto-Medium
                         												fontWeight: "500"
                       											},
                       											labelTypo: {
                         												color: "#49454f",
-                        												fontFamily: "Roboto-Regular",
+                        												fontFamily: "Geist", // Changed from Roboto-Regular
                         												textAlign: "left"
                       											},
                       											suggestionBorder: {
@@ -240,7 +242,7 @@ n                       											<View style={[styles.chatContainer, styles.sw
                         												fontSize: 22,
                         												lineHeight: 28,
                         												fontWeight: "700",
-                        												fontFamily: "Roboto-Bold",
+                        												fontFamily: "Geist", // Changed from Roboto-Bold
                         												textAlign: "center",
                         												color: "#fff",
                         												alignSelf: "stretch",
@@ -248,7 +250,7 @@ n                       											<View style={[styles.chatContainer, styles.sw
                       											},
                       											supportingText: {
                         												color: "#e7e0ec",
-                        												fontFamily: "Roboto-Medium",
+                        												fontFamily: "Geist", // Changed from Roboto-Medium
                         												fontWeight: "500",
                         												lineHeight: 16,
                         												letterSpacing: 1,
@@ -298,7 +300,9 @@ n                       											<View style={[styles.chatContainer, styles.sw
                         												letterSpacing: 0
                       											},
                       											swipeChild: {
-                        												maxHeight: "100%"
+                        												// maxHeight: "100%" // You might not need maxHeight anymore,
+                        												// SVGs usually scale well with width/height props.
+                        												// You can add other styles if needed, e.g., color if your SVG supports it via `fill` prop
                       											},
                       											swipe: {
                         												justifyContent: "center",
@@ -335,7 +339,7 @@ n                       											<View style={[styles.chatContainer, styles.sw
                         												fontSize: 16,
                         												lineHeight: 24,
                         												color: "#49454f",
-                        												fontFamily: "Roboto-Regular",
+                        												fontFamily: "Geist", // Changed from Roboto-Regular
                         												letterSpacing: 1,
                         												// Removed flex: 1, will be handled by inputField style
                       											},
