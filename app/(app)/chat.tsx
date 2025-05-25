@@ -19,7 +19,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { StatusBar } from 'expo-status-bar';
-import ArrowIcon from '../../assets/vectors/arrow.svg';
+import ArrowIcon from '../../assets/arrow.svg';
 
 const Chat = () => {
 

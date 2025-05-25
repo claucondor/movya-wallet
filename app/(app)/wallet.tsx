@@ -1,852 +1,473 @@
-import ActionButtons from '@/components/ui/ActionButtons';
-import ChatInput from '@/components/ui/ChatInput';
-import SpeedDialFAB from '@/components/ui/SpeedDialFAB';
-import { avalanche, avalancheFuji } from '@/constants/chains';
-import { ResizeMode, Video } from 'expo-av';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Clipboard, Image, Platform, StatusBar as ReactNativeStatusBar, ScrollView, StyleSheet, TouchableOpacity, View, KeyboardAvoidingView, Dimensions } from 'react-native';
-import 'react-native-get-random-values';
+import * as React from "react";
 import {
-  Card,
-  Chip,
-  List,
-  ActivityIndicator as PaperActivityIndicator,
-  Button as PaperButton,
-  IconButton as PaperIconButton,
-  Text as PaperText,
-  Portal,
-  Surface,
-  useTheme as usePaperTheme
-} from 'react-native-paper';
-import 'react-native-reanimated';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
-  withSpring, 
-  withSequence, 
-  withDelay,
-  useAnimatedScrollHandler,
-  Easing,
-  runOnJS
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Swipeable } from 'react-native-gesture-handler';
-import { createPublicClient, formatEther, http } from 'viem';
-import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
-import { storage } from '../core/storage';
+	View,
+	Text,
+	StyleSheet,
+	TouchableOpacity,
+	TextInput,
+	ScrollView,
+	Image,
+	Platform,
+	StatusBar as ReactNativeStatusBar,
+	Animated,
+	Dimensions,
+	KeyboardAvoidingView,
+} from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { Video, ResizeMode } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
+import { StatusBar } from 'expo-status-bar';
 
-const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
+const Wallet = () => {
 
-// Estilos para ActionView
-const actionViewStyles = StyleSheet.create({
-  fullScreenView: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backButton: {
-    alignSelf: 'center',
-    marginTop: 30, // Aumentar margen superior para separarlo del contenido
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-});
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  customHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 60,
-  },
-  headerTitleContainer: {
-    justifyContent: 'center',
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20, 
-    fontWeight: 'bold', 
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    lineHeight: 28,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    opacity: 0.8,
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  videoContainer: {
-    position: 'absolute',
-    left: 0, right: 0, top: 0, 
-    height: '40%',
-    overflow: 'hidden',
-    zIndex: 0,
-  },
-  balanceHeaderContent: {
-    paddingHorizontal: 16,
-    paddingTop: 5,
-    paddingBottom: 15,
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  totalBalanceText: { marginBottom: 2, opacity: 0.9, fontWeight: '500' },
-  totalBalanceValue: { marginBottom: 12, fontWeight: '700', letterSpacing: 0.5 },
-  addressAndControlsContainer: { width: '100%', alignItems: 'center', marginTop: 8 },
-  addressTouchable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 0,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 16, 
-    backgroundColor: 'rgba(255, 255, 255, 0.1)', 
-  },
-  walletAddressText: { 
-    flexShrink: 1, 
-    fontSize: 13, 
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  copiedChip: {
-    marginLeft: 10,
-    paddingHorizontal:6, 
-    height: 26, 
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  contentSurface: {
-    flex: 1, 
-    paddingHorizontal: 16, 
-    paddingTop: 20, 
-    zIndex: 1,
-    marginTop: 0,
-  },
-  tabs: {
-    flexDirection: 'row',
-    marginBottom: 16, 
-    borderBottomWidth: 1,
-    borderBottomColor: 'transparent',
-  },
-  tab: {
-    flex: 1, paddingVertical: 12, paddingHorizontal: 4, alignItems: 'center',
-    // borderBottomWidth: 3, borderBottomColor: 'transparent', // Removed for animated indicator
-    flexDirection: 'row',
-    justifyContent: 'center', marginHorizontal: 4,
-  },
-  tokenListContainer: { flex: 1 },
-  emptyStateContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  tokenCard: { 
-    borderRadius: 16, 
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  tokenCardShine: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  tokenCardContent: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  tokenIcon: { width: 42, height: 42, marginRight: 16 },
-  tokenInfo: { flex: 1 },
-  tokenAmount: { alignItems: 'flex-end' },
-  transactionListContainer: { flex: 1 },
-  transactionListItem: { marginBottom: 10, borderRadius: 16, paddingVertical: 4 },
-  fullScreenView: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backButton: {
-    alignSelf: 'center',
-    marginTop: 30,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  swipeAction: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 80,
-    height: '100%',
-  },
-  swipeActionText: {
-    fontWeight: 'bold',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  chatInputContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10, 
-    paddingTop: 8, 
-    borderTopWidth: 0,
-    zIndex: 100,
-  },
-  speedDialContainer: {
-    position: 'absolute',
-    right: 16,
-    bottom: Platform.OS === 'ios' ? 100 : 90,
-    zIndex: 110,
-    width: 56,
-    height: 56,
-  },
-});
-
-const ActionView = ({ title, onBack, children }: { title: string; onBack: () => void; children?: React.ReactNode }) => {
-  const paperTheme = usePaperTheme();
-  
-  return (
-    <Surface style={[actionViewStyles.fullScreenView, { backgroundColor: paperTheme.colors.background }]}>
-      <PaperText variant="headlineSmall" style={{ marginBottom: 20, color: paperTheme.colors.onBackground }}>{title}</PaperText>
-      {children}
-      <PaperButton
-        mode="contained"
-        style={actionViewStyles.backButton}
-        onPress={onBack}
-        icon="arrow-left"
-      >
-        Back
-      </PaperButton>
-    </Surface>
-  );
+	return (
+		<SafeAreaView style={styles.chat}>
+			<StatusBar style="light" />
+			<Video
+				source={require('../../assets/bg/header-bg.webm')}
+				style={styles.backgroundVideo}
+				isLooping
+				shouldPlay
+				isMuted
+				resizeMode={ResizeMode.COVER}
+			/>
+			<View style={styles.content}>
+				<View style={[styles.appBar, styles.appBarFlexBox]}>
+					<View style={styles.avatarWrapper}>
+						<View style={[styles.avatar, styles.avatarLayout]}>
+							{/* Replace Image with MaterialIcons for placeholder */}
+							<MaterialIcons name="account-circle" size={32} color="#FFF" style={styles.iconLayout} />
+						</View>
+					</View>
+					<View style={[styles.textContent, styles.contentFlexBox]}>
+						<Text style={styles.headline} numberOfLines={1}>$0.01</Text>
+						<Text style={styles.supportingText} numberOfLines={1}>Total Balance</Text>
+					</View>
+					<View style={[styles.leadingIconParent, styles.parentFlexBox]}>
+						<View style={[styles.leadingIcon, styles.content3Layout]}>
+							<View style={[styles.content1, styles.contentFlexBox]}>
+								{/* Change icon color to white */}
+								<MaterialIcons name="person" size={24} style={[styles.stateLayerIcon, styles.iconLayout, { color: '#FFF' }]} />
+							</View>
+						</View>
+						<View style={[styles.leadingIcon, styles.content3Layout]}>
+							<View style={[styles.content1, styles.contentFlexBox]}>
+								{/* Change icon color to white */}
+								<MaterialIcons name="message" size={24} style={[styles.stateLayerIcon, styles.iconLayout, { color: '#FFF' }]} />
+							</View>
+						</View>
+					</View>
+				</View>
+				<View style={[styles.textCenteredParent, styles.parentFlexBox]}>
+					<View style={[styles.textCentered, styles.textCenteredFlexBox]}>
+						{/* Modified View style here: removed styles.parentFlexBox */}
+						<View style={styles.header}>
+							<Text style={[styles.hello, styles.helloTypo]}>Hello, </Text> {/* Added space and kept existing styles */}
+							{/* Gradient text for $UserName */}
+							<MaskedView
+								style={{ height: styles.helloTypo.lineHeight }} // Ensure height matches text line height
+								maskElement={
+									<Text style={styles.helloTypo}>$UserName</Text>
+								}>
+								<LinearGradient
+									colors={['#0461F0', '#9CCAFF']}
+									start={{ x: 0, y: 0 }} // Gradient start (left)
+									end={{ x: 1, y: 0 }}   // Gradient end (right)
+									style={{ flex: 1 }}    // Ensure gradient fills the mask
+								>
+									{/* This Text is for sizing the gradient area; its content must match maskElement */}
+									<Text style={[styles.helloTypo, { opacity: 0 }]}>$UserName</Text>
+								</LinearGradient>
+							</MaskedView>
+						</View>
+						<View style={[styles.swipe, styles.swipeFlexBox]}>
+							<Text style={[styles.swipe1, styles.timeTypo]}>Swipe to change view</Text>
+							{/* Replace MaterialIcons with your SVG
+							<ArrowIcon width={24} height={24} style={styles.swipeChild} />
+						</View>
+					</View>
+					<View style={[styles.bottomContainer, styles.textCenteredFlexBox]}>
+						<View style={styles.appBarFlexBox}>
+							<View style={styles.suggestionCard}>
+								<Text style={[styles.labelText, styles.labelTypo]}>Send Money to a Friend</Text>
+							</View>
+							<View style={styles.suggestionCard}>
+								<Text style={[styles.labelText, styles.labelTypo]}>Send Money to a Wallet</Text>
+							</View>
+							<View style={[styles.suggestionCard]}>
+								<Text style={[styles.labelText, styles.labelTypo]}>How to send AVA?</Text>
+							</View>
+							<View style={[styles.suggestionCard]}>
+								<Text style={[styles.labelText, styles.labelTypo]}>Who are you?</Text>
+							</View>
+						</View>
+							<View style={[styles.chatContainer, styles.swipeFlexBox]}>
+							{/* Updated part for the dollar icon */}
+							<View style={styles.dollarIconContainer}>
+								<MaterialIcons name="attach-money" size={30} color="#FFFFFF" />
+							</View>
+							{/* End of updated part */}
+							<View style={styles.chatInputPosition}>
+								<View style={styles.textField}>
+									{/* Modified stateLayer to directly contain TextInput and Button */}
+									<View style={styles.stateLayer}>
+										{/* Replace Text with TextInput */}
+										<TextInput
+											placeholder="Ask Movya"
+											placeholderTextColor={styles.labelTypo.color} // Use existing color for placeholder
+											style={[styles.labelText4, styles.inputField]} // Apply existing text styles and new input field styles
+										/>
+										{/* Wrap Icon in TouchableOpacity */}
+										<TouchableOpacity onPress={() => console.log('Send pressed!')} style={styles.sendButton}>
+											<MaterialIcons name="send" size={24} color="#49454f" />
+										</TouchableOpacity>
+									</View>
+								</View>
+							</View>
+						</View>
+					</View>
+				</View>
+			</View>
+		</SafeAreaView>);
 };
 
-export default function WalletScreen() {
-  const [activeTab, setActiveTab] = useState<'tokens' | 'transactions'>('tokens');
-  const [currentView, setCurrentView] = useState<'main' | 'send' | 'receive' | 'deposit' | 'swap'>('main');
-  const paperTheme = usePaperTheme();
-  const { colors, dark: isDark } = paperTheme;
-  const insets = useSafeAreaInsets();
-  
-  const [account, setAccount] = useState<PrivateKeyAccount | null>(null);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const styles = StyleSheet.create({
+	backgroundVideo: {
+		...StyleSheet.absoluteFillObject,
+		zIndex: -1, // Ensure it's behind all other content
+	},
+	appBarFlexBox: {
+		gap: 16,
+		flexDirection: "row",
+		alignSelf: "stretch"
+	},
+	avatarLayout: {
+		borderRadius: 100,
+		overflow: "hidden"
+	},
+	iconLayout: {
+		maxWidth: "100%",
+		overflow: "hidden",
+		width: "100%"
+	},
+	contentFlexBox: {
+		justifyContent: "center",
+		alignItems: "center"
+	},
+	parentFlexBox: {
+		gap: 0,
+		justifyContent: "space-between"
+	},
+	content3Layout: {
+		height: 48,
+		justifyContent: "center"
+	},
+	textCenteredFlexBox: {
+		gap: 12,
+		justifyContent: "center",
+		alignItems: "center"
+	},
+	helloTypo: {
+		textAlign: "left",
+		lineHeight: 40,
+		fontSize: 32,
+		fontFamily: "Geist",
+		fontWeight: "700" // Changed from "500" to "700" for bold
+	},
+	swipeFlexBox: {
+		gap: 10,
+		flexDirection: "row",
+		alignItems: "center" // Added for vertical alignment
+	},
+	timeTypo: {
+		lineHeight: 20,
+		fontSize: 14,
+		textAlign: "left",
+		fontFamily: "Geist", // Changed from Roboto-Medium
+		fontWeight: "500"
+	},
+	labelTypo: {
+		color: "#49454f",
+		fontFamily: "Geist", // Changed from Roboto-Regular
+		textAlign: "left"
+	},
+	suggestionCard: {
+		padding: 8,
+		borderWidth: 1,
+		borderColor: "#79747e",
+		borderStyle: "solid",
+		borderRadius: 16,
+		justifyContent: "center",
+		alignItems: "center",
+		flex: 1
+	},
+	chatInputPosition: {
+		borderTopRightRadius: 4,
+		borderTopLeftRadius: 4,
+		flex: 1
+	},
+	headerFlexBox: {
+		alignItems: "center",
+		flexDirection: "row"
+	},
+	devicedeviceFramePosition: {
+		right: 0,
+		left: 0,
+		position: "absolute"
+	},
+	imageIcon: {
+		height: "100%",
+		top: "0%",
+		right: "0%",
+		bottom: "0%",
+		left: "0%",
+		borderRadius: 400,
+		maxHeight: "100%",
+		position: "absolute"
+	},
+	avatar: {
+		width: 32,
+		height: 32
+	},
+	avatarWrapper: {
+		justifyContent: "space-between",
+		width: 83,
+		alignItems: "center",
+		flexDirection: "row"
+	},
+	headline: {
+		fontSize: 22,
+		lineHeight: 28,
+		fontWeight: "700",
+		fontFamily: "Geist", // Changed from Roboto-Bold
+		textAlign: "center",
+		color: "#fff",
+		alignSelf: "stretch",
+		overflow: "hidden"
+	},
+	supportingText: {
+		color: "#e7e0ec",
+		fontFamily: "Geist", // Changed from Roboto-Medium
+		fontWeight: "500",
+		lineHeight: 16,
+		letterSpacing: 1,
+		fontSize: 12,
+		textAlign: "center",
+		alignSelf: "stretch",
+		overflow: "hidden"
+	},
+	textContent: {
+		flex: 1
+	},
+	stateLayerIcon: {
+		height: 40,
+		alignSelf: "stretch"
+	},
+	content1: {
+		width: 40,
+		borderRadius: 100,
+		overflow: "hidden"
+	},
+	leadingIcon: {
+		width: 48,
+		alignItems: "center",
+		flexDirection: "row"
+	},
+	leadingIconParent: {
+		width: 83,
+		gap: 0,
+		alignItems: "center",
+		flexDirection: "row"
+	},
+	appBar: {
+		paddingVertical: 32,
+		paddingHorizontal: 16,
+		alignItems: "center"
+	},
+	hello: {
+		color: "#0461f0"
+	},
+	header: {
+		width: 264,
+		alignItems: "center",
+		flexDirection: "row"
+	},
+	swipe1: {
+		color: "#625b71",
+		letterSpacing: 0
+	},
+	swipeChild: {
+		// maxHeight: "100%" // You might not need maxHeight anymore,
+		// SVGs usually scale well with width/height props.
+		// You can add other styles if needed, e.g., color if your SVG supports it via `fill` prop
+	},
+	swipe: {
+		justifyContent: "center",
+		alignItems: "center"
+	},
+	textCentered: {
+		padding: 10,
+		flex: 1
+	},
+	labelText: {
+		letterSpacing: 0,
+		lineHeight: 16,
+		fontSize: 12,
+		color: "#49454f",
+		fontFamily: "Roboto-Regular",
+		alignSelf: "stretch"
+	},
+	suggestion2: {
+		alignSelf: "stretch"
+	},
+	viewsButtonIcon: { // This style was previously on the icon, ensure it's not conflicting or remove if unused
+		borderRadius: 16
+	},
+	// Add new style for the dollar icon container
+	dollarIconContainer: {
+		backgroundColor: '#0461f0', // Using a blue from your existing styles
+		borderRadius: 12,
+		width: 50,
+		height: 50,
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	labelText4: { // Keep for font styling, flex:1 will be on inputField
+		fontSize: 16,
+		lineHeight: 24,
+		color: "#49454f",
+		fontFamily: "Geist", // Changed from Roboto-Regular
+		letterSpacing: 1,
+		// Removed flex: 1, will be handled by inputField style
+	},
+	// Remove labelTextContainer as TextInput is now a direct child of stateLayer
+	// labelTextContainer: {
+	//   alignSelf: "stretch"
+	// },
+	// Remove content3 and content3Layout as TextInput is now a direct child of stateLayer
+	// content3: {
+	//   paddingHorizontal: 0,
+	//   paddingVertical: 4,
+	//   flex: 1
+	// },
+	stateLayer: { // Modified
+		flex: 1, // Ensure it fills the textField
+		flexDirection: "row",
+		alignItems: "center", // Vertically center TextInput and Button
+		paddingHorizontal: 16, // Add some horizontal padding
+		gap: 8, // Space between TextInput and Button
+		// Removed borderTopRightRadius, borderTopLeftRadius as these are on chatInputPosition or textField
+		// Removed alignSelf: "stretch" as flex:1 on parent (textField) and this (stateLayer) handles it
+		// Removed paddingTop, paddingBottom, paddingLeft as paddingHorizontal and gap handle spacing
+	},
+	textField: {
+		height: 56,
+		borderWidth: 1,
+		borderColor: "#79747e",
+		borderStyle: "solid",
+		borderRadius: 100, // This creates the pill shape
+		alignSelf: "stretch",
+		overflow: 'hidden', // Ensures children conform to borderRadius
+	},
+	// Add new style for the TextInput
+	inputField: {
+		flex: 1, // Take up available space
+		height: '100%', // Fill the height of the stateLayer
+		// Font styles are inherited from labelText4
+	},
+	// Add new style for the Send Button
+	sendButton: {
+		padding: 8, // Make a decent touch target
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	// Remove leadingIcon, content1, stateLayerIcon, iconLayout if no longer used elsewhere
+	// leadingIcon: {
+	//   width: 48,
+	//   alignItems: "center",
+	//   flexDirection: "row"
+	// },
+	// content1: {
+	//   width: 40,
+	//   borderRadius: 100,
+	//   overflow: "hidden"
+	// },
+	// stateLayerIcon: {
+	//   height: 40,
+	//   alignSelf: "stretch"
+	// },
+	// iconLayout: {
+	// 	maxWidth: "100%",
+	// 	overflow: "hidden",
+	// 	width: "100%"
+	// },
+	chatContainer: {
+		alignSelf: "stretch",
+		flexDirection: "row", // Keep this from swipeFlexBox
+		alignItems: "center", // Keep this from swipeFlexBox
+		gap: 10, // Keep this from swipeFlexBox
+	},
+	bottomContainer: {
+		alignSelf: "stretch"
+	},
+	textCenteredParent: {
+		borderTopLeftRadius: 32,
+		borderTopRightRadius: 32,
+		backgroundColor: "#fff",
+		paddingVertical: 24,
+		paddingHorizontal: 16,
+		alignItems: "center",
+		alignSelf: "stretch",
+		flex: 1
+	},
+	content: {
+		// Removed: top: 52,
+		// Removed: height: 840,
+		// Removed: left: 0,
+		// Removed: position: "absolute"
+		flex: 1, // Make it take available vertical space
+		width: "100%", // Make it take full width
+	},
+	time: {
+		letterSpacing: 0.1,
+		color: "#fff",
+		fontSize: 14
+	},
+	rightIcons: {},
+	devicedeviceFrameComponents: {
+		top: 0,
+		height: 52,
+		alignItems: "flex-end",
+		paddingHorizontal: 24,
+		paddingVertical: 10,
+		gap: 0,
+		justifyContent: "space-between",
+		flexDirection: "row"
+	},
+	handle: {
+		marginTop: -2,
+		marginLeft: -54,
+		top: "50%",
+		left: "50%",
+		borderRadius: 12,
+		backgroundColor: "#202124",
+		width: 108,
+		height: 4,
+		position: "absolute"
+	},
+	devicedeviceFrameComponents1: {
+		bottom: 0,
+		height: 24
+	},
+	chat: {
+		backgroundColor: 'transparent', // Ensure SafeAreaView is transparent if it had a color
+		height: 892,
+		overflow: "hidden",
+		width: "100%",
+		flex: 1
+	}
+});
 
-  const [currentChain, setCurrentChain] = useState(avalancheFuji);
-  const [avaxBalance, setAvaxBalance] = useState('0');
-  const [totalValueUSD, setTotalValueUSD] = useState('$0.00');
-
-  const [tokens, setTokens] = useState([{
-    id: "1",
-    name: "Avalanche",
-    symbol: "AVAX",
-    amount: "0",
-    value: "$0.00"
-  }]);
-
-  // State for transactions
-  const [transactionsData, setTransactionsData] = useState([
-    { id: "1", type: "Received", amount: "+1.50 AVAX", value: "$55.70", date: "Today, 10:45 AM", from: "0x123...abc" },
-    { id: "2", type: "Sent", amount: "-0.75 AVAX", value: "$27.85", date: "Yesterday, 03:20 PM", to: "0x456...def" },
-    { id: "3", type: "Swapped", amount: "-10 USDC for +0.2 AVAX", value: "~$35.00", date: "Jan 15, 2024", details: "USDC/AVAX" }
-  ]);
-
-  const [isCopied, setIsCopied] = useState(false);
-
-  const [dialogVisible, setDialogVisible] = useState(false);
-  const showDialog = () => setDialogVisible(true);
-  const hideDialog = () => setDialogVisible(false);
-
-  const balanceOpacity = useSharedValue(0);
-  const balanceTranslateY = useSharedValue(20);
-
-  const balanceAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: balanceOpacity.value,
-      transform: [{ translateY: balanceTranslateY.value }],
-    };
-  });
-
-  // Chip animation
-  const chipOpacity = useSharedValue(0);
-  const chipScale = useSharedValue(0.8);
-  const chipAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: chipOpacity.value,
-      transform: [{ scale: chipScale.value }],
-    };
-  });
-
-  // Tab indicator animation - optimize spring config
-  type TabLayout = { x: number; width: number } | null;
-  const [tabLayouts, setTabLayouts] = useState<{ tokens: TabLayout; transactions: TabLayout }>({ tokens: null, transactions: null });
-  const indicatorLeft = useSharedValue(0);
-  const indicatorWidth = useSharedValue(0);
-
-  const tabIndicatorAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      left: indicatorLeft.value,
-      width: indicatorWidth.value,
-      height: 3,
-      backgroundColor: colors.primary, // Using theme color
-      position: 'absolute',
-      bottom: 0,
-      borderRadius: 3,
-    };
-  });
-
-  // For button press effect
-  const buttonScale = useSharedValue(1);
-  
-  // ScrollView ref
-  const scrollViewRef = useRef(null);
-
-  const switchNetwork = async () => {
-    const newChain = currentChain.id === avalanche.id ? avalancheFuji : avalanche;
-    setCurrentChain(newChain);
-    setAvaxBalance('...');
-    setTokens([{
-      id: "1",
-      name: newChain.name,
-      symbol: newChain.nativeCurrency.symbol,
-      amount: '...',
-      value: '$?.??'
-    }]);
-  };
-
-  const fetchAvaxBalance = async () => {
-    if (!account) return;
-    try {
-      const client = createPublicClient({ chain: currentChain, transport: http(currentChain.rpcUrls.default.http[0]) });
-      const balanceWei = await client.getBalance({ address: account.address });
-      const balanceFormatted = formatEther(balanceWei);
-      const balanceDisplay = parseFloat(balanceFormatted).toFixed(4);
-      setAvaxBalance(balanceDisplay);
-      let calculatedValueUSD = 0;
-      const pricePerToken = currentChain.id === avalanche.id ? 35 : 0.01;
-      calculatedValueUSD = parseFloat(balanceDisplay) * pricePerToken;
-      const formattedTotalValueUSD = `$${calculatedValueUSD.toFixed(2)}`;
-      setTotalValueUSD(formattedTotalValueUSD);
-      setTokens([{
-        id: "1",
-        name: currentChain.name,
-        symbol: currentChain.nativeCurrency.symbol,
-        amount: balanceDisplay,
-        value: formattedTotalValueUSD
-      }]);
-    } catch (error) {
-      console.error('Error fetching balance:', error);
-      setAvaxBalance("Error");
-      setTotalValueUSD('$?.??');
-      setTokens([{
-        id: "1",
-        name: currentChain.name,
-        symbol: currentChain.nativeCurrency.symbol,
-        amount: "Error",
-        value: "$?.??"
-      }]);
-    }
-  };
-
-  useEffect(() => {
-    if (account) {
-      fetchAvaxBalance();
-      const interval = setInterval(fetchAvaxBalance, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [account, currentChain]);
-
-  useEffect(() => {
-    const loadAccount = () => {
-      setIsLoading(true);
-      try {
-        const privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
-        if (privateKey) {
-          const loadedAccount = privateKeyToAccount(privateKey as `0x${string}`); 
-          setAccount(loadedAccount);
-          setWalletAddress(loadedAccount.address);
-        }
-      } catch (error) {
-        console.error('Failed to load wallet from MMKV:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadAccount();
-  }, []);
-
-  useEffect(() => {
-    if (totalValueUSD && totalValueUSD !== '$0.00' && totalValueUSD !== '$?.??' && !isLoading) {
-      balanceOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
-      balanceTranslateY.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.ease) });
-    } else if (isLoading || totalValueUSD === '$0.00' || totalValueUSD === '$?.??') {
-      balanceOpacity.value = 0;
-      balanceTranslateY.value = 20;
-    }
-  }, [totalValueUSD, isLoading, balanceOpacity, balanceTranslateY]);
-
-  useEffect(() => {
-    if (isCopied) {
-      chipOpacity.value = 0;
-      chipScale.value = 0.8;
-      chipOpacity.value = withTiming(1, { duration: 150 });
-      chipScale.value = withSpring(1, { damping: 15, stiffness: 200 });
-    }
-  }, [isCopied, chipOpacity, chipScale]);
-
-  const handleAction = (view: 'send' | 'receive' | 'deposit' | 'swap') => {
-    if (view === 'send' || view === 'receive') {
-      router.push(`/(app)/${view}`);
-    } else {
-      setCurrentView(view); // Use setCurrentView for deposit and swap
-    }
-  };
-  const handleBack = () => setCurrentView('main');
-
-  const copyWalletAddress = () => {
-    if (walletAddress) {
-      Clipboard.setString(walletAddress);
-      setIsCopied(true);
-      setTimeout(() => {
-        setIsCopied(false);
-      }, 2000);
-    }
-  };
-
-  useEffect(() => {
-    let targetX = 0;
-    let targetWidth = 0;
-    
-    if (activeTab === 'tokens' && tabLayouts.tokens) {
-      targetX = tabLayouts.tokens.x;
-      targetWidth = tabLayouts.tokens.width;
-    } else if (activeTab === 'transactions' && tabLayouts.transactions) {
-      targetX = tabLayouts.transactions.x;
-      targetWidth = tabLayouts.transactions.width;
-    }
-
-    if (targetWidth > 0) { // Ensure layout is valid
-      // Usar withTiming en lugar de withSpring para una animación más simple y ligera
-      indicatorLeft.value = withTiming(targetX, { duration: 200 });
-      indicatorWidth.value = withTiming(targetWidth, { duration: 200 });
-    }
-  }, [activeTab, tabLayouts, indicatorLeft, indicatorWidth]);
-
-  // Simplify scroll handler to eliminate parallax effect
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: () => {
-      // All parallax animations have been removed
-    },
-  });
-  
-  // Optimize button press animation to be smoother
-  const handleButtonPress = () => {
-    buttonScale.value = withSequence(
-      withTiming(0.97, { duration: 80, easing: Easing.out(Easing.ease) }),
-      withTiming(1, { duration: 80, easing: Easing.in(Easing.ease) })
-    );
-  };
-  
-  const renderTransactionItem = (tx: any) => {
-    const isReceived = tx.type === "Received";
-    let amountColor = colors.onSurface;
-    let iconName = "history";
-    
-    if (tx.type === "Received") {
-      amountColor = 'green';
-      iconName = "arrow-down-bold-circle-outline";
-    } else if (tx.type === "Sent") {
-      amountColor = colors.error;
-      iconName = "arrow-up-bold-circle-outline";
-    } else if (tx.type === "Swapped") {
-      amountColor = colors.primary;
-      iconName = "swap-horizontal-bold";
-    }
-    
-    const renderRightActions = () => {
-      return (
-        <View style={{ flexDirection: 'row' }}>
-          <TouchableOpacity 
-            style={[styles.swipeAction, { backgroundColor: colors.primary }]}
-            onPress={() => Alert.alert("Transaction Details", `ID: ${tx.id}\nValue: ${tx.value}`)}>
-            <PaperIconButton icon="information-outline" size={20} iconColor="#FFFFFF" />
-            <PaperText style={[styles.swipeActionText, { color: '#FFFFFF' }]}>Details</PaperText>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.swipeAction, { backgroundColor: tx.type === "Received" ? 'green' : colors.error }]}
-            onPress={() => Alert.alert("Action", `${tx.type === "Received" ? "Send to same address?" : "Repeat transaction?"}`)}>
-            <PaperIconButton 
-              icon={tx.type === "Received" ? "replay" : "send"} 
-              size={20} 
-              iconColor="#FFFFFF" 
-            />
-            <PaperText style={[styles.swipeActionText, { color: '#FFFFFF' }]}>
-              {tx.type === "Received" ? "Reply" : "Repeat"}
-            </PaperText>
-          </TouchableOpacity>
-        </View>
-      );
-    };
-    
-    return (
-      <Swipeable renderRightActions={renderRightActions} key={tx.id}>
-        <List.Item
-          title={tx.type}
-          description={`${tx.date}${tx.from ? ` from ${tx.from}` : tx.to ? ` to ${tx.to}` : tx.details ? ` (${tx.details})` : ''}`}
-          left={props => <List.Icon {...props} icon={iconName} color={amountColor} />}
-          right={props => <PaperText {...props} variant="bodyLarge" style={{ color: amountColor, alignSelf: 'center', marginRight: 8 }}>{tx.amount.split(' ')[0] + ' ' + tx.amount.split(' ')[1]}</PaperText>}
-          style={[styles.transactionListItem, { backgroundColor: colors.surfaceVariant }]}
-          titleStyle={{ fontWeight: 'bold', color: colors.onSurface}}
-          descriptionStyle={{ color: colors.onSurfaceVariant, fontSize: 12 }}
-          onPress={() => Alert.alert("Transaction Details", `ID: ${tx.id}\nValue: ${tx.value}`)}
-        />
-      </Swipeable>
-    );
-  };
-
-  const HEADER_HEIGHT = insets.top + 60; // Status bar height + customHeader height
-
-  const speedDialActions = [
-    {
-      icon: 'arrow-up-bold-outline',
-      onPress: () => {
-        handleButtonPress();
-        handleAction('send');
-      },
-      color: colors.onSurface,
-    },
-    {
-      icon: 'arrow-down-bold-outline',
-      onPress: () => {
-        handleButtonPress();
-        handleAction('receive');
-      },
-      color: colors.onSurface,
-    },
-    {
-      icon: 'cash-plus',
-      onPress: () => {
-        handleButtonPress();
-        handleAction('deposit');
-      },
-      color: colors.onSurface,
-    },
-    {
-      icon: 'swap-horizontal',
-      onPress: () => {
-        handleButtonPress();
-        handleAction('swap');
-      },
-      color: colors.onSurface,
-    },
-  ];
-
-  if (isLoading) {
-    return (
-      <Surface style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <PaperActivityIndicator animating={true} size="large" color={colors.primary} />
-        <PaperText variant="titleMedium" style={{marginTop: 16, color: colors.onSurface}}>Loading Wallet...</PaperText>
-      </Surface>
-    );
-  }
-  
-  if (!account) {
-      return (
-         <Surface style={[styles.container, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }]}>
-             <PaperIconButton icon="alert-circle-outline" size={48} iconColor={colors.error} />
-             <PaperText variant="headlineSmall" style={{color: colors.error, marginTop: 16, marginBottom: 8, textAlign: 'center'}}>Error Loading Wallet</PaperText>
-             <PaperText style={{textAlign: 'center', color: colors.onSurfaceVariant}}>Could not load wallet details.</PaperText>
-             <PaperText style={{textAlign: 'center', color: colors.onSurfaceVariant}}>Please try logging out and back in.</PaperText>
-         </Surface>
-      )
-  }
-
-  if (currentView === 'deposit') {
-        return (
-          <ActionView title="Deposit Crypto" onBack={handleBack}>
-            <PaperText variant="bodyLarge" style={{color: colors.onSurface}}>Deposit UI Placeholder</PaperText>
-            <PaperText style={{marginTop:10, color: colors.onSurfaceVariant}}>Your address for deposit:</PaperText>
-            <Chip icon="content-copy" style={{marginTop:8}} onPress={copyWalletAddress}>
-                {walletAddress ? `${walletAddress.slice(0,10)}...${walletAddress.slice(-8)}` : 'Loading...'}
-            </Chip>
-            {isCopied && <Chip style={{marginTop:8, backgroundColor:colors.tertiaryContainer}} textStyle={{color:colors.onTertiaryContainer}}>Copied!</Chip>}
-          </ActionView>
-        );
-  }
-
-  if (currentView === 'swap') {
-        return (
-          <ActionView title="Swap Tokens" onBack={handleBack}>
-            <PaperText variant="bodyLarge" style={{color: colors.onSurface}}>Swap UI Placeholder</PaperText>
-          </ActionView>
-        );
-  }
-  
-  return (
-    <Portal.Host>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? HEADER_HEIGHT : 0}
-      >
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <StatusBar style={isDark ? "light" : "dark"} translucent={true} backgroundColor="transparent" />
-
-        <View style={styles.videoContainer}>
-          <View style={StyleSheet.absoluteFill}>
-            <Video
-              source={require('@/assets/bg/header-bg.mp4')}
-              style={StyleSheet.absoluteFill}
-              resizeMode={ResizeMode.COVER}
-              isLooping shouldPlay isMuted
-            />
-          </View>
-          <LinearGradient
-            colors={isDark ? ['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.4)'] : ['rgba(0,10,30,0.6)', 'rgba(0,10,30,0.4)']}
-            style={StyleSheet.absoluteFill}
-          />
-        </View>
-
-        <View style={{ height: insets.top }} />
-        <View style={styles.customHeader}>
-          <View style={styles.headerTitleContainer}>
-              <PaperText style={styles.headerTitle}>Movya Wallet</PaperText>
-              <PaperText style={styles.headerSubtitle}>{currentChain.name}</PaperText>
-          </View>
-          <View style={styles.headerActions}>
-            <PaperIconButton 
-              icon="swap-horizontal-bold" 
-              onPress={switchNetwork} 
-              iconColor="#FFFFFF" 
-              rippleColor="rgba(255,255,255,0.3)"
-            />
-            <PaperIconButton 
-              icon="account-multiple-outline" 
-              onPress={() => router.push("/(app)/contacts")} 
-              iconColor="#FFFFFF" 
-              rippleColor="rgba(255,255,255,0.3)"
-            />
-          </View>
-        </View>
-
-            <View style={styles.balanceHeaderContent}> 
-              <PaperText variant="labelLarge" style={[styles.totalBalanceText, { color: '#FFFFFF' }]}>
-                Total Estimated Balance
-              </PaperText>
-            <Animated.View style={balanceAnimatedStyle}>
-              <PaperText variant="displaySmall" style={[styles.totalBalanceValue, { color: '#FFFFFF', textShadowColor: 'rgba(0, 0, 0, 0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }]}>
-                {totalValueUSD}
-              </PaperText>
-            </Animated.View>
-              <View style={styles.addressAndControlsContainer}>                
-                <TouchableOpacity 
-                  onPress={copyWalletAddress} 
-                  style={styles.addressTouchable}
-                >
-                  <PaperIconButton 
-                      icon="wallet-outline" 
-                      size={20} 
-                      iconColor={'#FFFFFF'} 
-                      style={{marginRight:0}} 
-                  />
-                  <PaperText
-                    variant="bodyMedium"
-                    style={[styles.walletAddressText, { color: '#FFFFFF', textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }]} 
-                    numberOfLines={1}
-                    ellipsizeMode="middle"
-                  >
-                    {walletAddress 
-                      ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}` 
-                      : 'Loading address...'}
-                  </PaperText>
-                  {isCopied && (
-                  <Animated.View style={[styles.copiedChip, chipAnimatedStyle]}>
-                    <Chip 
-                      icon="check-circle" 
-                      mode="flat" 
-                      style={{ backgroundColor: 'transparent' }}
-                      textStyle={{ color: '#FFFFFF', fontSize: 11, fontWeight:'bold' }}
-                    >
-                      COPIED
-                    </Chip>
-                  </Animated.View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-
-          <View style={{ flex: 1, marginBottom: 60, paddingBottom: 8 }}>  {/* Added paddingBottom for extra space */}
-            <Surface style={[
-              styles.contentSurface,
-              { 
-                flex: 1, 
-                backgroundColor: colors.surface, 
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: -3 },
-                shadowOpacity: 0.1,
-                shadowRadius: 6,
-                elevation: 4, 
-                borderBottomWidth: 0, // Ensure no border at bottom
-              }
-            ]}>
-              <View style={styles.tabs}>
-                <TouchableOpacity
-                  style={[styles.tab]}
-                  onPress={() => setActiveTab('tokens')}
-                  onLayout={(event) => {
-                    const { x, width } = event.nativeEvent.layout;
-                    setTabLayouts(prev => ({ tokens: { x, width }, transactions: prev.transactions }));
-                  }}
-                >
-                  <PaperIconButton 
-                    icon="format-list-bulleted-square"
-                    size={20} 
-                    iconColor={activeTab === 'tokens' ? colors.primary : colors.onSurfaceVariant}
-                  />
-                  <PaperText
-                    variant="labelLarge"
-                    style={{ fontWeight: activeTab === 'tokens' ? 'bold' : 'normal', color: activeTab === 'tokens' ? colors.primary : colors.onSurfaceVariant, marginLeft: 4 }}
-                  >
-                    Tokens
-                  </PaperText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.tab]}
-                  onPress={() => setActiveTab('transactions')}
-                  onLayout={(event) => {
-                    const { x, width } = event.nativeEvent.layout;
-                    setTabLayouts(prev => ({ tokens: prev.tokens, transactions: { x, width } }));
-                  }}
-                >
-                  <PaperIconButton 
-                    icon="history" 
-                    size={20} 
-                    iconColor={activeTab === 'transactions' ? colors.primary : colors.onSurfaceVariant}
-                  />
-                  <PaperText
-                    variant="labelLarge"
-                    style={{ fontWeight: activeTab === 'transactions' ? 'bold' : 'normal', color: activeTab === 'transactions' ? colors.primary : colors.onSurfaceVariant, marginLeft: 4 }}
-                  >
-                    Transactions
-                  </PaperText>
-                </TouchableOpacity>
-                <Animated.View style={tabIndicatorAnimatedStyle} />
-              </View>
-
-              {activeTab === 'tokens' ? (
-                <View style={{ flex: 1 }}>
-                  {tokens.length === 0 || (tokens.length === 1 && tokens[0].amount === "Error") ? (
-                    <View style={styles.emptyStateContainer}>
-                        <PaperIconButton icon="cancel" size={48} iconColor={colors.onSurfaceDisabled} />
-                        <PaperText variant="titleMedium" style={{marginTop:16, color: colors.onSurfaceDisabled}}>No Tokens Found</PaperText>
-                        <PaperText variant="bodyMedium" style={{marginTop:8, color: colors.onSurfaceDisabled, textAlign:'center'}}>Could not load token balances or your wallet is empty.</PaperText>
-                    </View>
-                  ) : (
-                    <Animated.ScrollView 
-                      style={styles.tokenListContainer}
-                      onScroll={scrollHandler}
-                      scrollEventThrottle={16}
-                      ref={scrollViewRef}
-                    >
-                    {tokens.map(token => (
-                        <TouchableOpacity 
-                          key={token.id} 
-                          activeOpacity={0.9}
-                          onPress={() => Alert.alert("Token Details", `${token.name} (${token.symbol})\nBalance: ${token.amount}\nValue: ${token.value}`)}
-                        >
-                          <Card style={[styles.tokenCard, {backgroundColor: colors.surfaceVariant}]} elevation={1}>
-                        <Card.Content style={styles.tokenCardContent}>
-                            <Image
-                            source={require('@/assets/Avax_Token.png')}
-                            style={styles.tokenIcon}
-                            resizeMode="contain"
-                            />
-                            <View style={styles.tokenInfo}>
-                            <PaperText variant="titleMedium" style={{color: colors.onSurface}}>{token.symbol}</PaperText>
-                            <PaperText variant="bodyMedium" style={{ color: colors.onSurfaceVariant }}>{token.name}</PaperText>
-                            </View>
-                            <View style={styles.tokenAmount}>
-                            <PaperText variant="titleMedium" style={{color: colors.onSurface}}>{token.amount}</PaperText>
-                            <PaperText variant="bodyMedium" style={{ color: colors.onSurfaceVariant }}>{token.value}</PaperText>
-                            </View>
-                        </Card.Content>
-                        </Card>
-                        </TouchableOpacity>
-                    ))}
-                    </Animated.ScrollView>
-                  )}
-                </View>
-              ) : (
-                <View style={{ flex: 1 }}>
-                   {transactionsData.length > 0 ? (
-                    <Animated.ScrollView 
-                      style={styles.transactionListContainer}
-                      onScroll={scrollHandler}
-                      scrollEventThrottle={16}
-                    >
-                    {transactionsData.map(renderTransactionItem)}
-                    </Animated.ScrollView>
-                  ) : (
-                      <View style={styles.emptyStateContainer}>
-                          <PaperIconButton icon="format-list-bulleted" size={48} iconColor={colors.onSurfaceDisabled} />
-                          <PaperText variant="titleMedium" style={{marginTop:16, color: colors.onSurfaceDisabled}}>No Transactions Yet</PaperText>
-                          <PaperText variant="bodyMedium" style={{marginTop:8, color: colors.onSurfaceDisabled, textAlign:'center'}}>Your transaction history will appear here.</PaperText>
-                      </View>
-                  )}
-                </View>
-              )}
-            </Surface>
-          </View>
-          
-          {/* ChatInput: Positioned absolutely at the very bottom */}
-          <View style={[
-            styles.chatInputContainer,
-            { 
-              backgroundColor: colors.surface, /* Same as content background */
-              borderTopWidth: 0, 
-              shadowColor: 'transparent',
-              elevation: 0,
-            }
-          ]}>
-        <ChatInput
-          onSendMessage={(message) => {
-            router.push({
-              pathname: '/(app)/chat',
-              params: { initialMessage: message, from: 'wallet' }
-            });
-          }}
-        />
-      </View>
-
-          {/* SpeedDialFAB: Positioned absolutely, above ChatInput */}
-          <View style={styles.speedDialContainer}>
-            <SpeedDialFAB 
-              actions={speedDialActions}
-              fabColor={colors.primary}
-              fabIconColor={colors.onPrimary}
-              actionsBackgroundColor={colors.surfaceVariant}
-              actionsIconColor={colors.primary}
-            />
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Portal.Host>
-  );
-}
+export default Wallet;

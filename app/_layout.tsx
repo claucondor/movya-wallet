@@ -171,7 +171,7 @@ export default function RootLayout() {
         let wallet = await loadWallet();
         if (!wallet) wallet = await createAndSaveWallet();
         setWalletAddress(wallet.address);
-        router.replace('/(app)/wallet');
+        router.replace('/(app)/home');
       } else if (recognizedPathType === 'error') {
         const errorMessage = queryParams?.message as string || 'Auth failed.';
         router.replace({ pathname: '/(auth)/error', params: { message: errorMessage } });
@@ -190,14 +190,14 @@ export default function RootLayout() {
 
     console.log(`RootLayout Auth Redirect: walletAddress: ${walletAddress}, segments: ${segments.join('/')}, inAuthGroup: ${inAuthGroup}, inAppGroup: ${inAppGroup}`);
 
-    if (walletAddress && (inAuthGroup || segments.length === 0 || segments[0] === 'index')) {
+    if (walletAddress && (inAuthGroup || segments[0] === 'index')) {
       // User is authenticated but is in auth group, at root, or on the initial index.tsx
       // Redirect to main app screen.
       // Avoid redirecting if already in (app) group to prevent loops, unless it's from root index.
       // Also, allow staying on auth/success or auth/error if those are the current deep link targets.
       if (segments[1] !== 'success' && segments[1] !== 'error') {
          console.log('Redirecting to /(app)/wallet due to walletAddress and current segment');
-         router.replace('/(app)/chat'); // Changed from '/(app)/wallet' to '/(app)/chat'
+         router.replace('/(app)/home'); // Changed from '/(app)/wallet' to '/(app)/chat'
       }
     } else if (!walletAddress && !inAuthGroup) {
       // User is not authenticated and is not in the auth group
