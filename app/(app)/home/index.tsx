@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Image, StyleSheet, View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { Image, StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { Video, ResizeMode } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,9 +20,79 @@ import Fab from "../../../assets/fab.svg"
 import Sendbutton from "../../../assets/sendbutton.svg"
 import { Padding, Gap, FontFamily, Color, FontSize, Border } from "./GlobalStyles";
 import { useRouter } from "expo-router";
+import { Portal, Modal, PaperProvider, Button as PaperButton, Text as PaperText, SegmentedButtons, TextInput as PaperTextInput, IconButton } from 'react-native-paper';
+import { addContactByAddress, addContactByEmail } from "../../internal/contactService";
+import { storage } from "../../core/storage";
+
+// Define ContactType if not already defined globally or in scope
+type ContactType = 'address' | 'email';
 
 const Home = () => {
     const router = useRouter();
+    const [isAddContactModalVisible, setIsAddContactModalVisible] = React.useState(false);
+    
+    // State for the form fields
+    const [contactType, setContactType] = React.useState<ContactType>('address');
+    const [nickname, setNickname] = React.useState('');
+    const [contactValue, setContactValue] = React.useState('');
+    const [isSavingContact, setIsSavingContact] = React.useState(false);
+
+    const showAddContactModal = () => {
+        // Reset form fields when opening modal
+        setContactType('address');
+        setNickname('');
+        setContactValue('');
+        setIsSavingContact(false);
+        setIsAddContactModalVisible(true);
+    };
+    const hideAddContactModal = () => setIsAddContactModalVisible(false);
+
+    const handleSaveContact = async () => {
+        if (!nickname.trim()) {
+            Alert.alert('Validation Error', 'Nickname is required.');
+            return;
+        }
+        if (!contactValue.trim()) {
+            Alert.alert('Validation Error', `${contactType === 'address' ? 'Address' : 'Email'} is required.`);
+            return;
+        }
+        if (contactType === 'email') {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(contactValue)) {
+                Alert.alert('Validation Error', 'Please enter a valid email address.');
+                return;
+            }
+        }
+
+        const userId = storage.getString('userId');
+        if (!userId) {
+            Alert.alert('Authentication Error', 'User ID not found. Please log in again.');
+            return;
+        }
+
+        setIsSavingContact(true);
+        try {
+            let result;
+            if (contactType === 'address') {
+                result = await addContactByAddress(userId, nickname.trim(), contactValue.trim());
+            } else {
+                result = await addContactByEmail(userId, nickname.trim(), contactValue.trim());
+            }
+
+            if (result.success) {
+                Alert.alert('Success', result.message || 'Contact added successfully!');
+                hideAddContactModal();
+                // Optionally, you might want to refresh the contacts list here
+            } else {
+                Alert.alert('Error', result.message || 'Failed to add contact.');
+            }
+        } catch (error: any) {
+            console.error("[HomeModal] Error saving contact:", error);
+            Alert.alert('Request Error', error.message || 'An unexpected error occurred.');
+        } finally {
+            setIsSavingContact(false);
+        }
+    };
 
     const handleChatNavigation = () => {
         router.push('/(app)/chat');
@@ -87,7 +157,9 @@ const Home = () => {
                       <View style={styles.contactsSectionIfNone}>
                         <Text style={[styles.addContacts, styles.send1Typo]}>Add Contacts</Text>
                         <View style={styles.contactsMockContainer}>
-                            <Addbutton style={styles.addButtonIcon} width={32} height={32} />
+                            <TouchableOpacity onPress={showAddContactModal}>
+                                <Addbutton style={styles.addButtonIcon} width={32} height={32} />
+                            </TouchableOpacity>
                             <ScrollView 
                                 horizontal={true} 
                                 showsHorizontalScrollIndicator={false}
@@ -205,6 +277,83 @@ const Home = () => {
                     </View>
                 </View>
             </View>
+            <Portal>
+                <Modal 
+                    visible={isAddContactModalVisible} 
+                    onDismiss={hideAddContactModal} 
+                    contentContainerStyle={styles.modalContainer}
+                >
+                    <View style={styles.modalHeader}>
+                        <PaperText style={styles.modalTitle}>Add New Contact</PaperText>
+                        <IconButton
+                            icon="close"
+                            size={24}
+                            onPress={hideAddContactModal}
+                            style={styles.modalCloseButton}
+                            iconColor={Color.colorGray100}
+                        />
+                    </View>
+
+                    <SegmentedButtons
+                        value={contactType}
+                        onValueChange={(val) => setContactType(val as ContactType)}
+                        style={styles.segmentedButtons}
+                        buttons={[
+                            {
+                                value: 'address',
+                                label: 'Address',
+                                icon: 'wallet-outline',
+                                style: styles.segmentedButton,
+                                labelStyle: styles.segmentedButtonLabel
+                            },
+                            {
+                                value: 'email',
+                                label: 'Email',
+                                icon: 'email-outline',
+                                style: styles.segmentedButton,
+                                labelStyle: styles.segmentedButtonLabel
+                            },
+                        ]}
+                    />
+
+                    <PaperTextInput
+                        mode="outlined"
+                        label="Nickname"
+                        placeholder="e.g., John Doe"
+                        value={nickname}
+                        onChangeText={setNickname}
+                        style={styles.modalInput}
+                        contentStyle={{ paddingLeft: Padding.p_8 }}
+                        theme={{ roundness: Border.br_12, colors: { primary: Color.colorRoyalblue100 } }}
+                        left={<PaperTextInput.Icon icon="account-outline" />}
+                    />
+                    
+                    <PaperTextInput
+                        mode="outlined"
+                        label={contactType === 'address' ? 'Wallet Address' : 'Email Address'}
+                        placeholder={contactType === 'address' ? '0x...' : 'user@example.com'}
+                        value={contactValue}
+                        onChangeText={setContactValue}
+                        style={styles.modalInput}
+                        contentStyle={{ paddingLeft: Padding.p_8 }}
+                        keyboardType={contactType === 'email' ? 'email-address' : 'default'}
+                        autoCapitalize="none"
+                        theme={{ roundness: Border.br_12, colors: { primary: Color.colorRoyalblue100 } }}
+                        left={<PaperTextInput.Icon icon={contactType === 'address' ? 'format-letter-matches' : 'at'} />}
+                    />
+
+                    <PaperButton 
+                        onPress={handleSaveContact} 
+                        mode="contained" 
+                        style={styles.saveButtonModal}
+                        labelStyle={styles.saveButtonModalLabel}
+                        loading={isSavingContact}
+                        disabled={isSavingContact}
+                    >
+                        {isSavingContact ? 'Saving...' : 'Save Contact'}
+                    </PaperButton>
+                </Modal>
+            </Portal>
         </SafeAreaView>);
 };
 
@@ -656,6 +805,65 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontFamily: FontFamily.geist,
     },
+    modalContainer: {
+        backgroundColor: 'white',
+        padding: Padding.p_24,
+        marginHorizontal: Padding.p_12,
+        borderRadius: Border.br_16,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        alignItems: 'center',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        marginBottom: Gap.gap_16,
+    },
+    modalTitle: {
+        fontSize: FontSize.size_20,
+        fontWeight: 'bold',
+        fontFamily: FontFamily.geist,
+        color: Color.colorGray100,
+        textAlign: 'left',
+    },
+    modalCloseButton: {
+        margin: -Padding.p_8,
+    },
+    segmentedButtons: {
+        marginBottom: Gap.gap_16,
+        height: 48,
+        width: '100%',
+    },
+    segmentedButton: {},
+    segmentedButtonLabel: {
+        fontSize: 11,
+        fontFamily: FontFamily.geist,
+    },
+    modalInput: {
+        marginBottom: Gap.gap_16,
+        backgroundColor: 'transparent',
+        width: '100%',
+        fontSize: FontSize.size_12,
+        paddingLeft: 30,
+    },
+    saveButtonModal: {
+        marginTop: Gap.gap_12,
+        backgroundColor: Color.colorRoyalblue100,
+        paddingVertical: Padding.p_4,
+        borderRadius: Border.br_32,
+        width: '100%',
+    },
+    saveButtonModalLabel: {
+        fontFamily: FontFamily.geist,
+        fontSize: FontSize.size_12,
+        fontWeight: 'bold',
+        color: Color.colorWhite,
+    }
 });
 
 export default Home;

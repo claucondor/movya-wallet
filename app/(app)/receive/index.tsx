@@ -30,17 +30,14 @@ import QRCode from 'react-native-qrcode-svg';
 import { Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { storage } from '../../core/storage';
+import { FontFamily, Color, Border, Gap, Padding, FontSize } from '../home/GlobalStyles';
 
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
 export default function ReceiveScreen() {
-  const paperTheme = usePaperTheme();
-  const { colors, dark: isDark } = paperTheme;
-
   const [address, setAddress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarIsError, setSnackbarIsError] = useState(false);
@@ -68,7 +65,6 @@ export default function ReceiveScreen() {
         setIsLoading(false);
       }
     };
-
     loadAddress();
   }, []);
 
@@ -100,21 +96,21 @@ export default function ReceiveScreen() {
 
   if (isLoading) {
     return (
-      <Surface style={[styles.container, styles.center]}>
-        <PaperActivityIndicator size="large" color={colors.primary} />
-        <PaperText variant="bodyLarge" style={{marginTop: 16}}>Loading your address...</PaperText>
+      <Surface style={[styles.container, styles.center, {backgroundColor: Color.colorGray400}]}>
+        <PaperActivityIndicator size="large" color={Color.colorRoyalblue100} />
+        <PaperText variant="bodyLarge" style={{marginTop: 16, fontFamily: FontFamily.geist, color: Color.colorGray100}}>Loading your address...</PaperText>
       </Surface>
     );
   }
 
   if (error && !address) {
     return (
-      <Surface style={[styles.container, styles.center]}>
-        <PaperIconButton icon="alert-circle-outline" size={48} iconColor={colors.error} />
-        <PaperText variant="headlineSmall" style={{color: colors.error, marginTop: 16, marginBottom: 8, textAlign: 'center'}}>
+      <Surface style={[styles.container, styles.center, {backgroundColor: Color.colorGray400}]}>
+        <PaperIconButton icon="alert-circle-outline" size={48} iconColor={Color.colorRoyalblue100} />
+        <PaperText variant="headlineSmall" style={{color: Color.colorRoyalblue100, marginTop: 16, marginBottom: 8, textAlign: 'center', fontFamily: FontFamily.geist}}>
           Error Loading Address
         </PaperText>
-        <PaperText variant="bodyMedium" style={{textAlign: 'center', paddingHorizontal: 20}}>{error}</PaperText>
+        <PaperText variant="bodyMedium" style={{textAlign: 'center', paddingHorizontal: 20, fontFamily: FontFamily.geist, color: Color.colorGray200}}>{error}</PaperText>
       </Surface>
     );
   }
@@ -122,7 +118,7 @@ export default function ReceiveScreen() {
   return (
     <Portal.Host>
       <View style={styles.container}>
-        <StatusBar style="dark" translucent={true} backgroundColor="transparent"/>
+        <StatusBar style="light" translucent={true} backgroundColor="transparent"/>
         
         <Video
           source={require('@/assets/bg/start-screen-bg.mp4')}
@@ -134,7 +130,7 @@ export default function ReceiveScreen() {
         />
 
         <LinearGradient
-          colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.1)']}
+          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.05)']}
           style={StyleSheet.absoluteFill}
         />
 
@@ -146,7 +142,7 @@ export default function ReceiveScreen() {
               icon="arrow-left"
               size={24}
               onPress={() => router.back()}
-              iconColor="#333333"
+              iconColor={Color.colorWhite}
               style={styles.backButton}
             />
           </View>
@@ -167,16 +163,16 @@ export default function ReceiveScreen() {
                 <QRCode
                   value={address}
                   size={220}
-                  backgroundColor="#FFFFFF"
+                  backgroundColor={Color.colorWhite}
                   color="#000000"
                 />
               )}
             </View>
           </View>
 
-          <Card style={[styles.addressCard, {backgroundColor: 'rgba(255,255,255,0.92)'}]}>
+          <Card style={styles.addressCard}>
             <Card.Content>
-              <PaperText variant="titleMedium" style={[styles.addressLabel, {color: colors.onSurface}]}>
+              <PaperText variant="titleMedium" style={styles.addressLabel}>
                 Your Wallet Address
               </PaperText>
               <PaperTextInput
@@ -185,8 +181,16 @@ export default function ReceiveScreen() {
                 editable={false}
                 style={styles.addressTextContainer}
                 contentStyle={styles.addressTextInputContent}
-                outlineStyle={{borderColor: colors.outline}}
-                right={<PaperTextInput.Icon icon="content-copy" onPress={copyToClipboard} color={colors.primary}/>}
+                theme={{ 
+                  colors: { 
+                    primary: Color.colorRoyalblue100,
+                    text: Color.colorWhite, 
+                    placeholder: 'rgba(255,255,255,0.7)', 
+                    outline: 'rgba(255,255,255,0.3)' 
+                  },
+                  roundness: Border.br_16 
+                }}
+                right={<PaperTextInput.Icon icon="content-copy" onPress={copyToClipboard} color={Color.colorWhite}/>}
               />
             </Card.Content>
           </Card>
@@ -196,9 +200,9 @@ export default function ReceiveScreen() {
               mode="outlined" 
               icon="content-copy"
               onPress={copyToClipboard}
-              style={[styles.actionButton, {borderColor: colors.primary, backgroundColor: 'rgba(255,255,255,0.92)'}] }
-              labelStyle={[styles.buttonLabel, {color: colors.primary}]}
-              rippleColor={colors.primaryContainer}
+              style={styles.actionButtonOutlined}
+              labelStyle={styles.actionButtonLabelOutlined}
+              rippleColor={Color.colorRoyalblue200}
               compact={true}
             >
               Copy Address
@@ -207,9 +211,9 @@ export default function ReceiveScreen() {
               mode="contained" 
               icon="share-variant"
               onPress={shareAddress}
-              style={[styles.actionButton, {backgroundColor: colors.primary}] }
-              labelStyle={[styles.buttonLabel, {color: colors.onPrimary}]}
-              rippleColor={colors.onPrimaryContainer}
+              style={styles.actionButtonContained}
+              labelStyle={styles.actionButtonLabelContained}
+              rippleColor={Color.colorWhite}
               compact={true}
             >
               Share Address
@@ -221,14 +225,13 @@ export default function ReceiveScreen() {
           visible={snackbarVisible}
           onDismiss={() => setSnackbarVisible(false)}
           duration={Snackbar.DURATION_SHORT}
-          style={snackbarIsError ? { backgroundColor: colors.errorContainer } : { backgroundColor: colors.primaryContainer }}
+          style={snackbarIsError ? styles.snackbarError : styles.snackbarSuccess}
           action={{
             label: 'OK',
-            textColor: snackbarIsError ? colors.onErrorContainer : colors.onPrimaryContainer,
             onPress: () => setSnackbarVisible(false),
           }}
         >
-          <PaperText style={{color: snackbarIsError ? colors.onErrorContainer : colors.onPrimaryContainer}}>
+          <PaperText style={{color: Color.colorWhite, fontFamily: FontFamily.geist}}>
             {snackbarMessage}
           </PaperText>
         </Snackbar>
@@ -238,92 +241,121 @@ export default function ReceiveScreen() {
 }
 
 const styles = StyleSheet.create({
+  snackbarError: {
+    backgroundColor: '#B00020',
+  },
+  snackbarSuccess: {
+    backgroundColor: '#4CAF50',
+  },
   container: {
     flex: 1,
   },
   center: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: Padding.p_24,
   },
   safeTopArea: {
     height: Platform.OS === 'ios' ? 50 : ReactNativeStatusBar.currentHeight || 0,
   },
   topBar: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    height: 50,
+    paddingHorizontal: Padding.p_12,
+    paddingTop: Padding.p_12,
   },
   backButtonContainer: {
-    width: 60,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   backButton: {
-    margin: 0,
   },
   titleContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    alignItems: 'center',
+    paddingHorizontal: Padding.p_24,
+    paddingBottom: Padding.p_12,
   },
   titleText: {
-    fontSize: 24,
+    fontFamily: FontFamily.geist,
+    fontSize: FontSize.size_20,
     fontWeight: 'bold',
-    color: '#333333',
-    lineHeight: 32,
+    color: Color.colorWhite,
+    textAlign: 'center',
   },
   scrollContent: {
-    padding: 16,
-    paddingTop: 10,
-    paddingBottom: 30,
-    alignItems: 'center',
+    paddingHorizontal: Padding.p_12,
+    paddingTop: Padding.p_12,
+    paddingBottom: Padding.p_24,
+    gap: Gap.gap_16,
   },
   qrWrapper: {
-    marginBottom: 30,
     alignItems: 'center',
-    justifyContent: 'center',
+    padding: Padding.p_12,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    borderRadius: Border.br_24,
+    marginHorizontal: Padding.p_12,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
   },
   qrBackground: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
+    padding: Padding.p_12,
   },
-  addressCard: { 
-    marginBottom: 24,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    width: '100%',
-    borderRadius: 12,
+  addressCard: {
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    borderRadius: Border.br_12,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    elevation: 0, 
+    marginHorizontal: Padding.p_12,
   },
-  addressLabel: { marginBottom: 10, textAlign: 'center', fontWeight: 'bold' },
-  addressTextContainer: { backgroundColor: 'transparent' },
-  addressTextInputContent: { paddingVertical: 10, fontFamily: 'monospace', fontSize: 13 },
-  buttonContainer: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-around', 
-    marginTop: 24,
-    width: '100%',
+  addressLabel: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorWhite,
+    marginBottom: Gap.gap_4,
+    fontWeight: 'bold',
+    fontSize: FontSize.size_14,
   },
-  actionButton: { 
-    flex: 1, 
-    marginHorizontal: 6, 
+  addressTextContainer: {
+    backgroundColor: 'transparent',
+    fontFamily: FontFamily.geist,
+  },
+  addressTextInputContent: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorWhite,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: Gap.gap_12,
+    paddingHorizontal: Padding.p_12,
+    gap: Gap.gap_12,
+  },
+  actionButtonOutlined: {
+    flex: 1,
+    borderColor: Color.colorWhite,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    borderRadius: Border.br_32,
     borderWidth: 1.5,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    borderRadius: 30,
-    paddingVertical: 5,
   },
-  buttonLabel: { fontSize: 14, fontWeight: 'bold' },
+  actionButtonLabelOutlined: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorWhite,
+    fontWeight: 'bold',
+    fontSize: FontSize.size_12,
+  },
+  actionButtonContained: {
+    flex: 1,
+    backgroundColor: Color.colorRoyalblue100,
+    borderRadius: Border.br_32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  actionButtonLabelContained: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorWhite,
+    fontWeight: 'bold',
+    fontSize: FontSize.size_12,
+  },
 }); 
