@@ -28,6 +28,7 @@ import {
 import { createPublicClient, formatEther, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { storage } from '../../core/storage';
+import { FontFamily, Color, Border, Gap, Padding, FontSize } from '../home/GlobalStyles';
 
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
@@ -161,16 +162,16 @@ export default function SendScreen() {
   return (
     <Portal.Host>
       <Surface style={styles.container}>
-        <Appbar.Header>
-          <Appbar.BackAction onPress={() => router.back()} />
-          <Appbar.Content title={`Send ${avalancheFuji.nativeCurrency.symbol}`} />
-          <View style={{ width: 40 }} />{/* Spacer for centering title */}
+        <Appbar.Header style={styles.appbarHeader}>
+          <Appbar.BackAction onPress={() => router.back()} color={Color.colorWhite} />
+          <Appbar.Content title={`Send ${avalancheFuji.nativeCurrency.symbol}`} color={Color.colorWhite} titleStyle={styles.appbarTitle} />
+          <View style={{ width: 48 }} />{/* Spacer for centering title, ensure consistent with backaction size */}
         </Appbar.Header>
 
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0} // Adjust as needed
+          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
           <ScrollView 
             style={styles.scrollView}
@@ -181,7 +182,7 @@ export default function SendScreen() {
               <Card.Content>
                 <PaperText variant="labelLarge" style={styles.balanceLabel}>Current Balance</PaperText>
                 {isLoading ? (
-                  <PaperActivityIndicator size="small" color={colors.primary} style={{alignSelf: 'center'}} />
+                  <PaperActivityIndicator size="small" color={Color.colorRoyalblue100} style={{alignSelf: 'center'}} />
                 ) : (
                   <PaperText variant="headlineSmall" style={styles.balanceValue}>
                     {balance ? `${balance} ${avalancheFuji.nativeCurrency.symbol}` : 'Loading...'}
@@ -202,14 +203,17 @@ export default function SendScreen() {
                     onChangeText={setRecipient}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    style={styles.input}
-                    right={<PaperTextInput.Icon icon="qrcode-scan" onPress={handleScanQR} />}
+                    style={styles.textInput}
+                    theme={{ colors: { primary: Color.colorRoyalblue100, text: Color.colorGray100, placeholder: Color.colorGray200, outline: Color.colorGray400 }, roundness: Border.br_16 }}
+                    right={<PaperTextInput.Icon icon="qrcode-scan" onPress={handleScanQR} color={Color.colorGray200} />}
                   />
                   <PaperButton 
                     mode="text" 
                     icon="contacts"
                     onPress={() => router.push('/(app)/contacts')}
                     style={styles.contactsButton}
+                    labelStyle={styles.textButtonLabel}
+                    textColor={Color.colorRoyalblue100}
                   >
                     Select from Contacts
                   </PaperButton>
@@ -226,20 +230,21 @@ export default function SendScreen() {
                     keyboardType="decimal-pad"
                     autoCapitalize="none"
                     autoCorrect={false}
-                    style={styles.input}
-                    right={<PaperButton onPress={handleMaxAmount} compact>MAX</PaperButton>}
+                    style={styles.textInput}
+                    theme={{ colors: { primary: Color.colorRoyalblue100, text: Color.colorGray100, placeholder: Color.colorGray200, outline: Color.colorGray400 }, roundness: Border.br_16 }}
+                    right={<PaperButton onPress={handleMaxAmount} compact textColor={Color.colorRoyalblue100} labelStyle={styles.textButtonLabel}>MAX</PaperButton>}
                   />
                   <Chip 
                     icon="information-outline" 
-                    style={[styles.gasFeeChip, { backgroundColor: colors.surfaceVariant }]}
-                    textStyle={[styles.gasFeeChipText, { color: colors.onSurfaceVariant }]}
+                    style={[styles.gasFeeChip, { backgroundColor: Color.colorRoyalblue200 }]}
+                    textStyle={[styles.gasFeeChipText, { color: Color.colorRoyalblue100, fontFamily: FontFamily.geist }]}
                     onPress={() => Alert.alert("Gas Fee Information", "A small network fee (gas) is required for every transaction on the Avalanche network. This fee is paid to network validators and is not collected by Movya Wallet. The amount displayed is an approximation.")}
                   >
                     Gas fee: ~0.01 {avalancheFuji.nativeCurrency.symbol}
                   </Chip>
                 </View>
               </Card.Content>
-              <Card.Actions>
+              <Card.Actions style={styles.cardActions}>
                 <PaperButton
                   mode="contained"
                   onPress={handleSendConfirmation}
@@ -247,8 +252,9 @@ export default function SendScreen() {
                   disabled={!recipient || !amount || isSending || isLoading}
                   icon="send"
                   style={styles.sendButtonFill}
+                  labelStyle={styles.sendButtonLabel}
                 >
-                  {isSending ? 'Processing...' : 'Send Transaction'}
+                  Send
                 </PaperButton>
               </Card.Actions>
             </Card>
@@ -261,45 +267,28 @@ export default function SendScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        <Portal>
-          <Dialog visible={isConfirmDialogVisible} onDismiss={hideConfirmDialog}>
-            <Dialog.Icon icon="send-clock-outline" size={48} color={colors.primary} />
-            <Dialog.Title style={{textAlign: 'center'}}>Confirm Transaction</Dialog.Title>
-            <Dialog.Content>
-              <PaperText variant="bodyMedium" style={{textAlign: 'center'}}>
-                Are you sure you want to send {amount || '0'} {avalancheFuji.nativeCurrency.symbol} to:
-              </PaperText>
-              <PaperText variant="bodyMedium" style={{textAlign: 'center', fontWeight:'bold', marginVertical:8}}>
-                {recipient || '[Recipient Address]'}
-              </PaperText>
-              <PaperText variant="bodySmall" style={{textAlign: 'center', color: colors.onSurfaceVariant}}>
-                This action cannot be undone.
-              </PaperText>
-            </Dialog.Content>
-            <Dialog.Actions>
-              <PaperButton onPress={onDialogCancel} textColor={colors.onSurfaceVariant}>Cancel</PaperButton>
-              <PaperButton onPress={proceedWithSend} buttonColor={colors.primary} textColor={colors.onPrimary}>Send</PaperButton>
-            </Dialog.Actions>
-          </Dialog>
-        </Portal>
-        
         <Snackbar
           visible={snackbarVisible}
           onDismiss={() => setSnackbarVisible(false)}
-          duration={Snackbar.DURATION_LONG}
-          style={snackbarIsError ? { backgroundColor: colors.errorContainer } : { backgroundColor: colors.primaryContainer }}
-          action={{
-            label: 'Dismiss',
-            textColor: snackbarIsError ? colors.onErrorContainer : colors.onPrimaryContainer,
-            onPress: () => {
-              setSnackbarVisible(false);
-            },
-          }}
+          duration={Snackbar.DURATION_SHORT}
+          style={snackbarIsError ? styles.snackbarError : styles.snackbarSuccess}
         >
-          <PaperText style={{color: snackbarIsError ? colors.onErrorContainer : colors.onPrimaryContainer}}>
-            {snackbarMessage}
-          </PaperText>
+          {snackbarMessage}
         </Snackbar>
+
+        <Portal>
+          <Dialog visible={isConfirmDialogVisible} onDismiss={onDialogCancel}>
+            <Dialog.Title style={styles.dialogTitle}>Confirm Transaction</Dialog.Title>
+            <Dialog.Content>
+              <PaperText style={styles.dialogContentText}>Send {amount} {avalancheFuji.nativeCurrency.symbol} to:</PaperText>
+              <PaperText selectable style={styles.dialogContentTextRecipient}>{recipient}</PaperText>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <PaperButton onPress={onDialogCancel} textColor={Color.colorRoyalblue100} labelStyle={styles.textButtonLabel}>Cancel</PaperButton>
+              <PaperButton onPress={proceedWithSend} buttonColor={Color.colorRoyalblue100} textColor={Color.colorWhite} labelStyle={styles.textButtonLabel}>Confirm</PaperButton>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
 
       </Surface>
     </Portal.Host>
@@ -309,45 +298,104 @@ export default function SendScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Color.colorGray400,
+  },
+  appbarHeader: {
+    backgroundColor: Color.colorRoyalblue100,
+  },
+  appbarTitle: {
+    fontFamily: FontFamily.geist,
+    fontSize: FontSize.size_20,
+    fontWeight: 'bold',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: Padding.p_12,
+    gap: Gap.gap_12,
   },
   card: {
-    marginBottom: 16,
+    backgroundColor: Color.colorWhite,
+    borderRadius: Border.br_12,
+    borderColor: Color.colorGray400,
+    borderWidth: 1,
+    elevation: 0,
+  },
+  cardActions: {
+    paddingHorizontal: Padding.p_8,
+    paddingBottom: Padding.p_8,
   },
   balanceLabel: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorGray200,
     textAlign: 'center',
-    marginBottom: 8,
-    opacity: 0.7,
+    marginBottom: Gap.gap_4,
   },
   balanceValue: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorGray100,
     textAlign: 'center',
     fontWeight: 'bold',
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: Gap.gap_16,
   },
-  input: {
-    // backgroundColor: 'transparent', // TextInput manages its own background with theme
+  textInput: {
+    backgroundColor: Color.colorWhite,
+    fontFamily: FontFamily.geist,
   },
   contactsButton: {
-    marginTop: 8,
+    marginTop: Gap.gap_4,
     alignSelf: 'flex-start',
   },
-  gasFeeChip: {
-    marginTop: 10,
-    // backgroundColor se aplica en línea ahora
-  },
-  gasFeeChipText: {
-    fontSize: 12,
-    // color se aplica en línea ahora
+  textButtonLabel: {
+    fontFamily: FontFamily.geist,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
   sendButtonFill: {
     flex: 1,
+    backgroundColor: Color.colorRoyalblue100,
+    borderRadius: Border.br_32,
+    paddingVertical: Padding.p_4,
+  },
+  sendButtonLabel: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorWhite,
+    fontSize: FontSize.size_14,
+    fontWeight: 'bold',
+  },
+  gasFeeChip: {
+    marginTop: Gap.gap_4,
+    alignSelf: 'flex-start',
+  },
+  gasFeeChipText: {
+    fontSize: FontSize.size_12,
+  },
+  snackbarError: {
+    backgroundColor: '#B00020',
+  },
+  snackbarSuccess: {
+    backgroundColor: '#4CAF50',
+  },
+  dialogTitle: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorGray100,
+    fontWeight: 'bold',
+    fontSize: FontSize.size_20,
+  },
+  dialogContentText: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorGray200,
+    fontSize: FontSize.size_14,
+    marginBottom: Gap.gap_4,
+  },
+  dialogContentTextRecipient: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorGray100,
+    fontSize: FontSize.size_14,
+    fontWeight: 'bold',
   },
   warningContainer: {
     marginTop: 8,
