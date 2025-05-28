@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Image, StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { Image, StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { Video, ResizeMode } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,74 +20,144 @@ import Fab from "../../../assets/fab.svg"
 import Sendbutton from "../../../assets/sendbutton.svg"
 import { Padding, Gap, FontFamily, Color, FontSize, Border } from "./GlobalStyles";
 import { useRouter } from "expo-router";
-import { Portal, Modal, PaperProvider, Button as PaperButton, Text as PaperText, SegmentedButtons, TextInput as PaperTextInput, IconButton } from 'react-native-paper';
-import { addContactByAddress, addContactByEmail } from "../../internal/contactService";
+import { Portal, Modal, PaperProvider, Button as PaperButton, TextInput as PaperTextInput, IconButton } from 'react-native-paper';
+import { addContactByAddress, addContactByEmail, getContacts, Contact } from "../../internal/contactService";
 import { storage } from "../../core/storage";
+import AddContactForm from './AddContactForm';
 
 // Define ContactType if not already defined globally or in scope
 type ContactType = 'address' | 'email';
+
+// Helper function for initials
+const getInitials = (nickname?: string, value?: string, type?: 'address' | 'email'): string => {
+    const name = nickname?.trim() || "";
+    if (!name) {
+        if (type === 'email' && value && value.length >= 2) {
+            return value.substring(0, 2).toUpperCase();
+        }
+        return "??"; // Default placeholder if no nickname and not a usable email value
+    }
+
+    const words = name.split(' ').filter(Boolean); // Filter out empty strings from multiple spaces
+
+    if (words.length === 0) { // Should be caught by !name but as a safeguard
+         if (type === 'email' && value && value.length >= 2) {
+            return value.substring(0, 2).toUpperCase();
+        }
+        return "??";
+    }
+
+    if (words.length >= 2) {
+        return (words[0][0] + (words[1][0] || '')).toUpperCase();
+    }
+    // Single word
+    if (name.length === 1) {
+        return (name[0] + name[0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
 
 const Home = () => {
     const router = useRouter();
     const [isAddContactModalVisible, setIsAddContactModalVisible] = React.useState(false);
     
-    // State for the form fields
-    const [contactType, setContactType] = React.useState<ContactType>('address');
-    const [nickname, setNickname] = React.useState('');
-    const [contactValue, setContactValue] = React.useState('');
+    // Removed form-specific states: contactType, nicknameText, contactValue. These are now in AddContactForm.
     const [isSavingContact, setIsSavingContact] = React.useState(false);
 
+    // Contacts List State
+    const [contacts, setContacts] = React.useState<Contact[]>([]);
+    const [isLoadingContacts, setIsLoadingContacts] = React.useState(false);
+    const [contactsError, setContactsError] = React.useState<string | null>(null);
+
+    // Store initial values for the form when modal opens
+    const [initialFormState, setInitialFormState] = React.useState({
+        contactType: 'address' as ContactType,
+        nickname: '',
+        contactValue: ''
+    });
+
+    const loadContacts = async () => {
+        setIsLoadingContacts(true);
+        setContactsError(null);
+        const userId = storage.getString('userId');
+        if (!userId) {
+            setContactsError('User ID not found. Cannot load contacts.');
+            setIsLoadingContacts(false);
+            setContacts([]); // Clear contacts if no user ID
+            return;
+        }
+        try {
+            const result = await getContacts(userId);
+            if (result.success) {
+                setContacts(result.contacts);
+            } else {
+                setContactsError(result.message || 'Failed to load contacts.');
+                setContacts([]); // Clear contacts on error
+            }
+        } catch (error: any) {
+            console.error("[Home] Error loading contacts:", error);
+            setContactsError(error.message || 'An unexpected error occurred while loading contacts.');
+            setContacts([]); // Clear contacts on exception
+        } finally {
+            setIsLoadingContacts(false);
+        }
+    };
+
+    React.useEffect(() => {
+        loadContacts();
+    }, []); // Load contacts on mount
+
     const showAddContactModal = () => {
-        // Reset form fields when opening modal
-        setContactType('address');
-        setNickname('');
-        setContactValue('');
-        setIsSavingContact(false);
+        setInitialFormState({ // Set initial state for the form component to reset it
+            contactType: 'address',
+            nickname: '',
+            contactValue: ''
+        });
+        setIsSavingContact(false); // Reset saving state here as well
         setIsAddContactModalVisible(true);
     };
     const hideAddContactModal = () => setIsAddContactModalVisible(false);
 
-    const handleSaveContact = async () => {
-        if (!nickname.trim()) {
+    // Renamed from handleSaveContact to avoid confusion if we pass a similarly named prop
+    const processSaveContact = async (nicknameFromForm: string, valueFromForm: string, typeFromForm: ContactType) => {
+        // Validations remain here as they use Alert which is part of Home's UI concern
+        if (!nicknameFromForm.trim()) {
             Alert.alert('Validation Error', 'Nickname is required.');
             return;
         }
-        if (!contactValue.trim()) {
-            Alert.alert('Validation Error', `${contactType === 'address' ? 'Address' : 'Email'} is required.`);
+        if (!valueFromForm.trim()) {
+            Alert.alert('Validation Error', `${typeFromForm === 'address' ? 'Address' : 'Email'} is required.`);
             return;
         }
-        if (contactType === 'email') {
+        if (typeFromForm === 'email') {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(contactValue)) {
+            if (!emailRegex.test(valueFromForm)) {
                 Alert.alert('Validation Error', 'Please enter a valid email address.');
                 return;
             }
         }
-
         const userId = storage.getString('userId');
         if (!userId) {
             Alert.alert('Authentication Error', 'User ID not found. Please log in again.');
             return;
         }
-
         setIsSavingContact(true);
         try {
             let result;
-            if (contactType === 'address') {
-                result = await addContactByAddress(userId, nickname.trim(), contactValue.trim());
+            if (typeFromForm === 'address') {
+                result = await addContactByAddress(userId, nicknameFromForm.trim(), valueFromForm.trim());
             } else {
-                result = await addContactByEmail(userId, nickname.trim(), contactValue.trim());
+                result = await addContactByEmail(userId, nicknameFromForm.trim(), valueFromForm.trim());
             }
-
             if (result.success) {
                 Alert.alert('Success', result.message || 'Contact added successfully!');
                 hideAddContactModal();
-                // Optionally, you might want to refresh the contacts list here
+                loadContacts();
             } else {
                 Alert.alert('Error', result.message || 'Failed to add contact.');
             }
         } catch (error: any) {
-            console.error("[HomeModal] Error saving contact:", error);
+            console.error("[Home] Error saving contact:", error);
             Alert.alert('Request Error', error.message || 'An unexpected error occurred.');
         } finally {
             setIsSavingContact(false);
@@ -160,22 +230,32 @@ const Home = () => {
                             <TouchableOpacity onPress={showAddContactModal}>
                                 <Addbutton style={styles.addButtonIcon} width={32} height={32} />
                             </TouchableOpacity>
-                            <ScrollView 
-                                horizontal={true} 
-                                showsHorizontalScrollIndicator={false}
-                                style={styles.contactListScrollView}
-                                contentContainerStyle={styles.contactListContainer}
-                            >
-                                <View style={styles.contactIconsRow}>
-                                    <Contactmock style={styles.contactMockItem} width={32} height={32} />
-                                    <Contactmock1 style={styles.contactMockItem} width={32} height={32} />
-                                    <Contactmock2 style={styles.contactMockItem} width={32} height={32} />
-                                    <Contactmock3 style={styles.contactMockItem} width={32} height={32} />
-                                    <Contactmock style={styles.contactMockItem} width={32} height={32} />
-                                    <Contactmock1 style={styles.contactMockItem} width={32} height={32} />
-                                    <Contactmock2 style={styles.contactMockItem} width={32} height={32} />
-                                </View>
-                            </ScrollView>
+                            {isLoadingContacts ? (
+                                <ActivityIndicator size="small" color={Color.colorWhite} style={styles.contactsLoader} />
+                            ) : contactsError ? (
+                                <Text style={styles.contactsErrorText}>{contactsError}</Text>
+                            ) : (
+                                <ScrollView 
+                                    horizontal={true} 
+                                    showsHorizontalScrollIndicator={false}
+                                    style={styles.contactListScrollView}
+                                    contentContainerStyle={styles.contactListContainer}
+                                >
+                                    {contacts.length > 0 ? (
+                                        <View style={styles.contactIconsRow}>
+                                            {contacts.map((contact, index) => (
+                                                <View key={contact.id || `contact-${index}`} style={styles.contactItemCircle}>
+                                                    <Text style={styles.contactInitialsText}>
+                                                        {getInitials(contact.nickname, contact.value, contact.type)}
+                                                    </Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    ) : (
+                                        null 
+                                    )}
+                                </ScrollView>
+                            )}
                         </View>
                     </View>
                 </View>
@@ -281,77 +361,16 @@ const Home = () => {
                 <Modal 
                     visible={isAddContactModalVisible} 
                     onDismiss={hideAddContactModal} 
-                    contentContainerStyle={styles.modalContainer}
+                    contentContainerStyle={styles.modalFormWrapper}
                 >
-                    <View style={styles.modalHeader}>
-                        <PaperText style={styles.modalTitle}>Add New Contact</PaperText>
-                        <IconButton
-                            icon="close"
-                            size={24}
-                            onPress={hideAddContactModal}
-                            style={styles.modalCloseButton}
-                            iconColor={Color.colorGray100}
-                        />
-                    </View>
-
-                    <SegmentedButtons
-                        value={contactType}
-                        onValueChange={(val) => setContactType(val as ContactType)}
-                        style={styles.segmentedButtons}
-                        buttons={[
-                            {
-                                value: 'address',
-                                label: 'Address',
-                                icon: 'wallet-outline',
-                                style: styles.segmentedButton,
-                                labelStyle: styles.segmentedButtonLabel
-                            },
-                            {
-                                value: 'email',
-                                label: 'Email',
-                                icon: 'email-outline',
-                                style: styles.segmentedButton,
-                                labelStyle: styles.segmentedButtonLabel
-                            },
-                        ]}
+                    <AddContactForm 
+                        initialContactType={initialFormState.contactType}
+                        initialNickname={initialFormState.nickname}
+                        initialContactValue={initialFormState.contactValue}
+                        onSave={processSaveContact} 
+                        onDismiss={hideAddContactModal} 
+                        isSaving={isSavingContact} 
                     />
-
-                    <PaperTextInput
-                        mode="outlined"
-                        label="Nickname"
-                        placeholder="e.g., John Doe"
-                        value={nickname}
-                        onChangeText={setNickname}
-                        style={styles.modalInput}
-                        contentStyle={{ paddingLeft: Padding.p_8 }}
-                        theme={{ roundness: Border.br_12, colors: { primary: Color.colorRoyalblue100 } }}
-                        left={<PaperTextInput.Icon icon="account-outline" />}
-                    />
-                    
-                    <PaperTextInput
-                        mode="outlined"
-                        label={contactType === 'address' ? 'Wallet Address' : 'Email Address'}
-                        placeholder={contactType === 'address' ? '0x...' : 'user@example.com'}
-                        value={contactValue}
-                        onChangeText={setContactValue}
-                        style={styles.modalInput}
-                        contentStyle={{ paddingLeft: Padding.p_8 }}
-                        keyboardType={contactType === 'email' ? 'email-address' : 'default'}
-                        autoCapitalize="none"
-                        theme={{ roundness: Border.br_12, colors: { primary: Color.colorRoyalblue100 } }}
-                        left={<PaperTextInput.Icon icon={contactType === 'address' ? 'format-letter-matches' : 'at'} />}
-                    />
-
-                    <PaperButton 
-                        onPress={handleSaveContact} 
-                        mode="contained" 
-                        style={styles.saveButtonModal}
-                        labelStyle={styles.saveButtonModalLabel}
-                        loading={isSavingContact}
-                        disabled={isSavingContact}
-                    >
-                        {isSavingContact ? 'Saving...' : 'Save Contact'}
-                    </PaperButton>
                 </Modal>
             </Portal>
         </SafeAreaView>);
@@ -558,10 +577,15 @@ const styles = StyleSheet.create({
     },
     contactIconsRow: {
         flexDirection: "row",
-        gap: Gap.gap_16,
+        gap: Gap.gap_12,
     },
-    contactMockItem: {
-        borderRadius: Border.br_16,
+    contactItemCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     topComponents: {
         paddingVertical: 0,
@@ -805,64 +829,24 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontFamily: FontFamily.geist,
     },
-    modalContainer: {
-        backgroundColor: 'white',
-        padding: Padding.p_24,
+    modalFormWrapper: {
         marginHorizontal: Padding.p_12,
-        borderRadius: Border.br_16,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        alignItems: 'center',
     },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        width: '100%',
-        marginBottom: Gap.gap_16,
+    contactsLoader: {
+        marginLeft: Gap.gap_12,
     },
-    modalTitle: {
-        fontSize: FontSize.size_20,
-        fontWeight: 'bold',
-        fontFamily: FontFamily.geist,
-        color: Color.colorGray100,
-        textAlign: 'left',
-    },
-    modalCloseButton: {
-        margin: -Padding.p_8,
-    },
-    segmentedButtons: {
-        marginBottom: Gap.gap_16,
-        height: 48,
-        width: '100%',
-    },
-    segmentedButton: {},
-    segmentedButtonLabel: {
-        fontSize: 11,
-        fontFamily: FontFamily.geist,
-    },
-    modalInput: {
-        marginBottom: Gap.gap_16,
-        backgroundColor: 'transparent',
-        width: '100%',
-        fontSize: FontSize.size_12,
-        paddingLeft: 30,
-    },
-    saveButtonModal: {
-        marginTop: Gap.gap_12,
-        backgroundColor: Color.colorRoyalblue100,
-        paddingVertical: Padding.p_4,
-        borderRadius: Border.br_32,
-        width: '100%',
-    },
-    saveButtonModalLabel: {
-        fontFamily: FontFamily.geist,
-        fontSize: FontSize.size_12,
-        fontWeight: 'bold',
+    contactsErrorText: {
         color: Color.colorWhite,
+        fontFamily: FontFamily.geist,
+        fontSize: FontSize.size_12,
+        marginLeft: Gap.gap_12,
+        flexShrink: 1,
+    },
+    contactInitialsText: {
+        color: Color.colorRoyalblue100,
+        fontFamily: FontFamily.geist,
+        fontSize: FontSize.size_12,
+        fontWeight: 'bold',
     }
 });
 
