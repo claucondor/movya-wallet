@@ -1,9 +1,10 @@
 import * as React from "react";
-import { Image, StyleSheet, View, Text, } from "react-native";
+import { Image, StyleSheet, View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { Video, ResizeMode } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from "react-native-safe-area-context";
 import 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import Movyalogovector from "../../../assets/movyalogovector.svg"
 import Sendicon from "../../../assets/sendicon.svg"
 import Receiveicon from "../../../assets/receiveicon.svg"
@@ -18,8 +19,22 @@ import Avavector from "../../../assets/avalogo.svg"
 import Fab from "../../../assets/fab.svg"
 import Sendbutton from "../../../assets/sendbutton.svg"
 import { Padding, Gap, FontFamily, Color, FontSize, Border } from "./GlobalStyles";
+import { useRouter } from "expo-router";
 
 const Home = () => {
+    const router = useRouter();
+
+    const handleChatNavigation = () => {
+        router.push('/(app)/chat');
+    };
+
+    const handleSendNavigation = () => {
+        router.push('/(app)/send');
+    };
+
+    const handleReceiveNavigation = () => {
+        router.push('/(app)/receive');
+    };
 
     return (
         <SafeAreaView style={[styles.home, styles.homeLayout]}>
@@ -55,25 +70,42 @@ const Home = () => {
                             <Movyalogovector style={styles.movyaLogoVectorIcon} width={121} height={113} />
                         </View>
                         <View style={styles.actionButtons}>
-                            <View style={[styles.send, styles.tabFlexBox]}>
-                                <Sendicon style={styles.sendIcon} width={20} height={20} />
-                                <Text style={[styles.send1, styles.send1Typo]}>Send</Text>
-                            </View>
-                            <View style={[styles.send, styles.tabFlexBox]}>
-                                <Receiveicon width={20} height={20} />
-                                <Text style={[styles.send1, styles.send1Typo]}>Receive</Text>
-                            </View>
+                            <TouchableOpacity onPress={handleSendNavigation} style={styles.actionButtonTouchable}>
+                                <View style={[styles.send, styles.tabFlexBox]}>
+                                    <Sendicon style={styles.sendIcon} width={20} height={20} />
+                                    <Text style={[styles.send1, styles.send1Typo]}>Send</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={handleReceiveNavigation} style={styles.actionButtonTouchable}>
+                                <View style={[styles.send, styles.tabFlexBox]}>
+                                    <Receiveicon width={20} height={20} />
+                                    <Text style={[styles.send1, styles.send1Typo]}>Receive</Text>
+                                </View>
+                            </TouchableOpacity>
                         </View>
                     </View>
-                     {/* <View style={styles.contactsSectionIfNone}>
+                      <View style={styles.contactsSectionIfNone}>
                         <Text style={[styles.addContacts, styles.send1Typo]}>Add Contacts</Text>
-                        <View style={styles.contactsMock}>
-                            <Addbutton style={styles.addButtonIcon} width={48} height={48} />
-                            <Contactmock style={styles.contactMockIcon} width={48} height={48} />
-                            <Contactmock1 style={styles.contactMockIcon1} width={48} height={48} />
-                            <Contactmock2 style={styles.contactMockIcon2} width={48} height={48} />
-                            <Contactmock3 style={styles.contactMockIcon3} width={48} height={48} />
-                        </View> */}
+                        <View style={styles.contactsMockContainer}>
+                            <Addbutton style={styles.addButtonIcon} width={32} height={32} />
+                            <ScrollView 
+                                horizontal={true} 
+                                showsHorizontalScrollIndicator={false}
+                                style={styles.contactListScrollView}
+                                contentContainerStyle={styles.contactListContainer}
+                            >
+                                <View style={styles.contactIconsRow}>
+                                    <Contactmock style={styles.contactMockItem} width={32} height={32} />
+                                    <Contactmock1 style={styles.contactMockItem} width={32} height={32} />
+                                    <Contactmock2 style={styles.contactMockItem} width={32} height={32} />
+                                    <Contactmock3 style={styles.contactMockItem} width={32} height={32} />
+                                    <Contactmock style={styles.contactMockItem} width={32} height={32} />
+                                    <Contactmock1 style={styles.contactMockItem} width={32} height={32} />
+                                    <Contactmock2 style={styles.contactMockItem} width={32} height={32} />
+                                </View>
+                            </ScrollView>
+                        </View>
+                    </View>
                 </View>
                 <View style={[styles.bottonComponents, styles.sendBg]}>
                     <View style={styles.tabs}>
@@ -84,62 +116,91 @@ const Home = () => {
                             <Text style={[styles.labelText1, styles.labelTypo]}>History</Text>
                         </View>
                     </View>
-                    <View style={styles.listing}>
-                        <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
-                            <View style={styles.asset}>
-                                <Usdcvector style={styles.buttonIconLayout} width={48} height={48} />
-                                <View style={styles.assetId}>
-                                    <Text style={[styles.assetName, styles.text2Typo]}>USD Coin</Text>
-                                    <Text style={[styles.assetLetters, styles.labelTypo]}>USDC</Text>
+                    <ScrollView style={styles.listingScrollView} contentContainerStyle={styles.listingContentContainer}>
+                        <View style={styles.listing}>
+                            <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
+                                <View style={styles.asset}>
+                                    <Usdcvector style={styles.buttonIconLayout} width={48} height={48} />
+                                    <View style={styles.assetId}>
+                                        <Text style={[styles.assetName, styles.text2Typo]}>USD Coin</Text>
+                                        <Text style={[styles.assetLetters, styles.labelTypo]}>USDC</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.rightItems}>
+                                    <Text style={[styles.text2, styles.text2Typo]}>$0.00</Text>
+                                    <View style={[styles.button, styles.buttonFlexBox]}>
+                                        <Text style={styles.deposit}>Deposit</Text>
+                                        <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
+                                    </View>
                                 </View>
                             </View>
-                            <View style={styles.rightItems}>
-                                <Text style={[styles.text2, styles.text2Typo]}>$0.00</Text>
-                                <View style={[styles.button, styles.buttonFlexBox]}>
-                                    <Text style={styles.deposit}>Deposit</Text>
-                                    <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
+                            <View style={[styles.assetCard, styles.assetCardShadowBox]}>
+                                <View style={styles.asset}>
+                                    <Avavector width={48} height={48} />
+                                    <View style={styles.assetId}>
+                                        <Text style={[styles.text2, styles.text2Typo]}>AVAX</Text>
+                                        <Text style={styles.labelTypo}>AVA</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.rightItems}>
+                                    <Text style={[styles.text2, styles.text2Typo]}>$0.01</Text>
+                                    <View style={[styles.button1, styles.suggestionFlexBox]}>
+                                        <Text style={[styles.text4, styles.textTypo]}>+3.2%</Text>
+                                    </View>
                                 </View>
                             </View>
                         </View>
-                        <View style={[styles.assetCard, styles.assetCardShadowBox]}>
-                            <View style={styles.asset}>
-                                <Avavector width={48} height={48} />
-                                <View style={styles.assetId}>
-                                    <Text style={[styles.text2, styles.text2Typo]}>AVAX</Text>
-                                    <Text style={styles.labelTypo}>AVA</Text>
-                                </View>
-                            </View>
-                            <View style={styles.rightItems}>
-                                <Text style={[styles.text2, styles.text2Typo]}>$0.01</Text>
-                                <View style={[styles.button1, styles.suggestionFlexBox]}>
-                                    <Text style={[styles.text4, styles.textTypo]}>+3.2%</Text>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
+                    </ScrollView>
                     <View style={styles.inputContainer}>
-                        <View style={styles.tabs}>
-                            <View style={[styles.suggestion, styles.suggestionFlexBox]}>
-                                <Text style={[styles.labelText2, styles.labelTypo]}>Send Money to a Friend</Text>
-                            </View>
-                            <View style={[styles.suggestion, styles.suggestionFlexBox]}>
-                                <Text style={[styles.labelText2, styles.labelTypo]}>Send Money to a Wallet</Text>
-                            </View>
-                            <View style={[styles.suggestion2, styles.suggestionFlexBox]}>
-                                <Text style={[styles.labelText2, styles.labelTypo]}>How to send AVA?</Text>
-                            </View>
-                            <View style={[styles.suggestion2, styles.suggestionFlexBox]}>
-                                <Text style={[styles.labelText2, styles.labelTypo]}>Who are you?</Text>
-                            </View>
+                        <View style={styles.carouselContainer}>
+                            <ScrollView 
+                                horizontal={true} 
+                                showsHorizontalScrollIndicator={false}
+                                style={styles.suggestionsScrollView}
+                                contentContainerStyle={styles.suggestionsContainer}
+                            >
+                                <View style={styles.suggestionsRow}> 
+                                    <View style={styles.suggestion}>
+                                        <Text style={[styles.labelText2, styles.labelTypo]}>Send Money to a Friend</Text>
+                                    </View>
+                                    <View style={styles.suggestion}>
+                                        <Text style={[styles.labelText2, styles.labelTypo]}>Send Money to a Wallet</Text>
+                                    </View>
+                                    <View style={styles.suggestion}>
+                                        <Text style={[styles.labelText2, styles.labelTypo]}>How to send AVA?</Text>
+                                    </View>
+                                    <View style={styles.suggestion}>
+                                        <Text style={[styles.labelText2, styles.labelTypo]}>Who are you?</Text>
+                                    </View>
+                                </View>
+                            </ScrollView>
+                            <LinearGradient
+                                colors={['rgba(255, 255, 255, 1)', 'rgba(255, 255, 255, 0)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={[styles.fade, styles.leftFade]}
+                                pointerEvents="none" 
+                            />
+                            <LinearGradient
+                                colors={['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 1)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={[styles.fade, styles.rightFade]}
+                                pointerEvents="none" 
+                            />
                         </View>
                         <View style={styles.inputFabContainer}>
-                            <Fab style={styles.fabIcon} width={56} height={56} />
-                            <View style={[styles.chatInputButton, styles.suggestionBorder]}>
-                                <View style={styles.textContainer}>
-                                    <Text style={[styles.askMovya, styles.text2Typo]}>Ask Movya</Text>
-                                </View>
-                                <Sendbutton width={48} height={48} />
+                            <View style={styles.dollarButton}>
+                                <Text style={styles.dollarButtonText}>$</Text>
                             </View>
+                            <TouchableOpacity onPress={handleChatNavigation} style={styles.chatInputTouchable}>
+                                <View style={[styles.chatInputButton, styles.suggestionBorder]}>
+                                    <View style={styles.textContainer}>
+                                        <Text style={[styles.askMovya, styles.text2Typo]}>Ask Movya</Text>
+                                    </View>
+                                    <Sendbutton width={48} height={48} />
+                                </View>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </View>
@@ -150,7 +211,7 @@ const Home = () => {
 const styles = StyleSheet.create({
     homeLayout: {
         width: "100%",
-        overflow: "hidden"
+        flex: 1
     },
     componentsSpaceBlock: {
         paddingHorizontal: Padding.p_24,
@@ -188,7 +249,7 @@ const styles = StyleSheet.create({
     },
     labelTypo: {
         color: Color.colorGray100,
-        fontSize: FontSize.size_12,
+        fontSize: 11,
         textAlign: "left",
         fontFamily: FontFamily.geist
     },
@@ -311,6 +372,10 @@ const styles = StyleSheet.create({
         alignSelf: "stretch",
         overflow: "hidden"
     },
+    actionButtonTouchable: {
+        alignSelf: "stretch",
+        borderRadius: Border.br_24,
+    },
     actionButtons: {
         width: 85,
         gap: Gap.gap_12
@@ -319,41 +384,40 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: Color.colorWhite
     },
-    addButtonIcon: {
-        borderRadius: Border.br_28
-    },
-    contactMockIcon: {
-        opacity: 0.5,
-        borderRadius: Border.br_28
-    },
-    contactMockIcon1: {
-        opacity: 0.35,
-        borderRadius: Border.br_28
-    },
-    contactMockIcon2: {
-        opacity: 0.3,
-        borderRadius: Border.br_28
-    },
-    contactMockIcon3: {
-        opacity: 0.2,
-        borderRadius: Border.br_28
-    },
-    contactsMock: {
-        gap: 0,
-        justifyContent: "space-between",
-        flexDirection: "row",
-        alignSelf: "stretch",
-        alignItems: "center"
-    },
     contactsSectionIfNone: {
         justifyContent: "center",
         gap: Gap.gap_12,
-        alignSelf: "stretch"
+        alignSelf: "stretch",
+        paddingVertical: Padding.p_12,
+        marginTop: Gap.gap_16,
+    },
+    contactsMockContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        alignSelf: "stretch",
+        gap: Gap.gap_12,
+    },
+    addButtonIcon: {
+        borderRadius: Border.br_16,
+    },
+    contactListScrollView: {
+        flex: 1,
+    },
+    contactListContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    contactIconsRow: {
+        flexDirection: "row",
+        gap: Gap.gap_16,
+    },
+    contactMockItem: {
+        borderRadius: Border.br_16,
     },
     topComponents: {
         paddingVertical: 0,
         gap: Gap.gap_12,
-        alignSelf: "stretch"
+        alignSelf: "stretch",
     },
     labelText: {
         fontWeight: "700",
@@ -383,7 +447,6 @@ const styles = StyleSheet.create({
     tabs: {
         gap: Gap.gap_16,
         flexDirection: "row",
-        alignSelf: "stretch"
     },
     assetName: {
         fontWeight: "700",
@@ -457,27 +520,21 @@ const styles = StyleSheet.create({
         gap: Gap.gap_12,
         alignSelf: "stretch",
         alignItems: "center",
-        flex: 1
     },
     labelText2: {
-        lineHeight: 16,
+        lineHeight: 14,
         letterSpacing: 0,
-        alignSelf: "stretch"
+        textAlign: 'center',
     },
     suggestion: {
         borderRadius: Border.br_16,
         borderWidth: 1,
         borderStyle: "solid",
-        flex: 1,
-        borderColor: Color.colorGray400
-    },
-    suggestion2: {
-        borderRadius: Border.br_16,
-        borderWidth: 1,
-        borderStyle: "solid",
-        flex: 1,
         borderColor: Color.colorGray400,
-        alignSelf: "stretch"
+        paddingVertical: Padding.p_8,
+        paddingHorizontal: Padding.p_12,
+        justifyContent: "center",
+        alignItems: "center",
     },
     fabIcon: {
         borderRadius: Border.br_16
@@ -485,7 +542,8 @@ const styles = StyleSheet.create({
     askMovya: {
         letterSpacing: 1,
         lineHeight: 24,
-        flex: 1
+        flex: 1,
+        color: Color.colorGray200,
     },
     textContainer: {
         flexDirection: "row",
@@ -498,50 +556,106 @@ const styles = StyleSheet.create({
         paddingLeft: 16,
         borderWidth: 1,
         borderStyle: "solid",
-        justifyContent: "center",
+        height: 56,
         flexDirection: "row",
-        alignSelf: "stretch",
-        alignItems: "center"
+        justifyContent: "space-between",
+        alignItems: "center",
+        flex: 1,
+        backgroundColor: Color.colorWhite,
+    },
+    chatInputTouchable: {
+        flex: 1,
+        borderRadius: 64,
     },
     inputFabContainer: {
-        justifyContent: "center",
         flexDirection: "row",
-        gap: Gap.gap_12,
+        alignItems: "center",
         alignSelf: "stretch",
-        alignItems: "center"
+        gap: Gap.gap_12
     },
     inputContainer: {
-        justifyContent: "center",
-        gap: Gap.gap_12,
         alignSelf: "stretch",
-        alignItems: "center"
+        gap: Gap.gap_12,
     },
     bottonComponents: {
-        borderTopLeftRadius: Border.br_24,
-        borderTopRightRadius: Border.br_24,
+        backgroundColor: Color.colorWhite,
+        alignSelf: "stretch",
+        flex: 1,
+        flexShrink: 1,
+        flexDirection: "column",
+        justifyContent: "space-between",
+        borderTopLeftRadius: Border.br_32,
+        borderTopRightRadius: Border.br_32,
+        paddingHorizontal: Padding.p_12,
         paddingTop: Padding.p_24,
-        paddingBottom: 32,
-        gap: Gap.gap_12,
-        paddingHorizontal: Padding.p_24,
-        alignItems: "center",
-        flex: 1
+        paddingBottom: Padding.p_8,
     },
     content: {
-        width: 412,
-        height: 892,
-        paddingTop: 64,
-        gap: 24
+        flex: 1,
+        width: "100%",
+        flexDirection: "column",
     },
     home: {
-        minHeight: 892,
-        alignItems: "center",
-        overflow: "hidden",
-        flex: 1
+        flex: 1,
+        backgroundColor: Color.colorGray400,
     },
     backgroundVideo: {
-		...StyleSheet.absoluteFillObject,
-		zIndex: -1, // Ensure it's behind all others
-	}
+        ...StyleSheet.absoluteFillObject,
+        zIndex: -1,
+    },
+    listingScrollView: {
+        maxHeight: 250,
+        width: "100%",
+        flexShrink: 1,
+    },
+    listingContentContainer: {
+        alignItems: "center",
+        paddingBottom: Gap.gap_12,
+    },
+    suggestionsScrollView: {
+        width: "100%",
+        maxHeight: 60,
+    },
+    suggestionsContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: Padding.p_12,
+    },
+    suggestionsRow: {
+        flexDirection: "row",
+        gap: Gap.gap_4,
+    },
+    carouselContainer: {
+        position: 'relative',
+        width: "100%",
+    },
+    fade: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        width: 30, 
+        height: '100%',
+    },
+    leftFade: {
+        left: 0,
+    },
+    rightFade: {
+        right: 0,
+    },
+    dollarButton: {
+        width: 56,
+        height: 56,
+        borderRadius: Border.br_16,
+        backgroundColor: Color.colorRoyalblue100,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    dollarButtonText: {
+        color: Color.colorWhite,
+        fontSize: FontSize.size_20,
+        fontWeight: 'bold',
+        fontFamily: FontFamily.geist,
+    },
 });
 
 export default Home;
