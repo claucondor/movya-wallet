@@ -38,7 +38,13 @@ const Chat = () => {
 	const [keyboardVisible, setKeyboardVisible] = React.useState(false);
 	const [showChatHistory, setShowChatHistory] = React.useState(false);
 	const [chatHistory, setChatHistory] = React.useState<{ conversations: Record<string, { id: string; timestamp: number; messages: ChatMessage[] }> }>({ conversations: {} });
-	const [dynamicSuggestions, setDynamicSuggestions] = React.useState<string[]>([]);
+	const [suggestions, setSuggestions] = React.useState<string[]>([
+		"Send Money to a Friend",
+		"Send Money to a Wallet", 
+		"How to send AVA?",
+		"Who are you?"
+	]);
+	const [videoLoaded, setVideoLoaded] = React.useState(false);
 
 	// --- State Management ---
 	const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -62,17 +68,20 @@ const Chat = () => {
 		Object.values(conversations).forEach(conversation => {
 			const firstUserMessage = conversation.messages.find(msg => msg.sender === 'user');
 			if (firstUserMessage && firstUserMessage.text.length > 10 && firstUserMessage.text.length < 60) {
+				console.log('[SUGGESTIONS] Found user message:', firstUserMessage.text);
 				userMessages.add(firstUserMessage.text);
 			}
 		});
 
-		// Convert to array and take only first 4 unique messages
-		return Array.from(userMessages).slice(0, 4);
+		const result = Array.from(userMessages).slice(0, 4);
+		console.log('[SUGGESTIONS] Extracted unique messages:', result);
+		return result;
 	}, []);
 
-	// --- Get Combined Suggestions ---
-	const getCombinedSuggestions = React.useCallback(() => {
-		const historyMessages = extractUniqueMessages(chatHistory.conversations);
+	// --- Update Suggestions ---
+	const updateSuggestions = React.useCallback((conversations: Record<string, { id: string; timestamp: number; messages: ChatMessage[] }>) => {
+		console.log('[SUGGESTIONS] Updating suggestions with conversations:', Object.keys(conversations));
+		const historyMessages = extractUniqueMessages(conversations);
 		const combined = [...historyMessages];
 		
 		// Fill remaining slots with default suggestions that aren't already included
@@ -85,8 +94,9 @@ const Chat = () => {
 			}
 		});
 		
-		return combined.slice(0, 4);
-	}, [chatHistory, extractUniqueMessages]);
+		console.log('[SUGGESTIONS] Final suggestions:', combined);
+		setSuggestions(combined.slice(0, 4));
+	}, [extractUniqueMessages]);
 
 	// --- Load Chat History ---
 	const loadChatHistory = React.useCallback(() => {
@@ -96,15 +106,14 @@ const Chat = () => {
 				const parsedStore = JSON.parse(historyStore);
 				if (parsedStore && typeof parsedStore === 'object' && parsedStore.conversations) {
 					setChatHistory(parsedStore);
-					// Update dynamic suggestions when history is loaded
-					const suggestions = extractUniqueMessages(parsedStore.conversations);
-					setDynamicSuggestions(suggestions);
+					// Update suggestions when history is loaded
+					updateSuggestions(parsedStore.conversations);
 				}
 			}
 		} catch (error) {
 			console.error('[ChatScreen] Failed to load chat history:', error);
 		}
-	}, [extractUniqueMessages]);
+	}, [updateSuggestions]);
 
 	// --- Load Previous Chat ---
 	const loadPreviousChat = React.useCallback((conversationId: string) => {
@@ -188,10 +197,15 @@ const Chat = () => {
 				chatHistory.conversations = newConversations;
 			}
 			storage.set(CHAT_HISTORY_KEY, JSON.stringify(chatHistory));
+			
+			// Update suggestions when new messages are saved
+			updateSuggestions(chatHistory.conversations);
+			// Update state for modal
+			setChatHistory(chatHistory);
 		} catch (error) {
 			console.error('[ChatScreen] Failed to save chat history:', error);
 		}
-	}, [currentConversationId]);
+	}, [currentConversationId, updateSuggestions]);
 
 	// --- Message Handling ---
 	const addMessage = React.useCallback((text: string, sender: 'user' | 'agent', actionDetails?: AgentServiceResponse['actionDetails']) => {
@@ -262,11 +276,20 @@ const Chat = () => {
 	const handleSend = React.useCallback(() => {
 		if (inputMessage.trim() && !isLoading) {
 			const messageToSend = inputMessage.trim();
+			setInputMessage(''); // Clear input immediately to prevent re-sends
 			addMessage(messageToSend, 'user');
-			setInputMessage(''); // Clear input after adding user message
 			callAgentApi(messageToSend, conversationState);
 		}
 	}, [inputMessage, isLoading, addMessage, callAgentApi, conversationState]);
+
+	// --- Handle Suggestion Click ---
+	const handleSuggestionClick = React.useCallback((suggestion: string) => {
+		if (!isLoading) {
+			setInputMessage(''); // Clear any existing input
+			addMessage(suggestion, 'user');
+			callAgentApi(suggestion, conversationState);
+		}
+	}, [isLoading, addMessage, callAgentApi, conversationState]);
 
 	// --- Effects ---
 	React.useEffect(() => {
@@ -280,6 +303,19 @@ const Chat = () => {
 		// Load chat history on mount
 		loadChatHistory();
 	}, []); 
+
+	// Video loading effect
+	React.useEffect(() => {
+		// Preload video by setting a timeout fallback
+		const videoTimeout = setTimeout(() => {
+			if (!videoLoaded) {
+				console.log('[VIDEO] Timeout reached, showing gradient as fallback');
+				// Keep gradient showing if video doesn't load within 3 seconds
+			}
+		}, 3000);
+
+		return () => clearTimeout(videoTimeout);
+	}, [videoLoaded]);
 
 	React.useEffect(() => {
 		// Show welcome message if messages are empty (which they will be on fresh load)
@@ -359,14 +395,39 @@ const Chat = () => {
 	return (
 		<SafeAreaView style={styles.chat} edges={['top', 'left', 'right']}>
 			<StatusBar style="light" />
+			
+			{/* Background Gradient Fallback */}
+			{!videoLoaded && (
+				<LinearGradient
+					colors={['#0461F0', '#0477F0', '#0461F0']}
+					start={{ x: 0, y: 0 }}
+					end={{ x: 1, y: 1 }}
+					style={styles.backgroundGradient}
+				/>
+			)}
+			
+			{/* Background Video */}
 			<Video
 				source={require('../../assets/bg/header-bg.webm')}
-				style={styles.backgroundVideo}
+				style={[styles.backgroundVideo, { opacity: videoLoaded ? 1 : 0 }]}
 				isLooping
-				shouldPlay
+				shouldPlay={true}
 				isMuted
 				resizeMode={ResizeMode.COVER}
+				onLoad={() => {
+					console.log('[VIDEO] Video loaded successfully');
+					setVideoLoaded(true);
+				}}
+				onError={(error) => {
+					console.log('[VIDEO] Video load error:', error);
+					setVideoLoaded(false);
+				}}
+				onReadyForDisplay={() => {
+					console.log('[VIDEO] Video ready for display');
+					setVideoLoaded(true);
+				}}
 			/>
+			
 			<KeyboardAvoidingView 
 				behavior={Platform.OS === "ios" ? "padding" : undefined}
 				style={styles.keyboardAvoidingContainer}
@@ -438,9 +499,21 @@ const Chat = () => {
 									contentContainerStyle={styles.chatSuggestionsContainer}
 								>
 									<View style={styles.chatSuggestionsRow}>
-										{getCombinedSuggestions().map((suggestion, index) => (
-											<TouchableOpacity key={index} style={styles.suggestionCard} onPress={() => { setInputMessage(suggestion); callAgentApi(suggestion, conversationState); }}>
-												<Text style={[styles.labelText, styles.labelTypo]}>{suggestion}</Text>
+										{suggestions.map((suggestion, index) => (
+											<TouchableOpacity 
+												key={index} 
+												style={[
+													styles.suggestionCard, 
+													isLoading && styles.suggestionCardDisabled
+												]} 
+												onPress={() => { handleSuggestionClick(suggestion); }}
+												disabled={isLoading}
+											>
+												<Text style={[
+													styles.labelText, 
+													styles.labelTypo,
+													isLoading && styles.suggestionTextDisabled
+												]}>{suggestion}</Text>
 											</TouchableOpacity>
 										))}
 									</View>
@@ -564,6 +637,10 @@ const styles = StyleSheet.create({
 		...StyleSheet.absoluteFillObject,
 		zIndex: -1,
 	},
+	backgroundGradient: {
+		...StyleSheet.absoluteFillObject,
+		zIndex: -2,
+	},
 	appBarFlexBox: {
 		gap: 16,
 		flexDirection: "row",
@@ -676,6 +753,14 @@ const styles = StyleSheet.create({
 		justifyContent: "center",
 		alignItems: "center",
 		marginRight: 4,
+	},
+	suggestionCardDisabled: {
+		backgroundColor: '#F5F5F5',
+		borderColor: '#DDD',
+		opacity: 0.6,
+	},
+	suggestionTextDisabled: {
+		color: '#999',
 	},
 	chatInputPosition: {
 		borderTopRightRadius: 4,
