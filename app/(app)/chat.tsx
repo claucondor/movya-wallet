@@ -6,14 +6,11 @@ import {
 	TouchableOpacity,
 	TextInput,
 	ScrollView,
-	Image,
 	Platform,
-	StatusBar as ReactNativeStatusBar,
-	Animated,
-	Dimensions,
 	KeyboardAvoidingView,
 	FlatList,
 	ActivityIndicator,
+	Keyboard,
 } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -35,6 +32,9 @@ const MAX_MESSAGES_PER_CONVERSATION = 50;
 const Chat = () => {
 	const router = useRouter();
 	const flatListRef = React.useRef<FlatList>(null);
+	
+	// Add keyboard visibility state
+	const [keyboardVisible, setKeyboardVisible] = React.useState(false);
 
 	// --- State Management ---
 	const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -44,50 +44,6 @@ const Chat = () => {
 	const [currentConversationId, setCurrentConversationId] = React.useState<string>('');
 
 	// --- Chat History Persistence (Save Only) ---
-	// loadChatHistory function is kept for potential future use or if logic changes,
-	// but it won't be used to populate the initial chat screen view.
-	const loadChatHistory_UNUSED_FOR_INITIAL_LOAD = React.useCallback(() => {
-		try {
-			const storedHistory = storage.getString(CHAT_HISTORY_KEY);
-			let parsedHistory: any = null;
-			if (storedHistory) {
-				try {
-					parsedHistory = JSON.parse(storedHistory);
-				} catch (e) {
-					console.error('[ChatScreen] Failed to parse stored history JSON:', e);
-				}
-			}
-
-			if (parsedHistory && typeof parsedHistory === 'object' && !Array.isArray(parsedHistory) && parsedHistory.conversations && typeof parsedHistory.conversations === 'object') {
-				const conversationsMap = parsedHistory.conversations as Record<string, { id: string; timestamp: number; messages: ChatMessage[] }>;
-				const conversationsArray = Object.values(conversationsMap);
-				conversationsArray.sort((a, b) => b.timestamp - a.timestamp); // Newest first
-
-				if (conversationsArray.length > 0) {
-					const mostRecentConversation = conversationsArray[0];
-					setMessages(mostRecentConversation.messages);
-					setCurrentConversationId(mostRecentConversation.id);
-					console.log(`[ChatScreen] Loaded most recent conversation: ${mostRecentConversation.id}`);
-				} else {
-					const newConversationId = `conversation-${Date.now()}`;
-					setCurrentConversationId(newConversationId);
-					setMessages([]);
-					console.log(`[ChatScreen] No conversations in history. Starting new: ${newConversationId}`);
-				}
-			} else {
-				const newConversationId = `conversation-${Date.now()}`;
-				setCurrentConversationId(newConversationId);
-				setMessages([]);
-				console.log('[ChatScreen] No valid chat history structure found. Starting new conversation.');
-			}
-		} catch (error) {
-			console.error('[ChatScreen] Critical error in loadChatHistory:', error);
-			const newConversationId = `conversation-${Date.now()}`;
-			setCurrentConversationId(newConversationId);
-			setMessages([]);
-		}
-	}, []);
-
 	const saveChatHistory = React.useCallback((updatedMessages: ChatMessage[]) => {
 		if (!currentConversationId) {
 			console.warn('[ChatScreen] No currentConversationId, cannot save history.');
@@ -220,10 +176,25 @@ const Chat = () => {
 
 	React.useEffect(() => {
 		// Show welcome message if messages are empty (which they will be on fresh load)
-		if (messages.length === 0 && currentConversationId) { 
-			addMessage("Hello! I'm Movya. How can I assist you today?", 'agent'); // Updated Welcome Message
-		}
+		// if (messages.length === 0 && currentConversationId) { 
+		// 	addMessage("Hello! I'm Movya. How can I assist you today?", 'agent'); // Updated Welcome Message
+		// }
 	}, [currentConversationId, addMessage]); 
+
+	// Add keyboard listeners
+	React.useEffect(() => {
+		const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+			setKeyboardVisible(true);
+		});
+		const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+			setKeyboardVisible(false);
+		});
+
+		return () => {
+			showSubscription.remove();
+			hideSubscription.remove();
+		};
+	}, []);
 
 	// --- Render Logic ---
 	const renderItem = ({ item }: { item: ChatMessage }) => {
@@ -232,7 +203,7 @@ const Chat = () => {
 				<View style={styles.agentBubble}>
 					<View style={styles.agentMessageContent}>
 						<View style={styles.agentIconContainer}>
-							<MaterialIcons name="smart-toy" size={24} color="#49454f" style={styles.agentIcon} />
+							<MaterialIcons name="smart-toy" size={20} color="#49454f" style={styles.agentIcon} />
 						</View>
 						<View style={styles.agentMessageTextContainer}>
 							<Text style={styles.agentMessageText}>{item.text}</Text>
@@ -240,13 +211,13 @@ const Chat = () => {
 					</View>
 					<View style={styles.agentActionsContainer}>
 						<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Copy pressed for message:', item.id)}>
-							<MaterialIcons name="content-copy" size={18} color="#555" />
+							<MaterialIcons name="content-copy" size={16} color="#555" />
 						</TouchableOpacity>
 						<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Like pressed for message:', item.id)}>
-							<MaterialIcons name="thumb-up-off-alt" size={18} color="#555" />
+							<MaterialIcons name="thumb-up-off-alt" size={16} color="#555" />
 						</TouchableOpacity>
 						<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Dislike pressed for message:', item.id)}>
-							<MaterialIcons name="thumb-down-off-alt" size={18} color="#555" />
+							<MaterialIcons name="thumb-down-off-alt" size={16} color="#555" />
 						</TouchableOpacity>
 					</View>
 				</View>
@@ -261,8 +232,11 @@ const Chat = () => {
 		}
 	};
 
+	// --- User Name (Placeholder) ---
+	const userName = "User"; // Replace with actual user name logic later
+
 	return (
-		<SafeAreaView style={styles.chat}>
+		<SafeAreaView style={styles.chat} edges={['top', 'left', 'right']}>
 			<StatusBar style="light" />
 			<Video
 				source={require('../../assets/bg/header-bg.webm')}
@@ -273,9 +247,9 @@ const Chat = () => {
 				resizeMode={ResizeMode.COVER}
 			/>
 			<KeyboardAvoidingView 
-				behavior={Platform.OS === "ios" ? "padding" : "height"}
+				behavior={Platform.OS === "ios" ? "padding" : undefined}
 				style={styles.keyboardAvoidingContainer}
-				keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0} // Adjust as needed
+				keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
 			>
 				<View style={styles.content}>
 					<View style={[styles.appBar, styles.appBarFlexBox]}>
@@ -293,22 +267,46 @@ const Chat = () => {
 						</View>
 					</View>
 
-					{/* Messages List */}
-					<FlatList
-						ref={flatListRef}
-						data={messages}
-						renderItem={renderItem}
-						keyExtractor={(item) => item.id}
-						style={styles.messagesListContainer}
-						contentContainerStyle={styles.messagesListContentContainer}
-						inverted={false} // Keep true if you prefer new messages at bottom and list inverted
-					/>
+					{/* Main content area: either initial prompt or message list */}
+					<View style={[styles.textCenteredParent]}>
+						{messages.length === 0 ? (
+							<View style={[styles.textCentered, styles.textCenteredFlexBox]}>
+								<View style={styles.header}>
+									<Text style={[styles.hello, styles.helloTypo]}>Hello, </Text>
+									<MaskedView
+										style={{ height: styles.helloTypo.lineHeight }}
+										maskElement={
+											<Text style={styles.helloTypo}>{userName}</Text>
+										}>
+										<LinearGradient
+											colors={['#0461F0', '#9CCAFF']}
+											start={{ x: 0, y: 0 }}
+											end={{ x: 1, y: 0 }}
+											style={{ flex: 1 }}
+										>
+											<Text style={[styles.helloTypo, { opacity: 0 }]}>{userName}</Text>
+										</LinearGradient>
+									</MaskedView>
+								</View>
+								<View style={[styles.swipe, styles.swipeFlexBox]}>
+									<Text style={[styles.swipe1, styles.timeTypo]}>Swipe to change view</Text>
+									<ArrowIcon width={24} height={24} style={styles.swipeChild} />
+								</View>
+							</View>
+						) : (
+							<FlatList
+								ref={flatListRef}
+								data={messages}
+								renderItem={renderItem}
+								keyExtractor={(item) => item.id}
+								style={styles.messagesListContainer}
+								contentContainerStyle={styles.messagesListContentContainer}
+							/>
+						)}
 
-					{/* Bottom section: Suggestions and Input */}
-					<View style={[styles.bottomStaticContainer]}>
-						<View style={[styles.textCenteredParent]}>
-							{/* Suggestions Carousel - remains from original code */}
-							<View style={styles.suggestionsCarouselContainer}>
+						{/* Suggestions and Input - always at the bottom of textCenteredParent */}
+						<View style={[styles.bottomContainer]}>
+							<View style={styles.suggestionsCarouselOuterContainer}>
 								<ScrollView
 									horizontal
 									showsHorizontalScrollIndicator={false}
@@ -345,8 +343,6 @@ const Chat = () => {
 									pointerEvents="none"
 								/>
 							</View>
-
-							{/* Chat Input Area - connected to new logic */}
 							<View style={[styles.chatContainer, styles.swipeFlexBox]}>
 								<View style={styles.dollarIconContainer}>
 									<MaterialIcons name="attach-money" size={30} color="#FFFFFF" />
@@ -360,7 +356,7 @@ const Chat = () => {
 											value={inputMessage}
 											onChangeText={setInputMessage}
 											editable={!isLoading}
-											onSubmitEditing={handleSend} // Send on submit
+											onSubmitEditing={handleSend}
 										/>
 										<TouchableOpacity onPress={handleSend} disabled={isLoading} style={styles.sendButton}>
 											{isLoading ? (
@@ -577,6 +573,8 @@ const styles = StyleSheet.create({
 		paddingTop: 12,
 		borderTopLeftRadius: 32,
 		borderTopRightRadius: 32,
+		flex: 1,
+		justifyContent: 'space-between',
 	},
 	content: {
 		flex: 1,
@@ -613,20 +611,23 @@ const styles = StyleSheet.create({
 		height: '100%',
 	},
 	leftFadeGradient: {
-		left: 16,
+		left: 0,
 	},
 	rightFadeGradient: {
-		right: 16,
+		right: 0,
 	},
 	keyboardAvoidingContainer: {
 		flex: 1,
+		width: "100%",
 	},
 	messagesListContainer: {
 		flex: 1,
-		paddingHorizontal: 16,
+		width: '100%',
+		paddingHorizontal: 8,
 	},
 	messagesListContentContainer: {
 		paddingVertical: 10,
+		flexGrow: 1,
 	},
 	messageBubble: {
 		paddingVertical: 10,
@@ -638,24 +639,31 @@ const styles = StyleSheet.create({
 	userBubble: {
 		alignSelf: 'flex-end',
 		backgroundColor: '#007AFF',
-		paddingVertical: 10,
-		paddingHorizontal: 15,
+		paddingVertical: 8,
+		paddingHorizontal: 12,
 		borderRadius: 18,
-		borderBottomRightRadius: 6,
-		marginBottom: 10,
+		borderBottomRightRadius: 4,
+		marginBottom: 8,
 		maxWidth: '85%',
+		minWidth: '30%',
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.1,
+		shadowRadius: 1.5,
+		elevation: 1,
 	},
 	agentBubble: {
 		alignSelf: 'flex-start',
 		backgroundColor: '#FFFFFF',
 		borderRadius: 18,
-		borderBottomLeftRadius: 6,
+		borderBottomLeftRadius: 4,
 		borderColor: '#E0E0E0',
 		borderWidth: 1,
-		paddingVertical: 10,
-		paddingHorizontal: 12,
-		marginBottom: 10,
+		paddingVertical: 8,
+		paddingHorizontal: 10,
+		marginBottom: 8,
 		maxWidth: '85%',
+		minWidth: '30%',
 		shadowColor: '#000',
 		shadowOffset: { width: 0, height: 1 },
 		shadowOpacity: 0.15,
@@ -664,15 +672,17 @@ const styles = StyleSheet.create({
 	},
 	userMessageText: {
 		color: '#fff',
-		fontSize: 16,
+		fontSize: 14,
 		fontFamily: "Geist",
+		lineHeight: 20,
 	},
 	agentMessageContent: {
 		flexDirection: 'row',
 		alignItems: 'flex-start',
 	},
 	agentIconContainer: {
-		marginRight: 8,
+		marginRight: 6,
+		marginTop: 2,
 	},
 	agentIcon: {
 	},
@@ -681,25 +691,59 @@ const styles = StyleSheet.create({
 	},
 	agentMessageText: {
 		color: '#222',
-		fontSize: 16,
+		fontSize: 14,
 		fontFamily: "Geist",
-		lineHeight: 22,
+		lineHeight: 20,
 	},
 	agentActionsContainer: {
 		flexDirection: 'row',
 		justifyContent: 'flex-start',
-		paddingTop: 8,
-		marginLeft: 32,
+		paddingTop: 6,
+		marginLeft: 26,
 	},
 	actionButton: {
-		paddingHorizontal: 8,
-		paddingVertical: 4,
+		paddingHorizontal: 6,
+		paddingVertical: 3,
 	},
 	backButton: {
 		padding: 8,
 		marginRight: 8,
 	},
-	bottomStaticContainer: {
+	bottomContainer: {
+		gap: 12,
+		alignItems: "center",
+		width: "100%",
+		paddingBottom: Platform.OS === 'ios' ? 8 : 0,
+	},
+	hello: {
+		color: "#0461f0"
+	},
+	header: {
+		alignItems: "baseline",
+		flexDirection: "row",
+		justifyContent: "center",
+		marginBottom: 8,
+	},
+	swipe1: {
+		color: "#625b71",
+		letterSpacing: 0
+	},
+	swipeChild: {
+	},
+	swipe: {
+		justifyContent: "center",
+		alignItems: "center"
+	},
+	textCentered: {
+		padding: 10,
+		alignItems: "center",
+		justifyContent: "center",
+		width: "100%",
+		flex: 1,
+	},
+	suggestionsCarouselOuterContainer: {
+		position: 'relative',
+		alignSelf: 'stretch',
 	},
 });
 
