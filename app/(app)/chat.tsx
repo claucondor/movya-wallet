@@ -11,6 +11,7 @@ import {
 	FlatList,
 	ActivityIndicator,
 	Keyboard,
+	Modal,
 } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -35,6 +36,8 @@ const Chat = () => {
 	
 	// Add keyboard visibility state
 	const [keyboardVisible, setKeyboardVisible] = React.useState(false);
+	const [showChatHistory, setShowChatHistory] = React.useState(false);
+	const [chatHistory, setChatHistory] = React.useState<{ conversations: Record<string, { id: string; timestamp: number; messages: ChatMessage[] }> }>({ conversations: {} });
 
 	// --- State Management ---
 	const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -42,6 +45,62 @@ const Chat = () => {
 	const [isLoading, setIsLoading] = React.useState(false);
 	const [conversationState, setConversationState] = React.useState<AIResponse | null>(null);
 	const [currentConversationId, setCurrentConversationId] = React.useState<string>('');
+
+	// --- Load Chat History ---
+	const loadChatHistory = React.useCallback(() => {
+		try {
+			const historyStore = storage.getString(CHAT_HISTORY_KEY);
+			if (historyStore) {
+				const parsedStore = JSON.parse(historyStore);
+				if (parsedStore && typeof parsedStore === 'object' && parsedStore.conversations) {
+					setChatHistory(parsedStore);
+				}
+			}
+		} catch (error) {
+			console.error('[ChatScreen] Failed to load chat history:', error);
+		}
+	}, []);
+
+	// --- Load Previous Chat ---
+	const loadPreviousChat = React.useCallback((conversationId: string) => {
+		const conversation = chatHistory.conversations[conversationId];
+		if (conversation) {
+			setMessages(conversation.messages);
+			setCurrentConversationId(conversationId);
+			setConversationState(null); // Reset conversation state for previous chats
+			setShowChatHistory(false);
+		}
+	}, [chatHistory]);
+
+	// --- Start New Chat ---
+	const startNewChat = React.useCallback(() => {
+		const newConversationId = `conversation-${Date.now()}`;
+		setCurrentConversationId(newConversationId);
+		setMessages([]);
+		setConversationState(null);
+		setShowChatHistory(false);
+	}, []);
+
+	// --- Format Date ---
+	const formatChatDate = React.useCallback((timestamp: number) => {
+		const date = new Date(timestamp);
+		const now = new Date();
+		const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+		
+		if (diffInHours < 24) {
+			return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		} else if (diffInHours < 48) {
+			return 'Yesterday';
+		} else {
+			return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+		}
+	}, []);
+
+	// --- Get Chat Preview ---
+	const getChatPreview = React.useCallback((messages: ChatMessage[]) => {
+		const lastUserMessage = messages.filter(m => m.sender === 'user').pop();
+		return lastUserMessage ? lastUserMessage.text.substring(0, 60) + (lastUserMessage.text.length > 60 ? '...' : '') : 'New chat';
+	}, []);
 
 	// --- Chat History Persistence (Save Only) ---
 	const saveChatHistory = React.useCallback((updatedMessages: ChatMessage[]) => {
@@ -172,6 +231,9 @@ const Chat = () => {
 		setMessages([]); // Start with empty messages
 		setConversationState(null); // Reset any prior conversation state
 		console.log(`[ChatScreen] Starting new, fresh conversation: ${newConversationId}`);
+		
+		// Load chat history on mount
+		loadChatHistory();
 	}, []); 
 
 	React.useEffect(() => {
@@ -179,7 +241,7 @@ const Chat = () => {
 		// if (messages.length === 0 && currentConversationId) { 
 		// 	addMessage("Hello! I'm Movya. How can I assist you today?", 'agent'); // Updated Welcome Message
 		// }
-	}, [currentConversationId, addMessage]); 
+	}, [currentConversationId, addMessage, loadChatHistory]); 
 
 	// Add keyboard listeners
 	React.useEffect(() => {
@@ -230,12 +292,17 @@ const Chat = () => {
 				</View>
 			);
 		} else {
-			// User message
+			// User message with improved design using LinearGradient
 			return (
 				<View style={styles.userBubbleContainer}>
-					<View style={styles.userBubble}>
+					<LinearGradient
+						colors={['#0495FF', '#0461F0']}
+						start={{ x: 0, y: 0 }}
+						end={{ x: 1, y: 0 }}
+						style={styles.userBubble}
+					>
 						<Text style={styles.userMessageText}>{item.text}</Text>
-					</View>
+					</LinearGradient>
 				</View>
 			);
 		}
@@ -270,9 +337,12 @@ const Chat = () => {
 							<Text style={styles.supportingText} numberOfLines={1}>Total Balance</Text>
 						</View>
 						<View style={[styles.leadingIconParent, styles.parentFlexBox]}>
-							{/* Placeholder for potential future icons */}
-							<View style={{ width: 48 }} /> 
-							<View style={{ width: 48 }} />
+							<TouchableOpacity style={styles.headerIconButton} onPress={() => {
+								loadChatHistory();
+								setShowChatHistory(true);
+							}}>
+								<MaterialIcons name="chat-bubble-outline" size={24} color="#FFF" />
+							</TouchableOpacity>
 						</View>
 					</View>
 
@@ -381,6 +451,72 @@ const Chat = () => {
 					</View>
 				</View>
 			</KeyboardAvoidingView>
+			
+			{/* Chat History Modal */}
+			<Modal
+				visible={showChatHistory}
+				animationType="slide"
+				presentationStyle="pageSheet"
+				onRequestClose={() => setShowChatHistory(false)}
+			>
+				<SafeAreaView style={styles.modalContainer}>
+					<View style={styles.modalHeader}>
+						<Text style={styles.modalTitle}>Chat History</Text>
+						<TouchableOpacity onPress={() => setShowChatHistory(false)} style={styles.closeButton}>
+							<MaterialIcons name="close" size={24} color="#333" />
+						</TouchableOpacity>
+					</View>
+					
+					<View style={styles.modalActions}>
+						<TouchableOpacity onPress={startNewChat} style={styles.newChatButton}>
+							<MaterialIcons name="add" size={20} color="#FFF" />
+							<Text style={styles.newChatButtonText}>New Chat</Text>
+						</TouchableOpacity>
+					</View>
+
+					<FlatList
+						data={Object.values(chatHistory.conversations).sort((a, b) => b.timestamp - a.timestamp)}
+						keyExtractor={(item) => item.id}
+						style={styles.historyList}
+						contentContainerStyle={styles.historyListContainer}
+						renderItem={({ item }) => (
+							<TouchableOpacity
+								style={[
+									styles.historyItem,
+									item.id === currentConversationId && styles.currentChatItem
+								]}
+								onPress={() => loadPreviousChat(item.id)}
+							>
+								<View style={styles.historyItemContent}>
+									<Text style={styles.historyItemPreview} numberOfLines={2}>
+										{getChatPreview(item.messages)}
+									</Text>
+									<Text style={styles.historyItemDate}>
+										{formatChatDate(item.timestamp)}
+									</Text>
+								</View>
+								<View style={styles.historyItemMeta}>
+									<Text style={styles.historyItemMessages}>
+										{item.messages.length} messages
+									</Text>
+									{item.id === currentConversationId && (
+										<View style={styles.currentIndicator}>
+											<Text style={styles.currentIndicatorText}>Current</Text>
+										</View>
+									)}
+								</View>
+							</TouchableOpacity>
+						)}
+						ListEmptyComponent={
+							<View style={styles.emptyHistory}>
+								<MaterialIcons name="chat-bubble-outline" size={48} color="#ccc" />
+								<Text style={styles.emptyHistoryText}>No chat history yet</Text>
+								<Text style={styles.emptyHistorySubtext}>Start a conversation to see it here</Text>
+							</View>
+						}
+					/>
+				</SafeAreaView>
+			</Modal>
 		</SafeAreaView>
 	);
 };
@@ -395,6 +531,52 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		alignSelf: "stretch",
 		alignItems: "center",
+	},
+	appBar: {
+		paddingVertical: 8,
+		paddingHorizontal: 16,
+		alignItems: "center",
+		justifyContent: "space-between",
+		flexDirection: "row",
+	},
+	backButton: {
+		padding: 8,
+		width: 48,
+		alignItems: "center",
+	},
+	textContent: {
+		flex: 1,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	headline: {
+		fontSize: 24,
+		lineHeight: 30,
+		fontWeight: "700",
+		fontFamily: "Geist",
+		textAlign: "center",
+		color: "#fff",
+		alignSelf: "stretch",
+		overflow: "hidden",
+		marginBottom: 2,
+	},
+	supportingText: {
+		color: "#e7e0ec",
+		fontFamily: "Geist",
+		fontWeight: "500",
+		lineHeight: 16,
+		letterSpacing: 1,
+		fontSize: 12,
+		textAlign: "center",
+		alignSelf: "stretch",
+		overflow: "hidden"
+	},
+	leadingIconParent: {
+		width: 48,
+		gap: 0,
+		alignItems: "center",
+		flexDirection: "row",
+		justifyContent: "center",
 	},
 	avatarLayout: {
 		borderRadius: 100,
@@ -468,30 +650,6 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		flexDirection: "row"
 	},
-	headline: {
-		fontSize: 22,
-		lineHeight: 28,
-		fontWeight: "700",
-		fontFamily: "Geist",
-		textAlign: "center",
-		color: "#fff",
-		alignSelf: "stretch",
-		overflow: "hidden"
-	},
-	supportingText: {
-		color: "#e7e0ec",
-		fontFamily: "Geist",
-		fontWeight: "500",
-		lineHeight: 16,
-		letterSpacing: 1,
-		fontSize: 12,
-		textAlign: "center",
-		alignSelf: "stretch",
-		overflow: "hidden"
-	},
-	textContent: {
-		flex: 1
-	},
 	stateLayerIcon: {
 		height: 40,
 		alignSelf: "stretch"
@@ -505,17 +663,6 @@ const styles = StyleSheet.create({
 		width: 48,
 		alignItems: "center",
 		flexDirection: "row"
-	},
-	leadingIconParent: {
-		width: 83,
-		gap: 0,
-		alignItems: "center",
-		flexDirection: "row"
-	},
-	appBar: {
-		paddingVertical: 8,
-		paddingHorizontal: 16,
-		alignItems: "center",
 	},
 	labelText: {
 		letterSpacing: 0,
@@ -641,23 +788,20 @@ const styles = StyleSheet.create({
 	userBubbleContainer: {
 		width: '100%',
 		paddingLeft: '15%',
-		marginBottom: 10,
+		marginBottom: 12,
 		alignItems: 'flex-end',
 	},
 	userBubble: {
-		backgroundColor: '#007AFF',
-		paddingVertical: 8,
-		paddingHorizontal: 12,
+		paddingVertical: 10,
+		paddingHorizontal: 14,
 		borderRadius: 18,
 		borderBottomRightRadius: 4,
 		width: '100%',
 		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.15,
-		shadowRadius: 3,
-		elevation: 2,
-		borderWidth: 1,
-		borderColor: 'rgba(0, 110, 255, 0.7)',
+		shadowOffset: { width: 0, height: 3 },
+		shadowOpacity: 0.18,
+		shadowRadius: 4,
+		elevation: 3,
 	},
 	userMessageText: {
 		color: '#fff',
@@ -666,6 +810,10 @@ const styles = StyleSheet.create({
 		lineHeight: 18,
 		textAlign: 'right',
 		letterSpacing: 0.1,
+		fontWeight: '500',
+		textShadowColor: 'rgba(0, 0, 0, 0.15)',
+		textShadowOffset: { width: 0, height: 1 },
+		textShadowRadius: 1,
 	},
 	agentBubbleContainer: {
 		width: '100%',
@@ -731,10 +879,6 @@ const styles = StyleSheet.create({
 		paddingVertical: 4,
 		marginRight: 10,
 	},
-	backButton: {
-		padding: 8,
-		marginRight: 8,
-	},
 	bottomContainer: {
 		gap: 12,
 		alignItems: "center",
@@ -770,6 +914,123 @@ const styles = StyleSheet.create({
 	suggestionsCarouselOuterContainer: {
 		position: 'relative',
 		alignSelf: 'stretch',
+	},
+	headerIconButton: {
+		padding: 8,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	modalContainer: {
+		flex: 1,
+		backgroundColor: '#fff',
+	},
+	modalHeader: {
+		padding: 16,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+	},
+	modalTitle: {
+		fontSize: 20,
+		fontWeight: 'bold',
+	},
+	closeButton: {
+		padding: 8,
+	},
+	modalActions: {
+		padding: 16,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+	},
+	newChatButton: {
+		backgroundColor: '#0461f0',
+		paddingHorizontal: 16,
+		paddingVertical: 8,
+		borderRadius: 8,
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 8,
+	},
+	newChatButtonText: {
+		color: '#FFF',
+		fontSize: 16,
+		fontWeight: 'bold',
+	},
+	historyList: {
+		flex: 1,
+	},
+	historyListContainer: {
+		padding: 16,
+		gap: 12,
+	},
+	historyItem: {
+		padding: 16,
+		borderWidth: 1,
+		borderColor: '#E0E0E0',
+		borderStyle: 'solid',
+		borderRadius: 12,
+		backgroundColor: '#F9F9F9',
+	},
+	currentChatItem: {
+		backgroundColor: '#E6F3FF',
+		borderColor: '#0461f0',
+	},
+	historyItemContent: {
+		marginBottom: 8,
+	},
+	historyItemPreview: {
+		fontSize: 16,
+		fontFamily: 'Geist',
+		color: '#333',
+		marginBottom: 4,
+	},
+	historyItemDate: {
+		color: '#666',
+		fontSize: 12,
+		fontFamily: 'Geist',
+	},
+	historyItemMeta: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+	},
+	historyItemMessages: {
+		color: '#666',
+		fontSize: 12,
+		fontFamily: 'Geist',
+	},
+	currentIndicator: {
+		backgroundColor: '#0461f0',
+		paddingHorizontal: 8,
+		paddingVertical: 4,
+		borderRadius: 12,
+	},
+	currentIndicatorText: {
+		color: '#fff',
+		fontSize: 10,
+		fontWeight: 'bold',
+		fontFamily: 'Geist',
+	},
+	emptyHistory: {
+		flex: 1,
+		justifyContent: 'center',
+		alignItems: 'center',
+		padding: 32,
+	},
+	emptyHistoryText: {
+		color: '#666',
+		fontSize: 18,
+		fontWeight: 'bold',
+		fontFamily: 'Geist',
+		marginTop: 16,
+		marginBottom: 8,
+	},
+	emptyHistorySubtext: {
+		color: '#999',
+		fontSize: 14,
+		fontFamily: 'Geist',
+		textAlign: 'center',
 	},
 });
 
