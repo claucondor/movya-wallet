@@ -200,33 +200,37 @@ const Chat = () => {
 	const renderItem = ({ item }: { item: ChatMessage }) => {
 		if (item.sender === 'agent') {
 			return (
-				<View style={styles.agentBubble}>
-					<View style={styles.agentMessageContent}>
-						<View style={styles.agentIconContainer}>
-							<MaterialIcons name="smart-toy" size={20} color="#49454f" style={styles.agentIcon} />
+				<View style={styles.agentBubbleContainer}>
+					<View style={styles.agentBubble}>
+						<View style={styles.agentMessageContent}>
+							<View style={styles.agentIconContainer}>
+								<MaterialIcons name="smart-toy" size={20} color="#0461F0" style={styles.agentIcon} />
+							</View>
+							<View style={styles.agentMessageTextContainer}>
+								<Text style={styles.agentMessageText}>{item.text}</Text>
+							</View>
 						</View>
-						<View style={styles.agentMessageTextContainer}>
-							<Text style={styles.agentMessageText}>{item.text}</Text>
+						<View style={styles.agentActionsContainer}>
+							<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Copy pressed for message:', item.id)}>
+								<MaterialIcons name="content-copy" size={16} color="#555" />
+							</TouchableOpacity>
+							<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Like pressed for message:', item.id)}>
+								<MaterialIcons name="thumb-up-off-alt" size={16} color="#555" />
+							</TouchableOpacity>
+							<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Dislike pressed for message:', item.id)}>
+								<MaterialIcons name="thumb-down-off-alt" size={16} color="#555" />
+							</TouchableOpacity>
 						</View>
-					</View>
-					<View style={styles.agentActionsContainer}>
-						<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Copy pressed for message:', item.id)}>
-							<MaterialIcons name="content-copy" size={16} color="#555" />
-						</TouchableOpacity>
-						<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Like pressed for message:', item.id)}>
-							<MaterialIcons name="thumb-up-off-alt" size={16} color="#555" />
-						</TouchableOpacity>
-						<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Dislike pressed for message:', item.id)}>
-							<MaterialIcons name="thumb-down-off-alt" size={16} color="#555" />
-						</TouchableOpacity>
 					</View>
 				</View>
 			);
 		} else {
 			// User message
 			return (
-				<View style={styles.userBubble}>
-					<Text style={styles.userMessageText}>{item.text}</Text>
+				<View style={styles.userBubbleContainer}>
+					<View style={styles.userBubble}>
+						<Text style={styles.userMessageText}>{item.text}</Text>
+					</View>
 				</View>
 			);
 		}
@@ -629,46 +633,41 @@ const styles = StyleSheet.create({
 		paddingVertical: 10,
 		flexGrow: 1,
 	},
-	messageBubble: {
-		paddingVertical: 10,
-		paddingHorizontal: 15,
-		borderRadius: 18,
-		marginBottom: 10,
-		maxWidth: '85%',
+	userBubbleContainer: {
+		width: '100%',
+		paddingLeft: '15%',
+		marginBottom: 8,
 	},
 	userBubble: {
-		alignSelf: 'flex-end',
 		backgroundColor: '#007AFF',
 		paddingVertical: 8,
 		paddingHorizontal: 12,
 		borderRadius: 18,
 		borderBottomRightRadius: 4,
-		marginBottom: 8,
-		maxWidth: '85%',
-		minWidth: '30%',
+		width: '100%',
 		shadowColor: '#000',
 		shadowOffset: { width: 0, height: 1 },
 		shadowOpacity: 0.1,
 		shadowRadius: 1.5,
 		elevation: 1,
 	},
+	agentBubbleContainer: {
+		width: '100%',
+		paddingRight: '15%',
+		marginBottom: 8,
+	},
 	agentBubble: {
-		alignSelf: 'flex-start',
-		backgroundColor: '#FFFFFF',
+		backgroundColor: '#F2F2F2',
 		borderRadius: 18,
 		borderBottomLeftRadius: 4,
-		borderColor: '#E0E0E0',
-		borderWidth: 1,
 		paddingVertical: 8,
 		paddingHorizontal: 10,
-		marginBottom: 8,
-		maxWidth: '85%',
-		minWidth: '30%',
+		width: '100%',
 		shadowColor: '#000',
 		shadowOffset: { width: 0, height: 1 },
-		shadowOpacity: 0.15,
-		shadowRadius: 2,
-		elevation: 2,
+		shadowOpacity: 0.1,
+		shadowRadius: 1.5,
+		elevation: 1,
 	},
 	userMessageText: {
 		color: '#fff',
@@ -679,9 +678,10 @@ const styles = StyleSheet.create({
 	agentMessageContent: {
 		flexDirection: 'row',
 		alignItems: 'flex-start',
+		width: '100%',
 	},
 	agentIconContainer: {
-		marginRight: 6,
+		marginRight: 8,
 		marginTop: 2,
 	},
 	agentIcon: {
@@ -698,12 +698,13 @@ const styles = StyleSheet.create({
 	agentActionsContainer: {
 		flexDirection: 'row',
 		justifyContent: 'flex-start',
-		paddingTop: 6,
-		marginLeft: 26,
+		paddingTop: 8,
+		marginLeft: 28,
 	},
 	actionButton: {
-		paddingHorizontal: 6,
-		paddingVertical: 3,
+		paddingHorizontal: 8,
+		paddingVertical: 4,
+		marginRight: 8,
 	},
 	backButton: {
 		padding: 8,
