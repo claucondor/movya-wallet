@@ -147,7 +147,7 @@ const Home = () => {
             change: token ? token.change24h : 0,
             symbol: token ? token.symbol : symbol,
             hasBalance,
-            displayAmount: hasBalance ? `${token!.balance} ${token!.symbol}` : 'No balance',
+            displayAmount: token ? `${token.balance} ${token.symbol}` : `0.0000 ${symbol}`,
             showDeposit: !hasBalance
         };
     };
@@ -363,12 +363,12 @@ const Home = () => {
                                     </View>
                                 </View>
                             </View>
-                            <View style={[styles.assetCard, styles.assetCardShadowBox]}>
+                            <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
                                 <View style={styles.asset}>
                                     <Avavector width={48} height={48} />
                                     <View style={styles.assetId}>
-                                        <Text style={[styles.text2, styles.text2Typo]}>AVAX</Text>
-                                        <Text style={styles.labelTypo}>AVA</Text>
+                                        <Text style={[styles.assetName, styles.text2Typo]}>AVAX</Text>
+                                        <Text style={[styles.assetLetters, styles.labelTypo]}>AVA</Text>
                                     </View>
                                 </View>
                                 <View style={styles.rightItems}>
@@ -382,10 +382,11 @@ const Home = () => {
                                             </Text>
                                         </View>
                                     )}
-                                    <View style={[styles.button1, styles.suggestionFlexBox]}>
-                                        <Text style={[styles.text4, styles.textTypo]}>
-                                            {getTokenData('AVAX').change >= 0 ? '+' : ''}{getTokenData('AVAX').change.toFixed(1)}%
+                                    <View style={[styles.button, styles.buttonFlexBox]}>
+                                        <Text style={styles.deposit}>
+                                            {getTokenData('AVAX').showDeposit ? 'Deposit' : 'Send'}
                                         </Text>
+                                        <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
                                     </View>
                                 </View>
                             </View>
