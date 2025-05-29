@@ -204,7 +204,12 @@ const Chat = () => {
 					<View style={styles.agentBubble}>
 						<View style={styles.agentMessageContent}>
 							<View style={styles.agentIconContainer}>
-								<MaterialIcons name="smart-toy" size={20} color="#0461F0" style={styles.agentIcon} />
+								<LinearGradient
+									colors={['#0461F0', '#0477F0']}
+									style={styles.agentIconBackground}
+								>
+									<MaterialIcons name="smart-toy" size={18} color="#FFFFFF" style={styles.agentIcon} />
+								</LinearGradient>
 							</View>
 							<View style={styles.agentMessageTextContainer}>
 								<Text style={styles.agentMessageText}>{item.text}</Text>
@@ -212,13 +217,13 @@ const Chat = () => {
 						</View>
 						<View style={styles.agentActionsContainer}>
 							<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Copy pressed for message:', item.id)}>
-								<MaterialIcons name="content-copy" size={16} color="#555" />
+								<MaterialIcons name="content-copy" size={15} color="#555" />
 							</TouchableOpacity>
 							<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Like pressed for message:', item.id)}>
-								<MaterialIcons name="thumb-up-off-alt" size={16} color="#555" />
+								<MaterialIcons name="thumb-up-off-alt" size={15} color="#555" />
 							</TouchableOpacity>
 							<TouchableOpacity style={styles.actionButton} onPress={() => console.log('Dislike pressed for message:', item.id)}>
-								<MaterialIcons name="thumb-down-off-alt" size={16} color="#555" />
+								<MaterialIcons name="thumb-down-off-alt" size={15} color="#555" />
 							</TouchableOpacity>
 						</View>
 					</View>
@@ -636,7 +641,8 @@ const styles = StyleSheet.create({
 	userBubbleContainer: {
 		width: '100%',
 		paddingLeft: '15%',
-		marginBottom: 8,
+		marginBottom: 10,
+		alignItems: 'flex-end',
 	},
 	userBubble: {
 		backgroundColor: '#007AFF',
@@ -646,34 +652,40 @@ const styles = StyleSheet.create({
 		borderBottomRightRadius: 4,
 		width: '100%',
 		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 1 },
-		shadowOpacity: 0.1,
-		shadowRadius: 1.5,
-		elevation: 1,
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.15,
+		shadowRadius: 3,
+		elevation: 2,
+		borderWidth: 1,
+		borderColor: 'rgba(0, 110, 255, 0.7)',
+	},
+	userMessageText: {
+		color: '#fff',
+		fontSize: 13,
+		fontFamily: "Geist",
+		lineHeight: 18,
+		textAlign: 'right',
+		letterSpacing: 0.1,
 	},
 	agentBubbleContainer: {
 		width: '100%',
 		paddingRight: '15%',
-		marginBottom: 8,
+		marginBottom: 10,
 	},
 	agentBubble: {
-		backgroundColor: '#F2F2F2',
+		backgroundColor: '#F5F5F7',
 		borderRadius: 18,
 		borderBottomLeftRadius: 4,
 		paddingVertical: 8,
 		paddingHorizontal: 10,
 		width: '100%',
 		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 1 },
+		shadowOffset: { width: 0, height: 2 },
 		shadowOpacity: 0.1,
-		shadowRadius: 1.5,
-		elevation: 1,
-	},
-	userMessageText: {
-		color: '#fff',
-		fontSize: 14,
-		fontFamily: "Geist",
-		lineHeight: 20,
+		shadowRadius: 2,
+		elevation: 2,
+		borderWidth: 1,
+		borderColor: '#E8E8E8',
 	},
 	agentMessageContent: {
 		flexDirection: 'row',
@@ -684,27 +696,40 @@ const styles = StyleSheet.create({
 		marginRight: 8,
 		marginTop: 2,
 	},
+	agentIconBackground: {
+		width: 26,
+		height: 26,
+		borderRadius: 13,
+		justifyContent: 'center',
+		alignItems: 'center',
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.2,
+		shadowRadius: 1,
+		elevation: 2,
+	},
 	agentIcon: {
 	},
 	agentMessageTextContainer: {
 		flex: 1,
 	},
 	agentMessageText: {
-		color: '#222',
-		fontSize: 14,
+		color: '#333',
+		fontSize: 13,
 		fontFamily: "Geist",
-		lineHeight: 20,
+		lineHeight: 18,
+		letterSpacing: 0.1,
 	},
 	agentActionsContainer: {
 		flexDirection: 'row',
 		justifyContent: 'flex-start',
 		paddingTop: 8,
-		marginLeft: 28,
+		marginLeft: 34,
 	},
 	actionButton: {
 		paddingHorizontal: 8,
 		paddingVertical: 4,
-		marginRight: 8,
+		marginRight: 10,
 	},
 	backButton: {
 		padding: 8,
