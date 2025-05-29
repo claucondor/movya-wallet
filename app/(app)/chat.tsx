@@ -38,6 +38,7 @@ const Chat = () => {
 	const [keyboardVisible, setKeyboardVisible] = React.useState(false);
 	const [showChatHistory, setShowChatHistory] = React.useState(false);
 	const [chatHistory, setChatHistory] = React.useState<{ conversations: Record<string, { id: string; timestamp: number; messages: ChatMessage[] }> }>({ conversations: {} });
+	const [dynamicSuggestions, setDynamicSuggestions] = React.useState<string[]>([]);
 
 	// --- State Management ---
 	const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -45,6 +46,47 @@ const Chat = () => {
 	const [isLoading, setIsLoading] = React.useState(false);
 	const [conversationState, setConversationState] = React.useState<AIResponse | null>(null);
 	const [currentConversationId, setCurrentConversationId] = React.useState<string>('');
+
+	// --- Default Suggestions ---
+	const defaultSuggestions = [
+		"Send Money to a Friend",
+		"Send Money to a Wallet", 
+		"How to send AVA?",
+		"Who are you?"
+	];
+
+	// --- Extract Unique Messages from History ---
+	const extractUniqueMessages = React.useCallback((conversations: Record<string, { id: string; timestamp: number; messages: ChatMessage[] }>) => {
+		const userMessages = new Set<string>();
+		
+		Object.values(conversations).forEach(conversation => {
+			const firstUserMessage = conversation.messages.find(msg => msg.sender === 'user');
+			if (firstUserMessage && firstUserMessage.text.length > 10 && firstUserMessage.text.length < 60) {
+				userMessages.add(firstUserMessage.text);
+			}
+		});
+
+		// Convert to array and take only first 4 unique messages
+		return Array.from(userMessages).slice(0, 4);
+	}, []);
+
+	// --- Get Combined Suggestions ---
+	const getCombinedSuggestions = React.useCallback(() => {
+		const historyMessages = extractUniqueMessages(chatHistory.conversations);
+		const combined = [...historyMessages];
+		
+		// Fill remaining slots with default suggestions that aren't already included
+		defaultSuggestions.forEach(defaultMsg => {
+			if (combined.length < 4 && !combined.some(msg => 
+				msg.toLowerCase().includes(defaultMsg.toLowerCase()) || 
+				defaultMsg.toLowerCase().includes(msg.toLowerCase())
+			)) {
+				combined.push(defaultMsg);
+			}
+		});
+		
+		return combined.slice(0, 4);
+	}, [chatHistory, extractUniqueMessages]);
 
 	// --- Load Chat History ---
 	const loadChatHistory = React.useCallback(() => {
@@ -54,12 +96,15 @@ const Chat = () => {
 				const parsedStore = JSON.parse(historyStore);
 				if (parsedStore && typeof parsedStore === 'object' && parsedStore.conversations) {
 					setChatHistory(parsedStore);
+					// Update dynamic suggestions when history is loaded
+					const suggestions = extractUniqueMessages(parsedStore.conversations);
+					setDynamicSuggestions(suggestions);
 				}
 			}
 		} catch (error) {
 			console.error('[ChatScreen] Failed to load chat history:', error);
 		}
-	}, []);
+	}, [extractUniqueMessages]);
 
 	// --- Load Previous Chat ---
 	const loadPreviousChat = React.useCallback((conversationId: string) => {
@@ -393,18 +438,11 @@ const Chat = () => {
 									contentContainerStyle={styles.chatSuggestionsContainer}
 								>
 									<View style={styles.chatSuggestionsRow}>
-										<TouchableOpacity style={styles.suggestionCard} onPress={() => { const msg = "Send Money to a Friend"; setInputMessage(msg); callAgentApi(msg, conversationState); }}>
-											<Text style={[styles.labelText, styles.labelTypo]}>Send Money to a Friend</Text>
-										</TouchableOpacity>
-										<TouchableOpacity style={styles.suggestionCard} onPress={() => { const msg = "Send Money to a Wallet"; setInputMessage(msg); callAgentApi(msg, conversationState); }}>
-											<Text style={[styles.labelText, styles.labelTypo]}>Send Money to a Wallet</Text>
-										</TouchableOpacity>
-										<TouchableOpacity style={styles.suggestionCard} onPress={() => { const msg = "How to send AVA?"; setInputMessage(msg); callAgentApi(msg, conversationState); }}>
-											<Text style={[styles.labelText, styles.labelTypo]}>How to send AVA?</Text>
-										</TouchableOpacity>
-										<TouchableOpacity style={styles.suggestionCard} onPress={() => { const msg = "Who are you?"; setInputMessage(msg); callAgentApi(msg, conversationState); }}>
-											<Text style={[styles.labelText, styles.labelTypo]}>Who are you?</Text>
-										</TouchableOpacity>
+										{getCombinedSuggestions().map((suggestion, index) => (
+											<TouchableOpacity key={index} style={styles.suggestionCard} onPress={() => { setInputMessage(suggestion); callAgentApi(suggestion, conversationState); }}>
+												<Text style={[styles.labelText, styles.labelTypo]}>{suggestion}</Text>
+											</TouchableOpacity>
+										))}
 									</View>
 								</ScrollView>
 								<LinearGradient
@@ -925,70 +963,95 @@ const styles = StyleSheet.create({
 		backgroundColor: '#fff',
 	},
 	modalHeader: {
-		padding: 16,
+		padding: 20,
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
+		borderBottomWidth: 1,
+		borderBottomColor: '#F0F0F0',
+		backgroundColor: '#FAFAFA',
 	},
 	modalTitle: {
-		fontSize: 20,
+		fontSize: 24,
 		fontWeight: 'bold',
+		fontFamily: 'Geist',
+		color: '#333',
 	},
 	closeButton: {
 		padding: 8,
+		borderRadius: 20,
+		backgroundColor: '#F5F5F5',
 	},
 	modalActions: {
-		padding: 16,
-		flexDirection: 'row',
-		alignItems: 'center',
-		justifyContent: 'space-between',
+		padding: 20,
+		backgroundColor: '#FAFAFA',
+		borderBottomWidth: 1,
+		borderBottomColor: '#F0F0F0',
 	},
 	newChatButton: {
 		backgroundColor: '#0461f0',
-		paddingHorizontal: 16,
-		paddingVertical: 8,
-		borderRadius: 8,
+		paddingHorizontal: 20,
+		paddingVertical: 12,
+		borderRadius: 12,
 		flexDirection: 'row',
 		alignItems: 'center',
 		gap: 8,
+		shadowColor: '#0461f0',
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.2,
+		shadowRadius: 4,
+		elevation: 3,
 	},
 	newChatButtonText: {
 		color: '#FFF',
 		fontSize: 16,
-		fontWeight: 'bold',
+		fontWeight: '600',
+		fontFamily: 'Geist',
 	},
 	historyList: {
 		flex: 1,
+		backgroundColor: '#FAFAFA',
 	},
 	historyListContainer: {
-		padding: 16,
-		gap: 12,
+		padding: 20,
+		gap: 16,
 	},
 	historyItem: {
-		padding: 16,
+		padding: 20,
 		borderWidth: 1,
-		borderColor: '#E0E0E0',
+		borderColor: '#E8E8E8',
 		borderStyle: 'solid',
-		borderRadius: 12,
-		backgroundColor: '#F9F9F9',
+		borderRadius: 16,
+		backgroundColor: '#FFFFFF',
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.05,
+		shadowRadius: 4,
+		elevation: 2,
 	},
 	currentChatItem: {
-		backgroundColor: '#E6F3FF',
+		backgroundColor: '#F0F8FF',
 		borderColor: '#0461f0',
+		borderWidth: 2,
+		shadowColor: '#0461f0',
+		shadowOpacity: 0.1,
 	},
 	historyItemContent: {
-		marginBottom: 8,
+		marginBottom: 12,
 	},
 	historyItemPreview: {
 		fontSize: 16,
 		fontFamily: 'Geist',
+		fontWeight: '500',
 		color: '#333',
-		marginBottom: 4,
+		marginBottom: 6,
+		lineHeight: 22,
 	},
 	historyItemDate: {
-		color: '#666',
-		fontSize: 12,
+		color: '#888',
+		fontSize: 13,
 		fontFamily: 'Geist',
+		fontWeight: '500',
 	},
 	historyItemMeta: {
 		flexDirection: 'row',
@@ -1002,35 +1065,37 @@ const styles = StyleSheet.create({
 	},
 	currentIndicator: {
 		backgroundColor: '#0461f0',
-		paddingHorizontal: 8,
-		paddingVertical: 4,
-		borderRadius: 12,
+		paddingHorizontal: 12,
+		paddingVertical: 6,
+		borderRadius: 16,
 	},
 	currentIndicatorText: {
 		color: '#fff',
-		fontSize: 10,
+		fontSize: 11,
 		fontWeight: 'bold',
 		fontFamily: 'Geist',
+		letterSpacing: 0.5,
 	},
 	emptyHistory: {
 		flex: 1,
 		justifyContent: 'center',
 		alignItems: 'center',
-		padding: 32,
+		padding: 40,
 	},
 	emptyHistoryText: {
 		color: '#666',
-		fontSize: 18,
+		fontSize: 20,
 		fontWeight: 'bold',
 		fontFamily: 'Geist',
-		marginTop: 16,
-		marginBottom: 8,
+		marginTop: 20,
+		marginBottom: 12,
 	},
 	emptyHistorySubtext: {
 		color: '#999',
-		fontSize: 14,
+		fontSize: 16,
 		fontFamily: 'Geist',
 		textAlign: 'center',
+		lineHeight: 22,
 	},
 });
 
