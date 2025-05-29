@@ -24,6 +24,7 @@ import { Portal, Modal, PaperProvider, Button as PaperButton, TextInput as Paper
 import { addContactByAddress, addContactByEmail, getContacts, Contact } from "../../internal/contactService";
 import { storage } from "../../core/storage";
 import AddContactForm from './AddContactForm';
+import PortfolioService, { PortfolioToken } from "../../core/services/portfolioService";
 
 // Define ContactType if not already defined globally or in scope
 type ContactType = 'address' | 'email';
@@ -68,6 +69,12 @@ const Home = () => {
     const [contacts, setContacts] = React.useState<Contact[]>([]);
     const [isLoadingContacts, setIsLoadingContacts] = React.useState(false);
     const [contactsError, setContactsError] = React.useState<string | null>(null);
+    
+    // Portfolio/Balance States
+    const [portfolioTokens, setPortfolioTokens] = React.useState<PortfolioToken[]>([]);
+    const [totalBalance, setTotalBalance] = React.useState<string>('$0.00');
+    const [isLoadingBalances, setIsLoadingBalances] = React.useState(false);
+    const [balancesError, setBalancesError] = React.useState<string | null>(null);
 
     // Store initial values for the form when modal opens
     const [initialFormState, setInitialFormState] = React.useState({
@@ -103,9 +110,47 @@ const Home = () => {
         }
     };
 
+    const loadPortfolio = async () => {
+        setIsLoadingBalances(true);
+        setBalancesError(null);
+        try {
+            console.log('[Home] Loading portfolio...');
+            const portfolio = await PortfolioService.getPortfolio(43114); // Avalanche mainnet
+            
+            setPortfolioTokens(portfolio.tokens);
+            setTotalBalance(`$${portfolio.totalValueUSD}`);
+            
+            console.log(`[Home] Portfolio loaded: ${portfolio.tokens.length} tokens, total: $${portfolio.totalValueUSD}`);
+        } catch (error: any) {
+            console.error('[Home] Error loading portfolio:', error);
+            setBalancesError(error.message || 'Failed to load portfolio data.');
+            setPortfolioTokens([]);
+            setTotalBalance('$0.00');
+        } finally {
+            setIsLoadingBalances(false);
+        }
+    };
+
     React.useEffect(() => {
         loadContacts();
-    }, []); // Load contacts on mount
+        loadPortfolio();
+    }, []); // Load contacts and portfolio on mount
+
+    // Helper function to get specific token data
+    const getTokenData = (symbol: string) => {
+        const token = portfolioTokens.find(t => t.symbol.toUpperCase() === symbol.toUpperCase());
+        const hasBalance = token && parseFloat(token.balance) > 0;
+        
+        return {
+            balance: token ? `$${token.valueUSD}` : '$0.00',
+            amount: token ? token.balance : '0',
+            change: token ? token.change24h : 0,
+            symbol: token ? token.symbol : symbol,
+            hasBalance,
+            displayAmount: hasBalance ? `${token!.balance} ${token!.symbol}` : 'No balance',
+            showDeposit: !hasBalance
+        };
+    };
 
     const showAddContactModal = () => {
         setInitialFormState({ // Set initial state for the form component to reset it
@@ -176,6 +221,11 @@ const Home = () => {
         router.push('/(app)/receive');
     };
 
+    const handleRefreshData = async () => {
+        console.log('[Home] Refreshing data...');
+        await Promise.all([loadContacts(), loadPortfolio()]);
+    };
+
     return (
         <SafeAreaView style={[styles.home, styles.homeLayout]}>
             <StatusBar style="light" />
@@ -205,7 +255,23 @@ const Home = () => {
                         <View style={[styles.balanceBox, styles.sendBg]}>
                             <View style={styles.content1}>
                                 <Text style={styles.totalBalance}>Total Balance</Text>
-                                <Text style={[styles.balanceValue, styles.helloTypo]}>$0.01</Text>
+                                <View style={styles.balanceContainer}>
+                                    {isLoadingBalances ? (
+                                        <ActivityIndicator size="small" color="#0461F0" />
+                                    ) : (
+                                        <Text 
+                                            style={[styles.balanceValue, styles.helloTypo]} 
+                                            adjustsFontSizeToFit={true}
+                                            numberOfLines={1}
+                                            minimumFontScale={0.5}
+                                        >
+                                            {totalBalance}
+                                        </Text>
+                                    )}
+                                    {balancesError && (
+                                        <Text style={styles.errorText}>Error loading balance</Text>
+                                    )}
+                                </View>
                             </View>
                             <Movyalogovector style={styles.movyaLogoVectorIcon} width={121} height={113} />
                         </View>
@@ -279,9 +345,20 @@ const Home = () => {
                                     </View>
                                 </View>
                                 <View style={styles.rightItems}>
-                                    <Text style={[styles.text2, styles.text2Typo]}>$0.00</Text>
+                                    {isLoadingBalances ? (
+                                        <ActivityIndicator size="small" color="#0461F0" />
+                                    ) : (
+                                        <View style={styles.tokenBalanceInfo}>
+                                            <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('USDC').balance}</Text>
+                                            <Text style={[styles.tokenAmount, styles.labelTypo]}>
+                                                {getTokenData('USDC').displayAmount}
+                                            </Text>
+                                        </View>
+                                    )}
                                     <View style={[styles.button, styles.buttonFlexBox]}>
-                                        <Text style={styles.deposit}>Deposit</Text>
+                                        <Text style={styles.deposit}>
+                                            {getTokenData('USDC').showDeposit ? 'Deposit' : 'Send'}
+                                        </Text>
                                         <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
                                     </View>
                                 </View>
@@ -295,9 +372,20 @@ const Home = () => {
                                     </View>
                                 </View>
                                 <View style={styles.rightItems}>
-                                    <Text style={[styles.text2, styles.text2Typo]}>$0.01</Text>
+                                    {isLoadingBalances ? (
+                                        <ActivityIndicator size="small" color="#0461F0" />
+                                    ) : (
+                                        <View style={styles.tokenBalanceInfo}>
+                                            <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('AVAX').balance}</Text>
+                                            <Text style={[styles.tokenAmount, styles.labelTypo]}>
+                                                {getTokenData('AVAX').displayAmount}
+                                            </Text>
+                                        </View>
+                                    )}
                                     <View style={[styles.button1, styles.suggestionFlexBox]}>
-                                        <Text style={[styles.text4, styles.textTypo]}>+3.2%</Text>
+                                        <Text style={[styles.text4, styles.textTypo]}>
+                                            {getTokenData('AVAX').change >= 0 ? '+' : ''}{getTokenData('AVAX').change.toFixed(1)}%
+                                        </Text>
                                     </View>
                                 </View>
                             </View>
@@ -502,7 +590,7 @@ const styles = StyleSheet.create({
         alignSelf: "stretch"
     },
     balanceValue: {
-        fontSize: 36,
+        fontSize: 28,
         fontWeight: "700",
         color: Color.colorRoyalblue100,
         alignSelf: "stretch"
@@ -847,7 +935,28 @@ const styles = StyleSheet.create({
         fontFamily: FontFamily.geist,
         fontSize: FontSize.size_12,
         fontWeight: 'bold',
-    }
+    },
+    balanceContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: Gap.gap_4,
+    },
+    errorText: {
+        color: Color.colorWhite,
+        fontFamily: FontFamily.geist,
+        fontSize: FontSize.size_12,
+        marginLeft: Gap.gap_4,
+    },
+    tokenBalanceInfo: {
+        flexDirection: "column",
+        alignItems: "flex-end",
+        gap: 2,
+    },
+    tokenAmount: {
+        fontSize: FontSize.size_12,
+        fontWeight: "500",
+        color: Color.colorGray200,
+    },
 });
 
 export default Home;

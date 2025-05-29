@@ -24,6 +24,7 @@ import { sendMessageToAgent, reportActionResult } from "../core/agentApi";
 import { storage } from "../core/storage";
 import { AIResponse, AgentServiceResponse, ChatMessage, ActionResultInput } from "../types/agent";
 import { useRouter } from "expo-router";
+import PortfolioService from "../core/services/portfolioService";
 
 // --- Chat History Constants ---
 const CHAT_HISTORY_KEY = 'chatHistory';
@@ -45,6 +46,7 @@ const Chat = () => {
 		"Who are you?"
 	]);
 	const [videoLoaded, setVideoLoaded] = React.useState(false);
+	const [portfolioBalance, setPortfolioBalance] = React.useState<string>('$0.00');
 
 	// --- State Management ---
 	const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -291,6 +293,19 @@ const Chat = () => {
 		}
 	}, [isLoading, addMessage, callAgentApi, conversationState]);
 
+	// --- Load Portfolio Balance ---
+	const loadPortfolioBalance = React.useCallback(async () => {
+		try {
+			console.log('[Chat] Loading portfolio balance...');
+			const summary = await PortfolioService.getPortfolioSummary(43114); // Avalanche mainnet
+			setPortfolioBalance(summary.totalBalance);
+			console.log('[Chat] Portfolio balance loaded:', summary.totalBalance);
+		} catch (error) {
+			console.error('[Chat] Error loading portfolio balance:', error);
+			setPortfolioBalance('$0.00');
+		}
+	}, []);
+
 	// --- Effects ---
 	React.useEffect(() => {
 		// ALWAYS start a fresh chat session on mount
@@ -302,6 +317,9 @@ const Chat = () => {
 		
 		// Load chat history on mount
 		loadChatHistory();
+		
+		// Load portfolio balance on mount
+		loadPortfolioBalance();
 	}, []); 
 
 	// Video loading effect
@@ -439,7 +457,7 @@ const Chat = () => {
 							<MaterialIcons name="arrow-back" size={24} color="#FFF" />
 						</TouchableOpacity>
 						<View style={[styles.textContent, styles.contentFlexBox]}>
-							<Text style={styles.headline} numberOfLines={1}>$0.01</Text>
+							<Text style={styles.headline} numberOfLines={1}>{portfolioBalance}</Text>
 							<Text style={styles.supportingText} numberOfLines={1}>Total Balance</Text>
 						</View>
 						<View style={[styles.leadingIconParent, styles.parentFlexBox]}>
