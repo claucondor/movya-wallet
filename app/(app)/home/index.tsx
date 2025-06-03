@@ -27,8 +27,10 @@ import { storage } from "../../core/storage";
 import AddContactForm from './AddContactForm';
 import ContactDetailsModal from './ContactDetailsModal';
 import EditContactModal from './EditContactModal';
+import TransactionDetailsModal from './TransactionDetailsModal';
 import PortfolioService, { PortfolioToken } from "../../core/services/portfolioService";
 import TransactionHistoryService, { Transaction } from "../../core/services/transactionHistoryService";
+import TransactionDetectionService from "../../core/services/transactionDetectionService";
 
 // Define ContactType if not already defined globally or in scope
 type ContactType = 'address' | 'email';
@@ -96,6 +98,10 @@ const Home = () => {
     const [isEditContactModalVisible, setIsEditContactModalVisible] = React.useState(false);
     const [contactToEdit, setContactToEdit] = React.useState<Contact | null>(null);
     const [isUpdatingContact, setIsUpdatingContact] = React.useState(false);
+
+    // Transaction Details Modal States
+    const [isTransactionDetailsModalVisible, setIsTransactionDetailsModalVisible] = React.useState(false);
+    const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
 
     // Tab Management
     const [activeTab, setActiveTab] = React.useState<'assets' | 'history'>('assets');
@@ -198,14 +204,39 @@ const Home = () => {
         loadContacts();
         loadPortfolio();
         loadTransactionHistory();
+        initializeTransactionDetection();
     }, []); // Load contacts, portfolio, and history on mount
+
+    const initializeTransactionDetection = async () => {
+        try {
+            const detectionService = TransactionDetectionService.getInstance();
+            await detectionService.initialize();
+            console.log('[Home] Transaction detection service initialized');
+        } catch (error) {
+            console.error('[Home] Error initializing transaction detection:', error);
+        }
+    };
 
     // Set up periodic balance refresh
     React.useEffect(() => {
         // Start auto-refresh every 30 seconds
-        const interval = setInterval(() => {
+        const interval = setInterval(async () => {
             console.log('[Home] Auto-refreshing portfolio...');
             loadPortfolio(true); // Background refresh
+            
+            // Also check for new transactions
+            try {
+                const detectionService = TransactionDetectionService.getInstance();
+                const newTransactions = await detectionService.checkForNewTransactions();
+                
+                if (newTransactions.length > 0) {
+                    console.log(`[Home] 🎉 Detected ${newTransactions.length} new incoming transactions!`);
+                    // Reload transaction history to show new transactions
+                    loadTransactionHistory();
+                }
+            } catch (error) {
+                console.error('[Home] Error checking for new transactions:', error);
+            }
         }, 30000); // 30 seconds
 
         setRefreshInterval(interval);
@@ -285,11 +316,9 @@ const Home = () => {
         }
     };
 
-    const openTransactionInExplorer = (hash: string) => {
-        const explorerUrl = `https://snowtrace.io/tx/${hash}`;
-        // For now, just log the URL - you can implement deep linking later
-        console.log('[Home] Opening transaction in explorer:', explorerUrl);
-        Alert.alert('Transaction Hash', `${hash}\n\nView on Snowtrace: ${explorerUrl}`);
+    const handleTransactionPress = (transaction: Transaction) => {
+        setSelectedTransaction(transaction);
+        setIsTransactionDetailsModalVisible(true);
     };
 
     const showAddContactModal = () => {
@@ -699,7 +728,7 @@ const Home = () => {
                                         <TouchableOpacity 
                                             key={transaction.id} 
                                             style={styles.transactionCard}
-                                            onPress={() => transaction.hash && openTransactionInExplorer(transaction.hash)}
+                                            onPress={() => handleTransactionPress(transaction)}
                                         >
                                             <View style={styles.transactionIcon}>
                                                 <Text style={styles.transactionIconText}>{getTransactionIcon(transaction.type)}</Text>
@@ -816,6 +845,12 @@ const Home = () => {
                     onDismiss={() => setIsEditContactModalVisible(false)}
                     onSave={handleUpdateContact}
                     isSaving={isUpdatingContact}
+                />
+                
+                <TransactionDetailsModal
+                    visible={isTransactionDetailsModalVisible}
+                    transaction={selectedTransaction}
+                    onDismiss={() => setIsTransactionDetailsModalVisible(false)}
                 />
             </Portal>
         </SafeAreaView>);
