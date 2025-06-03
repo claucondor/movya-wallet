@@ -1,5 +1,5 @@
-import { avalancheFuji } from '@/constants/chains';
-import { createPublicClient, createWalletClient, formatEther, http, parseEther } from 'viem';
+import { avalanche, avalancheFuji } from '@/constants/chains';
+import { createPublicClient, createWalletClient, formatEther, formatUnits, http, parseEther, parseUnits } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { ActionResultInput } from '../../types/agent';
 import { storage } from '../storage';
@@ -7,14 +7,39 @@ import { WalletActionResult } from '../walletActionHandler';
 
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
+// USDC Contract address on Avalanche mainnet
+const USDC_CONTRACT_ADDRESS = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E';
+
+// ABI for USDC ERC-20 transfer
+const USDC_ABI = [
+  {
+    "inputs": [
+      {"internalType": "address", "name": "to", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "transfer",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+    "name": "balanceOf",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const;
+
 /**
- * Envía una transacción de AVAX a otra dirección en la red Avalanche Fuji
+ * Envía una transacción de AVAX o USDC a otra dirección en la red Avalanche
  */
 export async function sendTransaction(
   recipientAddress: string,
-  amount: string
+  amount: string,
+  currency: 'AVAX' | 'USDC' = 'AVAX'
 ): Promise<WalletActionResult> {
-  console.log('[sendTransaction] Iniciando envío de transacción');
+  console.log(`[sendTransaction] Iniciando envío de ${amount} ${currency} a ${recipientAddress}`);
 
   try {
     // Validaciones básicas
@@ -24,6 +49,10 @@ export async function sendTransaction(
 
     if (!amount || parseFloat(amount) <= 0) {
       throw new Error('El monto debe ser mayor que cero');
+    }
+
+    if (!['AVAX', 'USDC'].includes(currency)) {
+      throw new Error('Moneda no soportada. Solo AVAX y USDC están disponibles.');
     }
 
     // 1. Obtener la private key almacenada
@@ -36,78 +65,111 @@ export async function sendTransaction(
     const account = privateKeyToAccount(privateKey as `0x${string}`);
     console.log(`[sendTransaction] Preparando transacción desde ${account.address}`);
 
-    // 3. Configurar el cliente público para consultar datos
+    // 3. Usar mainnet para transacciones reales
+    const chain = avalanche; // Cambiado de avalancheFuji a mainnet
     const publicClient = createPublicClient({
-      chain: avalancheFuji,
+      chain,
       transport: http()
     });
 
-    // 4. Verificar balance antes de la transacción
-    const balanceWei = await publicClient.getBalance({
-      address: account.address
-    });
-    
-    const balanceFormatted = formatEther(balanceWei);
-    console.log(`[sendTransaction] Balance actual: ${balanceFormatted} AVAX`);
-
-    // 5. Convertir el monto de envío a wei (unidades más pequeñas)
-    const amountWei = parseEther(amount);
-
-    // 6. Verificar si hay suficiente balance (considerando gas estimado)
-    // Estimamos un 10% adicional para gas (simplificado)
-    const estimatedGasWei = amountWei / 10n;
-    const totalRequired = amountWei + estimatedGasWei;
-
-    if (balanceWei < totalRequired) {
-      throw new Error(`Balance insuficiente. Tienes ${balanceFormatted} AVAX pero necesitas aproximadamente ${formatEther(totalRequired)} AVAX (incluyendo gas estimado).`);
-    }
-
-    // 7. Crear wallet client para enviar la transacción
+    // 4. Crear wallet client
     const walletClient = createWalletClient({
       account,
-      chain: avalancheFuji,
-      transport: http(avalancheFuji.rpcUrls.default.http[0])
+      chain,
+      transport: http()
     });
 
-    // 8. Enviar la transacción
-    console.log(`[sendTransaction] Enviando ${amount} AVAX a ${recipientAddress}`);
-    const hash = await walletClient.sendTransaction({
-      to: recipientAddress as `0x${string}`,
-      value: amountWei,
-      account,
-    });
+    let hash: string;
+    let balanceAfter: string;
+
+    if (currency === 'AVAX') {
+      // Manejo de AVAX (nativo)
+      const balanceWei = await publicClient.getBalance({
+        address: account.address
+      });
+      
+      const balanceFormatted = formatEther(balanceWei);
+      console.log(`[sendTransaction] Balance actual: ${balanceFormatted} AVAX`);
+
+      const amountWei = parseEther(amount);
+      
+      // Verificar balance suficiente
+      if (balanceWei < amountWei) {
+        throw new Error(`Balance insuficiente. Tienes ${balanceFormatted} AVAX pero intentas enviar ${amount} AVAX.`);
+      }
+
+      console.log(`[sendTransaction] Enviando ${amount} AVAX a ${recipientAddress}`);
+      hash = await walletClient.sendTransaction({
+        to: recipientAddress as `0x${string}`,
+        value: amountWei,
+        account,
+      });
+
+      // Obtener balance actualizado
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const newBalanceWei = await publicClient.getBalance({
+        address: account.address
+      });
+      balanceAfter = `${formatEther(newBalanceWei)} AVAX`;
+      
+    } else {
+      // Manejo de USDC (ERC-20)
+      const usdcBalance = await publicClient.readContract({
+        address: USDC_CONTRACT_ADDRESS,
+        abi: USDC_ABI,
+        functionName: 'balanceOf',
+        args: [account.address]
+      });
+
+      const balanceFormatted = formatUnits(usdcBalance, 6); // USDC tiene 6 decimales
+      console.log(`[sendTransaction] Balance actual: ${balanceFormatted} USDC`);
+
+      const amountUnits = parseUnits(amount, 6); // USDC tiene 6 decimales
+      
+      // Verificar balance suficiente
+      if (usdcBalance < amountUnits) {
+        throw new Error(`Balance insuficiente. Tienes ${balanceFormatted} USDC pero intentas enviar ${amount} USDC.`);
+      }
+
+      console.log(`[sendTransaction] Enviando ${amount} USDC a ${recipientAddress}`);
+      hash = await walletClient.writeContract({
+        address: USDC_CONTRACT_ADDRESS,
+        abi: USDC_ABI,
+        functionName: 'transfer',
+        args: [recipientAddress as `0x${string}`, amountUnits],
+        account,
+      });
+
+      // Obtener balance actualizado
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const newUsdcBalance = await publicClient.readContract({
+        address: USDC_CONTRACT_ADDRESS,
+        abi: USDC_ABI,
+        functionName: 'balanceOf',
+        args: [account.address]
+      });
+      balanceAfter = `${formatUnits(newUsdcBalance, 6)} USDC`;
+    }
 
     console.log(`[sendTransaction] Transacción enviada con éxito. Hash: ${hash}`);
+    console.log(`[sendTransaction] Nuevo balance después de la transacción: ${balanceAfter}`);
 
-    // 9. Obtener el balance actualizado después de la transacción
-    // Esperar un poco para que la transacción sea procesada
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const newBalanceWei = await publicClient.getBalance({
-      address: account.address
-    });
-    
-    const newBalanceFormatted = formatEther(newBalanceWei);
-    console.log(`[sendTransaction] Nuevo balance después de la transacción: ${newBalanceFormatted} AVAX`);
-
-    // 10. Preparar los datos para reportar al agente
+    // Preparar los datos para reportar al agente
     const actionResult: ActionResultInput = {
       actionType: 'SEND_TRANSACTION',
       status: 'success',
       data: {
         transactionHash: hash,
         amountSent: amount,
-        currencySent: 'AVAX',
+        currencySent: currency,
         recipient: recipientAddress,
-        // Podemos incluir también el nuevo balance
-        balance: `${newBalanceFormatted} AVAX`
+        balance: balanceAfter
       }
     };
 
-    // 11. Reportar el resultado
     return {
       success: true,
-      responseMessage: `Transacción completada. Se enviaron ${amount} AVAX a ${recipientAddress}. Hash de transacción: ${hash}`,
+      responseMessage: `Transacción completada. Se enviaron ${amount} ${currency} a ${recipientAddress}. Hash de transacción: ${hash}`,
       data: actionResult
     };
   } catch (error: any) {

@@ -20,12 +20,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { StatusBar } from 'expo-status-bar';
 import ArrowIcon from '../../assets/arrow.svg';
-import { sendMessageToAgent, reportActionResult } from "../core/agentApi";
+import { sendMessageToAgent, reportActionResult, reportEnrichedActionResult } from "../core/agentApi";
 import { storage } from "../core/storage";
 import { AIResponse, AgentServiceResponse, ChatMessage, ActionResultInput } from "../types/agent";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import PortfolioService from "../core/services/portfolioService";
 import { handleWalletAction } from "../core/walletActionHandler";
+import { InteractiveChatBubble } from "../../components/ChatBubbles";
+import TransactionHistoryService from "../core/services/transactionHistoryService";
 
 // --- Chat History Constants ---
 const CHAT_HISTORY_KEY = 'chatHistory';
@@ -212,13 +214,20 @@ const Chat = () => {
 	}, [currentConversationId, updateSuggestions]);
 
 	// --- Message Handling ---
-	const addMessage = React.useCallback((text: string, sender: 'user' | 'agent', actionDetails?: AgentServiceResponse['actionDetails']) => {
+	const addMessage = React.useCallback((
+		text: string, 
+		sender: 'user' | 'agent', 
+		actionDetails?: AgentServiceResponse['actionDetails'],
+		interactiveElements?: { quickActions?: any[], richContent?: any }
+	) => {
 		const newMessage: ChatMessage = {
 			id: `${sender}-${Date.now()}-${Math.random()}`, // Ensure unique ID
 			text,
 			sender,
 			timestamp: Date.now(),
-			actionRequired: actionDetails
+			actionRequired: actionDetails,
+			quickActions: interactiveElements?.quickActions,
+			richContent: interactiveElements?.richContent
 		};
 		setMessages(prevMessages => {
 			const updatedMessages = [...prevMessages, newMessage];
@@ -229,7 +238,7 @@ const Chat = () => {
 	}, [saveChatHistory]);
 
 	// --- Action Handling ---
-	const handleAgentAction = async (actionDetails: AgentServiceResponse['actionDetails']) => {
+	const handleAgentAction = async (actionDetails: AgentServiceResponse['actionDetails'], userMessage?: string, originalResponse?: AIResponse) => {
 		if (!actionDetails || !actionDetails.type) return;
 		setIsLoading(true);
 		console.log('[ChatScreen] Handling action:', actionDetails);
@@ -245,8 +254,22 @@ const Chat = () => {
 			
 			// Use the wallet result data to report to the AI
 			if (walletResult.success && walletResult.data) {
-				const agentResponse = await reportActionResult(walletResult.data);
-				addMessage(agentResponse.responseMessage, 'agent');
+				// Use enriched response if we have the original context
+				if (userMessage && originalResponse) {
+					const agentResponse = await reportEnrichedActionResult(userMessage, walletResult.data, originalResponse);
+					
+					// Create interactive elements for action results
+					const interactiveElements = {
+						quickActions: agentResponse.enrichedResponse?.quickActions,
+						richContent: agentResponse.enrichedResponse?.richContent
+					};
+					
+					addMessage(agentResponse.responseMessage, 'agent', undefined, interactiveElements);
+				} else {
+					// Fallback to basic response
+					const agentResponse = await reportActionResult(walletResult.data);
+					addMessage(agentResponse.responseMessage, 'agent');
+				}
 			} else {
 				// Handle error case
 				const errorResult: ActionResultInput = {
@@ -289,14 +312,21 @@ const Chat = () => {
 		setIsLoading(true);
 		try {
 			const response = await sendMessageToAgent(messageToSend, stateToUse);
-			addMessage(response.responseMessage, 'agent', response.actionDetails);
+			
+			// Include interactive elements from the response
+			const interactiveElements = {
+				quickActions: response.newState?.quickActions,
+				richContent: response.newState?.richContent
+			};
+			
+			addMessage(response.responseMessage, 'agent', response.actionDetails, interactiveElements);
 			setConversationState(response.newState);
 
 			// Simplified action handling: if actionDetails are present, process them.
 			// The check for confirmationRequired has been removed to fix linter error.
 			// If explicit confirmation flow is needed, types and this logic must be updated.
 			if (response.actionDetails && response.actionDetails.type) {
-				await handleAgentAction(response.actionDetails);
+				await handleAgentAction(response.actionDetails, messageToSend, response.newState || undefined);
 			}
 		} catch (error: any) {
 			console.error('[ChatScreen] Error calling agent API:', error);
@@ -325,6 +355,24 @@ const Chat = () => {
 		}
 	}, [isLoading, addMessage, callAgentApi, conversationState]);
 
+	// --- Handle Interactive Action Click ---
+	const handleInteractiveAction = React.useCallback((value: string) => {
+		if (!isLoading) {
+			        // Check for special navigation actions (both English and Spanish)
+        if ((value.includes('open') && (value.includes('history') || value.includes('transaction'))) ||
+            (value.includes('abrir') && (value.includes('historial') || value.includes('transacciones'))) ||
+            (value.includes('View full history') || value.includes('Ver historial completo'))) {
+            // Navigate to home and switch to history tab
+            router.replace('/(app)/home?tab=history' as any);
+            return;
+        }
+
+			setInputMessage(''); // Clear any existing input
+			addMessage(value, 'user');
+			callAgentApi(value, conversationState);
+		}
+	}, [isLoading, addMessage, callAgentApi, conversationState, router]);
+
 	// --- Load Portfolio Balance ---
 	const loadPortfolioBalance = React.useCallback(async () => {
 		try {
@@ -352,6 +400,17 @@ const Chat = () => {
 		
 		// Load portfolio balance on mount
 		loadPortfolioBalance();
+		
+		// Start transaction history monitoring
+		const historyService = TransactionHistoryService.getInstance();
+		historyService.startIncomingDetection();
+		console.log('[Chat] Started transaction history monitoring');
+		
+		// Cleanup on unmount
+		return () => {
+			historyService.stopIncomingDetection();
+			console.log('[Chat] Stopped transaction history monitoring');
+		};
 	}, []); 
 
 	// Video loading effect
@@ -418,6 +477,15 @@ const Chat = () => {
 							</View>
 							<View style={styles.agentMessageTextContainer}>
 								<Text style={styles.agentMessageText}>{item.text}</Text>
+								
+								{/* Interactive Elements */}
+								{(item.quickActions || item.richContent) && (
+									<InteractiveChatBubble
+										quickActions={item.quickActions}
+										richContent={item.richContent}
+										onActionPress={handleInteractiveAction}
+									/>
+								)}
 							</View>
 						</View>
 						<View style={styles.agentActionsContainer}>

@@ -11,6 +11,7 @@ import {
 } from './contactHandler';
 import { faucetHandler } from './faucetHandler';
 import { reportAgentResult } from './resultController'; // Import the new controller
+import { reportEnrichedAgentResult } from './enrichedResultController'; // Import enriched controller
 import {
     getWalletAddressHandler,
     saveWalletAddressHandler
@@ -66,6 +67,13 @@ routes.post('/agent/report_result',
     authMiddleware,          // Require authentication
     express.json(),         // Parse JSON body
     reportAgentResult        // Handle the result report
+);
+
+// AI Agent Enriched Result Reporting Endpoint
+routes.post('/agent/report_enriched_result', 
+    authMiddleware,          // Require authentication
+    express.json(),         // Parse JSON body
+    reportEnrichedAgentResult // Handle enriched result report
 );
 
 // Utility function to wrap async route handlers

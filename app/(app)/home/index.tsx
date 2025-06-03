@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Image, StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Video, ResizeMode } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,7 +20,7 @@ import Avavector from "../../../assets/avalogo.svg"
 import Fab from "../../../assets/fab.svg"
 import Sendbutton from "../../../assets/sendbutton.svg"
 import { Padding, Gap, FontFamily, Color, FontSize, Border } from "./GlobalStyles";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Portal, Modal, PaperProvider, Button as PaperButton, TextInput as PaperTextInput, IconButton } from 'react-native-paper';
 import { addContactByAddress, addContactByEmail, getContacts, updateContact, deleteContact, Contact } from "../../internal/contactService";
 import { storage } from "../../core/storage";
@@ -27,6 +28,7 @@ import AddContactForm from './AddContactForm';
 import ContactDetailsModal from './ContactDetailsModal';
 import EditContactModal from './EditContactModal';
 import PortfolioService, { PortfolioToken } from "../../core/services/portfolioService";
+import TransactionHistoryService, { Transaction } from "../../core/services/transactionHistoryService";
 
 // Define ContactType if not already defined globally or in scope
 type ContactType = 'address' | 'email';
@@ -62,6 +64,7 @@ const getInitials = (nickname?: string, value?: string, type?: 'address' | 'emai
 
 const Home = () => {
     const router = useRouter();
+    const searchParams = useLocalSearchParams();
     const [isAddContactModalVisible, setIsAddContactModalVisible] = React.useState(false);
     
     // Removed form-specific states: contactType, nicknameText, contactValue. These are now in AddContactForm.
@@ -93,6 +96,14 @@ const Home = () => {
     const [isEditContactModalVisible, setIsEditContactModalVisible] = React.useState(false);
     const [contactToEdit, setContactToEdit] = React.useState<Contact | null>(null);
     const [isUpdatingContact, setIsUpdatingContact] = React.useState(false);
+
+    // Tab Management
+    const [activeTab, setActiveTab] = React.useState<'assets' | 'history'>('assets');
+
+    // Transaction History States
+    const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+    const [historyFilter, setHistoryFilter] = React.useState<'all' | 'sent' | 'received'>('all');
+    const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
 
     const loadContacts = async () => {
         setIsLoadingContacts(true);
@@ -142,10 +153,41 @@ const Home = () => {
         }
     };
 
+    const loadTransactionHistory = async () => {
+        setIsLoadingHistory(true);
+        try {
+            console.log('[Home] Loading transaction history...');
+            const historyService = TransactionHistoryService.getInstance();
+            const allTransactions = historyService.getRecentTransactions(50);
+            setTransactions(allTransactions);
+            console.log(`[Home] Loaded ${allTransactions.length} transactions`);
+        } catch (error: any) {
+            console.error('[Home] Error loading transaction history:', error);
+            setTransactions([]);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
+
     React.useEffect(() => {
         loadContacts();
         loadPortfolio();
-    }, []); // Load contacts and portfolio on mount
+        loadTransactionHistory();
+    }, []); // Load contacts, portfolio, and history on mount
+
+    // Load history when switching to history tab
+    React.useEffect(() => {
+        if (activeTab === 'history') {
+            loadTransactionHistory();
+        }
+    }, [activeTab]);
+
+    // Check for tab parameter from navigation (e.g., from chat)
+    React.useEffect(() => {
+        if (searchParams.tab === 'history') {
+            setActiveTab('history');
+        }
+    }, [searchParams.tab]);
 
     // Helper function to get specific token data
     const getTokenData = (symbol: string) => {
@@ -161,6 +203,41 @@ const Home = () => {
             displayAmount: token ? `${token.balance} ${token.symbol}` : `0.0000 ${symbol}`,
             showDeposit: !hasBalance
         };
+    };
+
+    // Helper functions for transaction history
+    const getFilteredTransactions = () => {
+        if (historyFilter === 'all') return transactions;
+        return transactions.filter(tx => tx.type === historyFilter);
+    };
+
+    const formatTransactionDate = (timestamp: number) => {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+        
+        if (diffInHours < 24) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (diffInHours < 48) {
+            return 'Yesterday';
+        } else {
+            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+    };
+
+    const getTransactionIcon = (type: string) => {
+        switch (type) {
+            case 'sent': return '📤';
+            case 'received': return '📥';
+            default: return '📊';
+        }
+    };
+
+    const openTransactionInExplorer = (hash: string) => {
+        const explorerUrl = `https://snowtrace.io/tx/${hash}`;
+        // For now, just log the URL - you can implement deep linking later
+        console.log('[Home] Opening transaction in explorer:', explorerUrl);
+        Alert.alert('Transaction Hash', `${hash}\n\nView on Snowtrace: ${explorerUrl}`);
     };
 
     const showAddContactModal = () => {
@@ -224,12 +301,42 @@ const Home = () => {
         router.push('/(app)/chat');
     };
 
+    const handleSendToken = (tokenSymbol: 'USDC' | 'AVAX') => {
+        const tokenData = getTokenData(tokenSymbol);
+        
+        if (tokenData.showDeposit) {
+            // If no balance, suggest deposit first
+            router.push({
+                pathname: '/(app)/chat',
+                params: {
+                    autoMessage: `I want to get ${tokenSymbol} to start sending money`
+                }
+            });
+        } else {
+            // If has balance, start send flow
+            router.push({
+                pathname: '/(app)/chat',
+                params: {
+                    autoMessage: `I want to send ${tokenSymbol}`
+                }
+            });
+        }
+    };
+
     const handleSendNavigation = () => {
         router.push('/(app)/send');
     };
 
     const handleReceiveNavigation = () => {
         router.push('/(app)/receive');
+    };
+
+    const handleHistoryNavigation = () => {
+        setActiveTab('history');
+    };
+
+    const handleAssetsNavigation = () => {
+        setActiveTab('assets');
     };
 
     const handleRefreshData = async () => {
@@ -425,71 +532,152 @@ const Home = () => {
                 </View>
                 <View style={[styles.bottonComponents, styles.sendBg]}>
                     <View style={styles.tabs}>
-                        <View style={[styles.tabActive, styles.tabFlexBox]}>
-                            <Text style={[styles.labelText, styles.labelLayout]}>Assets</Text>
-                        </View>
-                        <View style={[styles.tabInactive, styles.suggestionBorder]}>
-                            <Text style={[styles.labelText1, styles.labelTypo]}>History</Text>
-                        </View>
+                        <TouchableOpacity onPress={handleAssetsNavigation} style={[activeTab === 'assets' ? styles.tabActive : styles.tabInactive, styles.tabFlexBox]}>
+                            <Text style={[activeTab === 'assets' ? styles.labelText : styles.labelText1, styles.labelLayout]}>Assets</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleHistoryNavigation} style={[activeTab === 'history' ? styles.tabActive : styles.tabInactive, styles.tabFlexBox]}>
+                            <Text style={[activeTab === 'history' ? styles.labelText : styles.labelText1, activeTab === 'history' ? styles.labelLayout : styles.labelTypo]}>History</Text>
+                        </TouchableOpacity>
                     </View>
-                    <ScrollView style={styles.listingScrollView} contentContainerStyle={styles.listingContentContainer}>
-                        <View style={styles.listing}>
-                            <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
-                                <View style={styles.asset}>
-                                    <Usdcvector style={styles.buttonIconLayout} width={48} height={48} />
-                                    <View style={styles.assetId}>
-                                        <Text style={[styles.assetName, styles.text2Typo]}>USD Coin</Text>
-                                        <Text style={[styles.assetLetters, styles.labelTypo]}>USDC</Text>
+                    
+                    {activeTab === 'assets' ? (
+                        // Assets View
+                        <ScrollView style={styles.listingScrollView} contentContainerStyle={styles.listingContentContainer}>
+                            <View style={styles.listing}>
+                                <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
+                                    <View style={styles.asset}>
+                                        <Usdcvector style={styles.buttonIconLayout} width={48} height={48} />
+                                        <View style={styles.assetId}>
+                                            <Text style={[styles.assetName, styles.text2Typo]}>USD Coin</Text>
+                                            <Text style={[styles.assetLetters, styles.labelTypo]}>USDC</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.rightItems}>
+                                        {isLoadingBalances ? (
+                                            <ActivityIndicator size="small" color="#0461F0" />
+                                        ) : (
+                                            <View style={styles.tokenBalanceInfo}>
+                                                <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('USDC').balance}</Text>
+                                                <Text style={[styles.tokenAmount, styles.labelTypo]}>
+                                                    {getTokenData('USDC').displayAmount}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        <TouchableOpacity onPress={() => handleSendToken('USDC')} style={[styles.button, styles.buttonFlexBox]}>
+                                            <Text style={styles.deposit}>
+                                                {getTokenData('USDC').showDeposit ? 'Deposit' : 'Send'}
+                                            </Text>
+                                            <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
+                                        </TouchableOpacity>
                                     </View>
                                 </View>
-                                <View style={styles.rightItems}>
-                                    {isLoadingBalances ? (
-                                        <ActivityIndicator size="small" color="#0461F0" />
-                                    ) : (
-                                        <View style={styles.tokenBalanceInfo}>
-                                            <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('USDC').balance}</Text>
-                                            <Text style={[styles.tokenAmount, styles.labelTypo]}>
-                                                {getTokenData('USDC').displayAmount}
-                                            </Text>
+                                <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
+                                    <View style={styles.asset}>
+                                        <Avavector width={48} height={48} />
+                                        <View style={styles.assetId}>
+                                            <Text style={[styles.assetName, styles.text2Typo]}>AVAX</Text>
+                                            <Text style={[styles.assetLetters, styles.labelTypo]}>AVA</Text>
                                         </View>
-                                    )}
-                                    <View style={[styles.button, styles.buttonFlexBox]}>
-                                        <Text style={styles.deposit}>
-                                            {getTokenData('USDC').showDeposit ? 'Deposit' : 'Send'}
-                                        </Text>
-                                        <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
+                                    </View>
+                                    <View style={styles.rightItems}>
+                                        {isLoadingBalances ? (
+                                            <ActivityIndicator size="small" color="#0461F0" />
+                                        ) : (
+                                            <View style={styles.tokenBalanceInfo}>
+                                                <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('AVAX').balance}</Text>
+                                                <Text style={[styles.tokenAmount, styles.labelTypo]}>
+                                                    {getTokenData('AVAX').displayAmount}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        <TouchableOpacity onPress={() => handleSendToken('AVAX')} style={[styles.button, styles.buttonFlexBox]}>
+                                            <Text style={styles.deposit}>
+                                                {getTokenData('AVAX').showDeposit ? 'Deposit' : 'Send'}
+                                            </Text>
+                                            <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
+                                        </TouchableOpacity>
                                     </View>
                                 </View>
                             </View>
-                            <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
-                                <View style={styles.asset}>
-                                    <Avavector width={48} height={48} />
-                                    <View style={styles.assetId}>
-                                        <Text style={[styles.assetName, styles.text2Typo]}>AVAX</Text>
-                                        <Text style={[styles.assetLetters, styles.labelTypo]}>AVA</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.rightItems}>
-                                    {isLoadingBalances ? (
-                                        <ActivityIndicator size="small" color="#0461F0" />
-                                    ) : (
-                                        <View style={styles.tokenBalanceInfo}>
-                                            <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('AVAX').balance}</Text>
-                                            <Text style={[styles.tokenAmount, styles.labelTypo]}>
-                                                {getTokenData('AVAX').displayAmount}
-                                            </Text>
-                                        </View>
-                                    )}
-                                    <View style={[styles.button, styles.buttonFlexBox]}>
-                                        <Text style={styles.deposit}>
-                                            {getTokenData('AVAX').showDeposit ? 'Deposit' : 'Send'}
-                                        </Text>
-                                        <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
-                                    </View>
-                                </View>
+                        </ScrollView>
+                    ) : (
+                        // History View
+                        <View style={styles.historyContainer}>
+                            {/* Filter Buttons */}
+                            <View style={styles.historyFilters}>
+                                <TouchableOpacity 
+                                    onPress={() => setHistoryFilter('all')}
+                                    style={[styles.filterButton, historyFilter === 'all' && styles.filterButtonActive]}
+                                >
+                                    <Text style={[styles.filterButtonText, historyFilter === 'all' && styles.filterButtonTextActive]}>All</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    onPress={() => setHistoryFilter('sent')}
+                                    style={[styles.filterButton, historyFilter === 'sent' && styles.filterButtonActive]}
+                                >
+                                    <Text style={[styles.filterButtonText, historyFilter === 'sent' && styles.filterButtonTextActive]}>Sent</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    onPress={() => setHistoryFilter('received')}
+                                    style={[styles.filterButton, historyFilter === 'received' && styles.filterButtonActive]}
+                                >
+                                    <Text style={[styles.filterButtonText, historyFilter === 'received' && styles.filterButtonTextActive]}>Received</Text>
+                                </TouchableOpacity>
                             </View>
+
+                            {/* Transaction List */}
+                            <ScrollView style={styles.transactionList} contentContainerStyle={styles.transactionListContent}>
+                                {isLoadingHistory ? (
+                                    <View style={styles.loadingContainer}>
+                                        <ActivityIndicator size="large" color="#0461F0" />
+                                        <Text style={styles.loadingText}>Loading transactions...</Text>
+                                    </View>
+                                ) : getFilteredTransactions().length === 0 ? (
+                                    <View style={styles.emptyContainer}>
+                                        <Text style={styles.emptyIcon}>📊</Text>
+                                        <Text style={styles.emptyTitle}>No transactions found</Text>
+                                        <Text style={styles.emptySubtitle}>
+                                            {historyFilter === 'all' 
+                                                ? 'Your transaction history will appear here' 
+                                                : `No ${historyFilter} transactions found`}
+                                        </Text>
+                                    </View>
+                                ) : (
+                                    getFilteredTransactions().map((transaction, index) => (
+                                        <TouchableOpacity 
+                                            key={transaction.id} 
+                                            style={styles.transactionCard}
+                                            onPress={() => transaction.hash && openTransactionInExplorer(transaction.hash)}
+                                        >
+                                            <View style={styles.transactionIcon}>
+                                                <Text style={styles.transactionIconText}>{getTransactionIcon(transaction.type)}</Text>
+                                            </View>
+                                            <View style={styles.transactionDetails}>
+                                                <View style={styles.transactionHeader}>
+                                                    <Text style={styles.transactionType}>
+                                                        {transaction.type === 'sent' ? 'Sent' : 'Received'} {transaction.currency}
+                                                    </Text>
+                                                    <Text style={[styles.transactionAmount, transaction.type === 'sent' ? styles.sentAmount : styles.receivedAmount]}>
+                                                        {transaction.type === 'sent' ? '-' : '+'}{transaction.amount} {transaction.currency}
+                                                    </Text>
+                                                </View>
+                                                <View style={styles.transactionMeta}>
+                                                                                                <Text style={styles.transactionTarget}>
+                                                {transaction.type === 'sent' 
+                                                    ? `To: ${transaction.recipientNickname || (transaction.recipient ? transaction.recipient.substring(0, 10) + '...' : 'Unknown')}`
+                                                    : `From: ${transaction.senderNickname || (transaction.sender ? transaction.sender.substring(0, 10) + '...' : 'Unknown')}`}
+                                            </Text>
+                                                    <Text style={styles.transactionDate}>
+                                                        {formatTransactionDate(transaction.timestamp)}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))
+                                )}
+                            </ScrollView>
                         </View>
-                    </ScrollView>
+                    )}
                     <View style={styles.inputContainer}>
                         <View style={styles.carouselContainer}>
                             <ScrollView 
@@ -820,7 +1008,8 @@ const styles = StyleSheet.create({
         borderRadius: Border.br_20,
         padding: Padding.p_12,
         justifyContent: "center",
-        alignItems: "center"
+        alignItems: "center",
+        flex: 1
     },
     tabs: {
         gap: Gap.gap_16,
@@ -1072,6 +1261,148 @@ const styles = StyleSheet.create({
     tokenAmount: {
         fontSize: FontSize.size_12,
         fontWeight: "500",
+        color: Color.colorGray200,
+    },
+    // History Styles
+    historyContainer: {
+        flex: 1,
+        paddingHorizontal: Padding.p_12,
+    },
+    historyFilters: {
+        flexDirection: 'row',
+        gap: Gap.gap_4,
+        marginTop: Gap.gap_16,
+        marginBottom: Gap.gap_12,
+    },
+    filterButton: {
+        paddingVertical: Padding.p_8,
+        paddingHorizontal: Padding.p_12,
+        borderRadius: Border.br_20,
+        borderWidth: 1,
+        borderColor: Color.colorGray300,
+        backgroundColor: Color.colorWhite,
+    },
+    filterButtonActive: {
+        backgroundColor: Color.colorRoyalblue100,
+        borderColor: Color.colorRoyalblue100,
+    },
+    filterButtonText: {
+        fontSize: FontSize.size_14,
+        fontFamily: FontFamily.geist,
+        color: Color.colorGray200,
+        fontWeight: '500',
+    },
+    filterButtonTextActive: {
+        color: Color.colorWhite,
+        fontWeight: '600',
+    },
+    transactionList: {
+        flex: 1,
+    },
+    transactionListContent: {
+        paddingBottom: Gap.gap_16,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: Padding.p_24,
+    },
+    loadingText: {
+        marginTop: Gap.gap_12,
+        fontSize: FontSize.size_14,
+        fontFamily: FontFamily.geist,
+        color: Color.colorGray200,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: Padding.p_24,
+    },
+    emptyIcon: {
+        fontSize: 48,
+        marginBottom: Gap.gap_12,
+    },
+    emptyTitle: {
+        fontSize: FontSize.size_20,
+        fontFamily: FontFamily.geist,
+        fontWeight: '600',
+        color: Color.colorGray100,
+        marginBottom: Gap.gap_4,
+    },
+    emptySubtitle: {
+        fontSize: FontSize.size_14,
+        fontFamily: FontFamily.geist,
+        color: Color.colorGray200,
+        textAlign: 'center',
+    },
+    transactionCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: Padding.p_12,
+        backgroundColor: Color.colorWhite,
+        borderRadius: Border.br_12,
+        marginBottom: Gap.gap_4,
+        shadowColor: Color.colorGray300,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    transactionIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: Color.colorGray400,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: Gap.gap_12,
+    },
+    transactionIconText: {
+        fontSize: 16,
+    },
+    transactionDetails: {
+        flex: 1,
+    },
+    transactionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    transactionType: {
+        fontSize: FontSize.size_14,
+        fontFamily: FontFamily.geist,
+        fontWeight: '600',
+        color: Color.colorGray100,
+    },
+    transactionAmount: {
+        fontSize: FontSize.size_14,
+        fontFamily: FontFamily.geist,
+        fontWeight: '700',
+    },
+    sentAmount: {
+        color: '#FF6B6B',
+    },
+    receivedAmount: {
+        color: '#51CF66',
+    },
+    transactionMeta: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    transactionTarget: {
+        fontSize: FontSize.size_12,
+        fontFamily: FontFamily.geist,
+        color: Color.colorGray200,
+        flex: 1,
+        marginRight: Gap.gap_4,
+    },
+    transactionDate: {
+        fontSize: FontSize.size_12,
+        fontFamily: FontFamily.geist,
         color: Color.colorGray200,
     },
 });

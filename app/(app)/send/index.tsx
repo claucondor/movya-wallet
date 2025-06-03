@@ -25,6 +25,9 @@ import {
   Surface,
   useTheme as usePaperTheme
 } from 'react-native-paper';
+import { Video, ResizeMode } from 'expo-av';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { createPublicClient, formatEther, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { storage } from '../../core/storage';
@@ -169,119 +172,136 @@ export default function SendScreen() {
   };
 
   return (
-    <Portal.Host>
-      <Surface style={styles.container}>
-        <Appbar.Header style={styles.appbarHeader}>
-          <Appbar.BackAction onPress={() => router.back()} color={Color.colorWhite} />
-          <Appbar.Content title={`Send ${avalanche.nativeCurrency.symbol}`} color={Color.colorWhite} titleStyle={styles.appbarTitle} />
-          <View style={{ width: 48 }} />{/* Spacer for centering title, ensure consistent with backaction size */}
-        </Appbar.Header>
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
+      <Video
+        source={require('../../../assets/bg/header-bg.webm')}
+        style={styles.backgroundVideo}
+        isLooping
+        shouldPlay
+        isMuted
+        resizeMode={ResizeMode.COVER}
+      />
+      
+      <Portal.Host>
+        <View style={styles.content}>
+          {/* Header Section with blue background */}
+          <View style={styles.headerSection}>
+            <Appbar.Header style={styles.appbarHeader}>
+              <Appbar.BackAction onPress={() => router.back()} color={Color.colorWhite} />
+              <Appbar.Content title={`Send ${avalanche.nativeCurrency.symbol}`} color={Color.colorWhite} titleStyle={styles.appbarTitle} />
+              <View style={{ width: 48 }} />
+            </Appbar.Header>
 
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-        >
-          <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Card style={styles.card}>
-              <Card.Content>
-                <PaperText variant="labelLarge" style={styles.balanceLabel}>Current Balance</PaperText>
-                {isLoading ? (
-                  <PaperActivityIndicator size="small" color={Color.colorRoyalblue100} style={{alignSelf: 'center'}} />
-                ) : (
-                  <PaperText variant="headlineSmall" style={styles.balanceValue}>
-                    {balance ? `${balance} ${avalanche.nativeCurrency.symbol}` : 'Loading...'}
-                  </PaperText>
-                )}
-              </Card.Content>
-            </Card>
-
-            <Card style={styles.card}>
-              <Card.Content>
-                {/* Recipient */}
-                <View style={styles.inputGroup}>
-                  {searchParams.recipientNickname && (
-                    <View style={styles.preselectedContactInfo}>
-                      <PaperText variant="bodyMedium" style={styles.preselectedContactText}>
-                        📞 Selected contact: {searchParams.recipientNickname}
-                      </PaperText>
-                    </View>
-                  )}
-                  <PaperTextInput
-                    mode="outlined"
-                    label="Recipient Address"
-                    placeholder="Enter 0x address"
-                    value={recipient}
-                    onChangeText={setRecipient}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    style={styles.textInput}
-                    theme={{ colors: { primary: Color.colorRoyalblue100, text: Color.colorGray100, placeholder: Color.colorGray200, outline: Color.colorGray400 }, roundness: Border.br_16 }}
-                    right={<PaperTextInput.Icon icon="qrcode-scan" onPress={handleScanQR} color={Color.colorGray200} />}
-                  />
-                  <PaperButton 
-                    mode="text" 
-                    icon="contacts"
-                    onPress={() => router.push('/(app)/contacts')}
-                    style={styles.contactsButton}
-                    labelStyle={styles.textButtonLabel}
-                    textColor={Color.colorRoyalblue100}
-                  >
-                    Select from Contacts
-                  </PaperButton>
-                </View>
-
-                {/* Amount */}
-                <View style={styles.inputGroup}>
-                  <PaperTextInput
-                    mode="outlined"
-                    label={`Amount (${avalanche.nativeCurrency.symbol})`}
-                    placeholder={`0.00 ${avalanche.nativeCurrency.symbol}`}
-                    value={amount}
-                    onChangeText={setAmount}
-                    keyboardType="decimal-pad"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    style={styles.textInput}
-                    theme={{ colors: { primary: Color.colorRoyalblue100, text: Color.colorGray100, placeholder: Color.colorGray200, outline: Color.colorGray400 }, roundness: Border.br_16 }}
-                    right={<PaperButton onPress={handleMaxAmount} compact textColor={Color.colorRoyalblue100} labelStyle={styles.textButtonLabel}>MAX</PaperButton>}
-                  />
-                  <Chip 
-                    icon="information-outline" 
-                    style={[styles.gasFeeChip, { backgroundColor: Color.colorRoyalblue200 }]}
-                    textStyle={[styles.gasFeeChipText, { color: Color.colorRoyalblue100, fontFamily: FontFamily.geist }]}
-                    onPress={() => Alert.alert("Gas Fee Information", "A small network fee (gas) is required for every transaction on the Avalanche network. This fee is paid to network validators and is not collected by Movya Wallet. The amount displayed is an approximation.")}
-                  >
-                    Gas fee: ~0.01 {avalanche.nativeCurrency.symbol}
-                  </Chip>
-                </View>
-              </Card.Content>
-              <Card.Actions style={styles.cardActions}>
-                <PaperButton
-                  mode="contained"
-                  onPress={handleSendConfirmation}
-                  loading={isSending}
-                  disabled={!recipient || !amount || isSending || isLoading}
-                  icon="send"
-                  style={styles.sendButtonFill}
-                  labelStyle={styles.sendButtonLabel}
-                >
-                  Send
-                </PaperButton>
-              </Card.Actions>
-            </Card>
-
-            <View style={styles.warningContainer}>
-              <PaperText variant="bodySmall" style={styles.warningText}>
-                ⚠️ Always double-check the recipient address before sending. Transactions cannot be reversed.
-              </PaperText>
+            {/* Balance Card in header */}
+            <View style={styles.balanceSection}>
+              <PaperText variant="bodyMedium" style={styles.balanceLabel}>Current Balance</PaperText>
+              {isLoading ? (
+                <PaperActivityIndicator size="small" color={Color.colorWhite} style={{alignSelf: 'center'}} />
+              ) : (
+                <PaperText variant="headlineSmall" style={styles.balanceValue}>
+                  {balance ? `${balance} ${avalanche.nativeCurrency.symbol}` : 'Loading...'}
+                </PaperText>
+              )}
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </View>
+
+          {/* Main Content Section with white background */}
+          <View style={styles.mainContent}>
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+            >
+              <ScrollView 
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.formContainer}>
+                  {/* Recipient */}
+                  <View style={styles.inputGroup}>
+                    {searchParams.recipientNickname && (
+                      <View style={styles.preselectedContactInfo}>
+                        <PaperText variant="bodyMedium" style={styles.preselectedContactText}>
+                          📞 Selected contact: {searchParams.recipientNickname}
+                        </PaperText>
+                      </View>
+                    )}
+                    <PaperTextInput
+                      mode="outlined"
+                      label="Recipient Address"
+                      placeholder="Enter 0x address"
+                      value={recipient}
+                      onChangeText={setRecipient}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      style={styles.textInput}
+                      theme={{ colors: { primary: Color.colorRoyalblue100, text: Color.colorGray100, placeholder: Color.colorGray200, outline: Color.colorGray400 }, roundness: Border.br_16 }}
+                      right={<PaperTextInput.Icon icon="qrcode-scan" onPress={handleScanQR} color={Color.colorGray200} />}
+                    />
+                    <PaperButton 
+                      mode="text" 
+                      icon="contacts"
+                      onPress={() => router.push('/(app)/contacts')}
+                      style={styles.contactsButton}
+                      labelStyle={styles.textButtonLabel}
+                      textColor={Color.colorRoyalblue100}
+                    >
+                      Select from Contacts
+                    </PaperButton>
+                  </View>
+
+                  {/* Amount */}
+                  <View style={styles.inputGroup}>
+                    <PaperTextInput
+                      mode="outlined"
+                      label={`Amount (${avalanche.nativeCurrency.symbol})`}
+                      placeholder={`0.00 ${avalanche.nativeCurrency.symbol}`}
+                      value={amount}
+                      onChangeText={setAmount}
+                      keyboardType="decimal-pad"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      style={styles.textInput}
+                      theme={{ colors: { primary: Color.colorRoyalblue100, text: Color.colorGray100, placeholder: Color.colorGray200, outline: Color.colorGray400 }, roundness: Border.br_16 }}
+                      right={<PaperButton onPress={handleMaxAmount} compact textColor={Color.colorRoyalblue100} labelStyle={styles.textButtonLabel}>MAX</PaperButton>}
+                    />
+                    <Chip 
+                      icon="information-outline" 
+                      style={[styles.gasFeeChip, { backgroundColor: Color.colorRoyalblue200 }]}
+                      textStyle={[styles.gasFeeChipText, { color: Color.colorRoyalblue100, fontFamily: FontFamily.geist }]}
+                      onPress={() => Alert.alert("Gas Fee Information", "A small network fee (gas) is required for every transaction on the Avalanche network. This fee is paid to network validators and is not collected by Movya Wallet. The amount displayed is an approximation.")}
+                    >
+                      Gas fee: ~0.01 {avalanche.nativeCurrency.symbol}
+                    </Chip>
+                  </View>
+
+                  {/* Send Button */}
+                  <View style={styles.buttonContainer}>
+                    <PaperButton
+                      mode="contained"
+                      onPress={handleSendConfirmation}
+                      loading={isSending}
+                      disabled={!recipient || !amount || isSending || isLoading}
+                      icon="send"
+                      style={styles.sendButtonFill}
+                      labelStyle={styles.sendButtonLabel}
+                    >
+                      Send
+                    </PaperButton>
+                  </View>
+
+                  <View style={styles.warningContainer}>
+                    <PaperText variant="bodySmall" style={styles.warningText}>
+                      ⚠️ Always double-check the recipient address before sending. Transactions cannot be reversed.
+                    </PaperText>
+                  </View>
+                </View>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </View>
+        </View>
 
         <Snackbar
           visible={snackbarVisible}
@@ -306,8 +326,8 @@ export default function SendScreen() {
           </Dialog>
         </Portal>
 
-      </Surface>
-    </Portal.Host>
+      </Portal.Host>
+    </SafeAreaView>
   );
 }
 
@@ -316,53 +336,70 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Color.colorGray400,
   },
+  backgroundVideo: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: -1,
+  },
+  content: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  headerSection: {
+    paddingBottom: Padding.p_24,
+  },
   appbarHeader: {
-    backgroundColor: Color.colorRoyalblue100,
+    backgroundColor: 'transparent',
+    elevation: 0,
   },
   appbarTitle: {
     fontFamily: FontFamily.geist,
     fontSize: FontSize.size_20,
     fontWeight: 'bold',
   },
+  balanceSection: {
+    paddingHorizontal: Padding.p_24,
+    paddingTop: Padding.p_12,
+    alignItems: 'center',
+  },
+  balanceLabel: {
+    fontFamily: FontFamily.geist,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    marginBottom: Gap.gap_4,
+    fontSize: FontSize.size_14,
+  },
+  balanceValue: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorWhite,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 28,
+  },
+  mainContent: {
+    flex: 1,
+    backgroundColor: Color.colorWhite,
+    borderTopLeftRadius: Border.br_32,
+    borderTopRightRadius: Border.br_32,
+    paddingTop: Padding.p_24,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: Padding.p_12,
-    gap: Gap.gap_12,
+    paddingHorizontal: Padding.p_24,
+    paddingBottom: Padding.p_24,
   },
-  card: {
-    backgroundColor: Color.colorWhite,
-    borderRadius: Border.br_12,
-    borderColor: Color.colorGray400,
-    borderWidth: 1,
-    elevation: 0,
-  },
-  cardActions: {
-    paddingHorizontal: Padding.p_8,
-    paddingBottom: Padding.p_8,
-  },
-  balanceLabel: {
-    fontFamily: FontFamily.geist,
-    color: Color.colorGray200,
-    textAlign: 'center',
-    marginBottom: Gap.gap_4,
-  },
-  balanceValue: {
-    fontFamily: FontFamily.geist,
-    color: Color.colorGray100,
-    textAlign: 'center',
-    fontWeight: 'bold',
+  formContainer: {
+    gap: Gap.gap_16,
   },
   inputGroup: {
-    marginBottom: Gap.gap_16,
+    gap: Gap.gap_4,
   },
   textInput: {
     backgroundColor: Color.colorWhite,
     fontFamily: FontFamily.geist,
   },
   contactsButton: {
-    marginTop: Gap.gap_4,
     alignSelf: 'flex-start',
   },
   textButtonLabel: {
@@ -370,11 +407,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
+  buttonContainer: {
+    marginTop: Gap.gap_12,
+  },
   sendButtonFill: {
-    flex: 1,
     backgroundColor: Color.colorRoyalblue100,
     borderRadius: Border.br_32,
-    paddingVertical: Padding.p_4,
+    paddingVertical: Padding.p_12,
   },
   sendButtonLabel: {
     fontFamily: FontFamily.geist,
@@ -383,7 +422,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   gasFeeChip: {
-    marginTop: Gap.gap_4,
     alignSelf: 'flex-start',
   },
   gasFeeChipText: {
@@ -414,19 +452,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   warningContainer: {
-    marginTop: 8,
-    marginBottom: 24,
-    paddingHorizontal: 16,
+    paddingHorizontal: Padding.p_12,
   },
   warningText: {
     textAlign: 'center',
     opacity: 0.7,
+    fontFamily: FontFamily.geist,
+    color: Color.colorGray200,
   },
   preselectedContactInfo: {
     backgroundColor: '#F0F8FF',
     borderRadius: Border.br_12,
     padding: Padding.p_12,
-    marginBottom: Gap.gap_12,
     borderWidth: 1,
     borderColor: Color.colorRoyalblue100,
   },

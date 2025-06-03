@@ -1,3 +1,27 @@
+// Interactive elements types
+export interface ChatAction {
+    type: 'button' | 'link' | 'transaction_link';
+    label: string;
+    value: string;
+    style?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
+    url?: string;
+}
+
+export interface RichContent {
+    type: 'transaction_details' | 'balance_info' | 'contact_info';
+    data: {
+        transactionHash?: string;
+        amount?: string;
+        currency?: string;
+        usdValue?: string;
+        recipient?: string;
+        recipientNickname?: string;
+        explorerUrl?: string;
+        balance?: string;
+        tokens?: Array<{ symbol: string; balance: string; usdValue: string }>;
+    };
+}
+
 // Agent Response and Action Types
 export interface AIResponse {
     action: 'SEND' | 'CHECK_BALANCE' | 'VIEW_HISTORY' | 'CLARIFY' | 'GREETING' | 'ERROR';
@@ -10,6 +34,10 @@ export interface AIResponse {
     confirmationRequired: boolean;
     confirmationMessage: string | null;
     responseMessage: string;
+    // New interactive fields
+    quickActions?: ChatAction[];
+    richContent?: RichContent;
+    expectsResponse?: boolean;
 }
 
 export interface AgentServiceResponse {
@@ -59,6 +87,9 @@ export interface ChatMessage {
     timestamp: number;
     actionRequired?: AgentServiceResponse['actionDetails'];
     conversationId?: string;
+    // Interactive elements
+    quickActions?: ChatAction[];
+    richContent?: RichContent;
 }
 
 export interface SearchParams {

@@ -6,6 +6,7 @@ import { reportActionResult } from './agentApi';
 import { storage } from './storage';
 import { fetchAvaxBalance } from './walletActions/fetchBalance';
 import { sendTransaction } from './walletActions/sendTransaction';
+import TransactionHistoryService from './services/transactionHistoryService';
 
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
@@ -117,14 +118,58 @@ export async function handleWalletAction(
         // Llamar a la función de enviar transacción
         const txResult = await sendTransaction(
           params.recipientAddress,
-          params.amount
+          params.amount,
+          (params.currency as 'AVAX' | 'USDC') || 'AVAX'
         );
+        
+        // Si la transacción fue exitosa, guardarla en el historial
+        if (txResult.success && txResult.data?.data?.transactionHash) {
+          try {
+            const historyService = TransactionHistoryService.getInstance();
+            historyService.addOutgoingTransaction(
+              txResult.data.data.transactionHash,
+              params.amount,
+              (params.currency as 'AVAX' | 'USDC') || 'AVAX', // Default to AVAX if not specified
+              params.recipientAddress,
+              params.recipientEmail || undefined, // Use email as nickname if available
+              undefined // USD value would need to be calculated separately
+            );
+            console.log('[WalletActionHandler] Transaction added to history');
+          } catch (historyError) {
+            console.error('[WalletActionHandler] Error adding transaction to history:', historyError);
+            // Don't fail the transaction if history fails
+          }
+        }
         
         return txResult;
       
       case 'FETCH_HISTORY':
-        // Aquí se implementará en el futuro
-        throw new Error('La acción de historial de transacciones no está implementada aún');
+        const historyService = TransactionHistoryService.getInstance();
+        const recentTransactions = historyService.getRecentTransactions(20);
+        
+        // Convert transactions to the format expected by ActionResultInput (filter out pending)
+        const formattedHistory = recentTransactions
+          .filter(tx => tx.type !== 'pending') // Filter out pending transactions
+          .map(tx => ({
+            date: new Date(tx.timestamp).toLocaleDateString(),
+            type: tx.type as 'sent' | 'received', // Now safe to cast
+            amount: `${tx.amount} ${tx.currency}`,
+            recipientOrSender: tx.type === 'sent' 
+              ? (tx.recipientNickname || tx.recipient || 'Unknown')
+              : (tx.senderNickname || tx.sender || 'Unknown')
+          }));
+
+        return {
+          success: true,
+          responseMessage: `Found ${recentTransactions.length} recent transactions`,
+          data: {
+            actionType: 'FETCH_HISTORY',
+            status: 'success',
+            data: {
+              history: formattedHistory
+            }
+          }
+        };
       
       default:
         throw new Error(`Tipo de acción desconocida: ${actionType}`);
