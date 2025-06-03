@@ -21,9 +21,11 @@ import Sendbutton from "../../../assets/sendbutton.svg"
 import { Padding, Gap, FontFamily, Color, FontSize, Border } from "./GlobalStyles";
 import { useRouter } from "expo-router";
 import { Portal, Modal, PaperProvider, Button as PaperButton, TextInput as PaperTextInput, IconButton } from 'react-native-paper';
-import { addContactByAddress, addContactByEmail, getContacts, Contact } from "../../internal/contactService";
+import { addContactByAddress, addContactByEmail, getContacts, updateContact, deleteContact, Contact } from "../../internal/contactService";
 import { storage } from "../../core/storage";
 import AddContactForm from './AddContactForm';
+import ContactDetailsModal from './ContactDetailsModal';
+import EditContactModal from './EditContactModal';
 import PortfolioService, { PortfolioToken } from "../../core/services/portfolioService";
 
 // Define ContactType if not already defined globally or in scope
@@ -82,6 +84,15 @@ const Home = () => {
         nickname: '',
         contactValue: ''
     });
+
+    // Contact Details Modal States
+    const [isContactDetailsModalVisible, setIsContactDetailsModalVisible] = React.useState(false);
+    const [selectedContact, setSelectedContact] = React.useState<Contact | null>(null);
+
+    // Edit Contact Modal States
+    const [isEditContactModalVisible, setIsEditContactModalVisible] = React.useState(false);
+    const [contactToEdit, setContactToEdit] = React.useState<Contact | null>(null);
+    const [isUpdatingContact, setIsUpdatingContact] = React.useState(false);
 
     const loadContacts = async () => {
         setIsLoadingContacts(true);
@@ -226,6 +237,89 @@ const Home = () => {
         await Promise.all([loadContacts(), loadPortfolio()]);
     };
 
+    // Contact Modal Handlers
+    const handleContactPress = (contact: Contact) => {
+        setSelectedContact(contact);
+        setIsContactDetailsModalVisible(true);
+    };
+
+    const handleEditContact = (contact: Contact) => {
+        setContactToEdit(contact);
+        setIsEditContactModalVisible(true);
+    };
+
+    const handleDeleteContact = async (contact: Contact) => {
+        const userId = storage.getString('userId');
+        if (!userId || !contact.id) {
+            Alert.alert('Error', 'No se pudo eliminar el contacto. Información faltante.');
+            return;
+        }
+
+        try {
+            const result = await deleteContact(userId, contact.id);
+            if (result.success) {
+                Alert.alert('Éxito', result.message);
+                await loadContacts(); // Recargar la lista
+            } else {
+                Alert.alert('Error', result.message);
+            }
+        } catch (error: any) {
+            Alert.alert('Error', `No se pudo eliminar el contacto: ${error.message}`);
+        }
+    };
+
+    const handleSendToContact = (contact: Contact) => {
+        // Navegar a la pantalla de envío con el contacto preseleccionado
+        router.push({
+            pathname: '/(app)/send',
+            params: {
+                recipientType: contact.type,
+                recipientValue: contact.value,
+                recipientNickname: contact.nickname
+            }
+        });
+    };
+
+    const handleChatWithContact = (contact: Contact) => {
+        // Navegar al chat con información del contacto para la IA
+        const contactMessage = contact.type === 'address' 
+            ? `I want to send money to ${contact.nickname} (address: ${contact.value})`
+            : `I want to send money to ${contact.nickname} (email: ${contact.value})`;
+        
+        router.push({
+            pathname: '/(app)/chat',
+            params: {
+                autoMessage: contactMessage,
+                contactNickname: contact.nickname,
+                contactType: contact.type,
+                contactValue: contact.value
+            }
+        });
+    };
+
+    const handleUpdateContact = async (contactId: string, nickname: string, value: string) => {
+        const userId = storage.getString('userId');
+        if (!userId) {
+            throw new Error('Usuario no autenticado');
+        }
+
+        setIsUpdatingContact(true);
+        try {
+            const result = await updateContact(userId, contactId, nickname, value);
+            if (result.success) {
+                Alert.alert('Éxito', result.message);
+                await loadContacts(); // Recargar la lista
+                setIsEditContactModalVisible(false);
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error: any) {
+            throw error; // Re-throw para que EditContactModal lo maneje
+        } finally {
+            setIsUpdatingContact(false);
+        }
+    };
+
     return (
         <SafeAreaView style={[styles.home, styles.homeLayout]}>
             <StatusBar style="light" />
@@ -310,11 +404,15 @@ const Home = () => {
                                     {contacts.length > 0 ? (
                                         <View style={styles.contactIconsRow}>
                                             {contacts.map((contact, index) => (
-                                                <View key={contact.id || `contact-${index}`} style={styles.contactItemCircle}>
+                                                <TouchableOpacity 
+                                                    key={contact.id || `contact-${index}`} 
+                                                    style={styles.contactItemCircle}
+                                                    onPress={() => handleContactPress(contact)}
+                                                >
                                                     <Text style={styles.contactInitialsText}>
                                                         {getInitials(contact.nickname, contact.value, contact.type)}
                                                     </Text>
-                                                </View>
+                                                </TouchableOpacity>
                                             ))}
                                         </View>
                                     ) : (
@@ -461,6 +559,24 @@ const Home = () => {
                         isSaving={isSavingContact} 
                     />
                 </Modal>
+                
+                <ContactDetailsModal
+                    visible={isContactDetailsModalVisible}
+                    contact={selectedContact}
+                    onDismiss={() => setIsContactDetailsModalVisible(false)}
+                    onEdit={handleEditContact}
+                    onDelete={handleDeleteContact}
+                    onSend={handleSendToContact}
+                    onChat={handleChatWithContact}
+                />
+                
+                <EditContactModal
+                    visible={isEditContactModalVisible}
+                    contact={contactToEdit}
+                    onDismiss={() => setIsEditContactModalVisible(false)}
+                    onSave={handleUpdateContact}
+                    isSaving={isUpdatingContact}
+                />
             </Portal>
         </SafeAreaView>);
 };

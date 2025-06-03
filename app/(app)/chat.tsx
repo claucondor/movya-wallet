@@ -23,8 +23,9 @@ import ArrowIcon from '../../assets/arrow.svg';
 import { sendMessageToAgent, reportActionResult } from "../core/agentApi";
 import { storage } from "../core/storage";
 import { AIResponse, AgentServiceResponse, ChatMessage, ActionResultInput } from "../types/agent";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import PortfolioService from "../core/services/portfolioService";
+import { handleWalletAction } from "../core/walletActionHandler";
 
 // --- Chat History Constants ---
 const CHAT_HISTORY_KEY = 'chatHistory';
@@ -33,6 +34,7 @@ const MAX_MESSAGES_PER_CONVERSATION = 50;
 
 const Chat = () => {
 	const router = useRouter();
+	const searchParams = useLocalSearchParams();
 	const flatListRef = React.useRef<FlatList>(null);
 	
 	// Add keyboard visibility state
@@ -233,20 +235,50 @@ const Chat = () => {
 		console.log('[ChatScreen] Handling action:', actionDetails);
 
 		try {
-			const result: ActionResultInput = {
-				actionType: actionDetails.type,
-				status: 'success', // Placeholder
-				data: {
-					errorMessage: `Action ${actionDetails.type} processed. (Placeholder response)`
-				},
-			};
+			// Execute the actual wallet action
+			const walletResult = await handleWalletAction(actionDetails.type, {
+				recipientAddress: actionDetails.recipientAddress || null,
+				recipientEmail: actionDetails.recipientEmail || null,
+				amount: actionDetails.amount || null,
+				currency: actionDetails.currency || null
+			});
 			
-			const agentResponse = await reportActionResult(result);
-			addMessage(agentResponse.responseMessage, 'agent');
+			// Use the wallet result data to report to the AI
+			if (walletResult.success && walletResult.data) {
+				const agentResponse = await reportActionResult(walletResult.data);
+				addMessage(agentResponse.responseMessage, 'agent');
+			} else {
+				// Handle error case
+				const errorResult: ActionResultInput = {
+					actionType: actionDetails.type,
+					status: 'failure',
+					data: {
+						errorMessage: walletResult.responseMessage || 'Error executing wallet action'
+					}
+				};
+				const agentResponse = await reportActionResult(errorResult);
+				addMessage(agentResponse.responseMessage, 'agent');
+			}
 
 		} catch (error: any) {
 			console.error('[ChatScreen] Action handling error:', error);
-			addMessage(`Error processing action: ${error.message || 'Unknown error'}`, 'agent');
+			
+			// Report the error to the AI for a natural language response
+			const errorResult: ActionResultInput = {
+				actionType: actionDetails.type,
+				status: 'failure',
+				data: {
+					errorMessage: error.message || 'Unknown error executing wallet action'
+				}
+			};
+			
+			try {
+				const agentResponse = await reportActionResult(errorResult);
+				addMessage(agentResponse.responseMessage, 'agent');
+			} catch (reportError) {
+				// Fallback if even reporting fails
+				addMessage(`Error processing action: ${error.message || 'Unknown error'}`, 'agent');
+			}
 		} finally {
 			setIsLoading(false);
 		}
@@ -340,7 +372,19 @@ const Chat = () => {
 		// if (messages.length === 0 && currentConversationId) { 
 		// 	addMessage("Hello! I'm Movya. How can I assist you today?", 'agent'); // Updated Welcome Message
 		// }
-	}, [currentConversationId, addMessage, loadChatHistory]); 
+	}, [currentConversationId, addMessage, loadChatHistory]);
+
+	// Handle auto-message from contact navigation
+	React.useEffect(() => {
+		if (searchParams.autoMessage && currentConversationId && messages.length === 0) {
+			const autoMessage = searchParams.autoMessage as string;
+			console.log('[Chat] Auto-sending message from contact:', autoMessage);
+			
+			// Add the message and send it to the agent
+			addMessage(autoMessage, 'user');
+			callAgentApi(autoMessage, conversationState);
+		}
+	}, [searchParams.autoMessage, currentConversationId, messages.length, addMessage, callAgentApi, conversationState]); 
 
 	// Add keyboard listeners
 	React.useEffect(() => {

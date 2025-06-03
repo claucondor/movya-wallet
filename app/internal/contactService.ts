@@ -303,4 +303,68 @@ export async function deleteContact(userId: string, contactId: string): Promise<
       message: `Error de conexión: ${error.message}`
     };
   }
+}
+
+/**
+ * Actualizar un contacto
+ * @param userId ID del usuario
+ * @param contactId ID del contacto a actualizar
+ * @param nickname Nuevo nickname (opcional)
+ * @param value Nuevo valor (email o dirección) (opcional)
+ * @returns Resultado de la operación
+ */
+export async function updateContact(userId: string, contactId: string, nickname?: string, value?: string): Promise<{
+  success: boolean;
+  contact?: Contact;
+  message: string;
+}> {
+  try {
+    // Obtener el token si existe
+    const token = storage.getString('userToken');
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Añadir el token si existe
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Construir el body solo con los campos que se van a actualizar
+    const updateBody: { nickname?: string; value?: string } = {};
+    if (nickname !== undefined) {
+      updateBody.nickname = nickname;
+    }
+    if (value !== undefined) {
+      updateBody.value = value;
+    }
+
+    const response = await fetch(`${BACKEND_URL}/contacts/${encodeURIComponent(contactId)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(updateBody),
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      return {
+        success: true,
+        contact: data.contact,
+        message: 'Contacto actualizado correctamente'
+      };
+    } else {
+      return {
+        success: false,
+        message: data.error || 'Error al actualizar contacto'
+      };
+    }
+  } catch (error: any) {
+    console.error('[ContactService] Error actualizando contacto:', error);
+    return {
+      success: false,
+      message: `Error de conexión: ${error.message}`
+    };
+  }
 } 

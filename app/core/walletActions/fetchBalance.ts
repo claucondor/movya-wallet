@@ -1,57 +1,45 @@
-import { avalancheFuji } from '@/constants/chains';
+import { avalanche } from '@/constants/chains';
 import { createPublicClient, formatEther, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { ActionResultInput } from '../../types/agent';
 import { storage } from '../storage';
 import { WalletActionResult } from '../walletActionHandler';
+import BalanceService from '../services/balanceService';
 
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
 /**
- * Consulta el balance de AVAX en la red Avalanche Fuji
+ * Consulta el balance completo del usuario en Avalanche mainnet (AVAX y USDC)
  */
 export async function fetchAvaxBalance(): Promise<WalletActionResult> {
-  console.log('[fetchBalance] Iniciando consulta de balance');
+  console.log('[fetchBalance] Iniciando consulta de balance en Avalanche mainnet');
 
   try {
-    // 1. Obtener la private key almacenada
-    const privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
-    if (!privateKey) {
-      throw new Error('No se encontró la llave privada. Por favor, inicia sesión de nuevo.');
+    // 1. Obtener balances de ambos tokens usando el BalanceService
+    const avaxBalance = await BalanceService.getAVAXBalance(43114); // Avalanche mainnet
+    const usdcBalance = await BalanceService.getUSDCBalance(43114); // Avalanche mainnet
+
+    // 2. Formatear la información de balance
+    let balanceText = `${avaxBalance.balance} AVAX`;
+    
+    if (usdcBalance) {
+      balanceText += ` y ${usdcBalance.balance} USDC`;
     }
+    
+    balanceText += ` en Avalanche mainnet`;
 
-    // 2. Crear la cuenta a partir de la llave privada
-    const account = privateKeyToAccount(privateKey as `0x${string}`);
-    console.log(`[fetchBalance] Consultando balance para ${account.address}`);
+    console.log(`[fetchBalance] Balance obtenido: ${balanceText}`);
 
-    // 3. Configurar el cliente para interactuar con Avalanche Fuji
-    const client = createPublicClient({
-      chain: avalancheFuji,
-      transport: http(avalancheFuji.rpcUrls.default.http[0])
-    });
-
-    // 4. Consultar el balance
-    const balanceWei = await client.getBalance({
-      address: account.address
-    });
-
-    // 5. Formatear el balance para mostrarlo
-    const balanceFormatted = formatEther(balanceWei);
-    // Truncar a 4 decimales para una mejor visualización
-    const balanceDisplay = parseFloat(balanceFormatted).toFixed(4);
-
-    console.log(`[fetchBalance] Balance obtenido: ${balanceDisplay} AVAX`);
-
-    // 6. Preparar los datos para reportar al agente
+    // 3. Preparar los datos para reportar al agente
     const actionResult: ActionResultInput = {
       actionType: 'FETCH_BALANCE',
       status: 'success',
       data: {
-        balance: `${balanceDisplay} AVAX en ${avalancheFuji.name}`
+        balance: balanceText
       }
     };
 
-    // 7. Reportar el resultado al agente para obtener una respuesta natural
+    // 4. Reportar el resultado al agente para obtener una respuesta natural
     return {
       success: true,
       responseMessage: "",

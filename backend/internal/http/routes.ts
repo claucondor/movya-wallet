@@ -6,7 +6,8 @@ import {
     addContactByEmailHandler,
     deleteContactHandler,
     getContactByNicknameHandler,
-    getContactsHandler
+    getContactsHandler,
+    updateContactHandler
 } from './contactHandler';
 import { faucetHandler } from './faucetHandler';
 import { reportAgentResult } from './resultController'; // Import the new controller
@@ -112,6 +113,12 @@ routes.get('/contacts/nickname/:nickname',
 routes.delete('/contacts/:contactId', 
   authMiddleware,
   asyncHandler(deleteContactHandler)
+);
+
+routes.put('/contacts/:contactId', 
+  authMiddleware,
+  express.json(),
+  asyncHandler(updateContactHandler)
 );
 
 // --- Default/Health Check Route (already in server.js, but can be here too) ---

@@ -210,4 +210,70 @@ export async function deleteContactHandler(req: Request, res: Response) {
       details: 'Unknown error' 
     });
   }
+}
+
+/**
+ * Actualizar un contacto
+ */
+export async function updateContactHandler(req: Request, res: Response) {
+  const { userId, contactId } = req.params;
+  const { nickname, value } = req.body;
+
+  // Validaciones básicas
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required" });
+  }
+  if (!contactId) {
+    return res.status(400).json({ error: "Contact ID is required" });
+  }
+
+  // Al menos uno de los campos debe ser proporcionado
+  if (!nickname && !value) {
+    return res.status(400).json({ error: "At least nickname or value must be provided" });
+  }
+
+  try {
+    const updates: { nickname?: string; value?: string } = {};
+    
+    if (nickname) {
+      updates.nickname = nickname;
+    }
+    
+    if (value) {
+      updates.value = value;
+    }
+
+    const updatedContact = await ContactService.updateContact(contactId, userId, updates);
+
+    return res.status(200).json({
+      message: "Contact updated successfully",
+      contact: updatedContact
+    });
+  } catch (error) {
+    console.error("Error updating contact:", error);
+    
+    // Manejar diferentes tipos de errores
+    if (error instanceof Error) {
+      switch (error.message) {
+        case 'Contact not found or unauthorized':
+          return res.status(404).json({ error: error.message });
+        case 'Nickname already exists for this user':
+          return res.status(409).json({ error: error.message });
+        case 'Invalid wallet address':
+        case 'Invalid email format':
+        case 'No user found with this email':
+          return res.status(400).json({ error: error.message });
+        default:
+          return res.status(500).json({ 
+            error: "Failed to update contact", 
+            details: error.message 
+          });
+      }
+    }
+
+    return res.status(500).json({ 
+      error: "Failed to update contact", 
+      details: 'Unknown error' 
+    });
+  }
 } 

@@ -54,7 +54,7 @@ function createClient(networkId: 'mainnet' | 'testnet' = 'testnet') {
   const chain = getChain(networkId);
   return createPublicClient({
     chain,
-    transport: http(chain.rpcUrls.default.http[0]),
+    transport: http(), // Usar la configuración por defecto del chain que ya incluye fallbacks
   });
 }
 

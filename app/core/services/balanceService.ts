@@ -39,13 +39,10 @@ class BalanceService {
   private static createClient(networkId: number = 43114) {
     const isTestnet = networkId === 43113;
     const chain = isTestnet ? avalancheFuji : avalanche;
-    const rpcUrl = isTestnet 
-      ? 'https://api.avax-test.network/ext/bc/C/rpc'
-      : 'https://api.avax.network/ext/bc/C/rpc';
     
     return createPublicClient({
       chain,
-      transport: http(rpcUrl)
+      transport: http() // Usar la configuración por defecto del chain que ya incluye fallbacks
     });
   }
 

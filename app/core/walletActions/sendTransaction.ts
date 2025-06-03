@@ -39,7 +39,7 @@ export async function sendTransaction(
     // 3. Configurar el cliente público para consultar datos
     const publicClient = createPublicClient({
       chain: avalancheFuji,
-      transport: http(avalancheFuji.rpcUrls.default.http[0])
+      transport: http()
     });
 
     // 4. Verificar balance antes de la transacción

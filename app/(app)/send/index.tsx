@@ -1,7 +1,7 @@
 import { handleWalletAction } from '@/app/core/walletActionHandler';
-import { avalancheFuji } from '@/constants/chains';
+import { avalanche } from '@/constants/chains';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -36,6 +36,7 @@ export default function SendScreen() {
   const paperTheme = usePaperTheme();
   const { colors } = paperTheme;
   const isDark = paperTheme.dark;
+  const searchParams = useLocalSearchParams();
   
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
@@ -63,6 +64,14 @@ export default function SendScreen() {
     fetchBalance();
   }, []);
 
+  // Handle navigation parameters from contact selection
+  useEffect(() => {
+    if (searchParams.recipientValue) {
+      setRecipient(searchParams.recipientValue as string);
+      console.log('[Send] Preselected recipient from contact:', searchParams.recipientNickname, searchParams.recipientValue);
+    }
+  }, [searchParams.recipientValue, searchParams.recipientNickname]);
+
   const fetchBalance = async () => {
     setIsLoading(true);
     try {
@@ -74,8 +83,8 @@ export default function SendScreen() {
       const account = privateKeyToAccount(privateKey as `0x${string}`);
       
       const client = createPublicClient({
-        chain: avalancheFuji,
-        transport: http(avalancheFuji.rpcUrls.default.http[0])
+        chain: avalanche,
+        transport: http(avalanche.rpcUrls.default.http[0])
       });
 
       const balanceWei = await client.getBalance({
@@ -100,7 +109,7 @@ export default function SendScreen() {
         recipientAddress: recipient,
         amount: amount,
         recipientEmail: null,
-        currency: avalancheFuji.nativeCurrency.symbol
+        currency: avalanche.nativeCurrency.symbol
       });
 
       if (result.success) {
@@ -164,7 +173,7 @@ export default function SendScreen() {
       <Surface style={styles.container}>
         <Appbar.Header style={styles.appbarHeader}>
           <Appbar.BackAction onPress={() => router.back()} color={Color.colorWhite} />
-          <Appbar.Content title={`Send ${avalancheFuji.nativeCurrency.symbol}`} color={Color.colorWhite} titleStyle={styles.appbarTitle} />
+          <Appbar.Content title={`Send ${avalanche.nativeCurrency.symbol}`} color={Color.colorWhite} titleStyle={styles.appbarTitle} />
           <View style={{ width: 48 }} />{/* Spacer for centering title, ensure consistent with backaction size */}
         </Appbar.Header>
 
@@ -185,7 +194,7 @@ export default function SendScreen() {
                   <PaperActivityIndicator size="small" color={Color.colorRoyalblue100} style={{alignSelf: 'center'}} />
                 ) : (
                   <PaperText variant="headlineSmall" style={styles.balanceValue}>
-                    {balance ? `${balance} ${avalancheFuji.nativeCurrency.symbol}` : 'Loading...'}
+                    {balance ? `${balance} ${avalanche.nativeCurrency.symbol}` : 'Loading...'}
                   </PaperText>
                 )}
               </Card.Content>
@@ -195,6 +204,13 @@ export default function SendScreen() {
               <Card.Content>
                 {/* Recipient */}
                 <View style={styles.inputGroup}>
+                  {searchParams.recipientNickname && (
+                    <View style={styles.preselectedContactInfo}>
+                      <PaperText variant="bodyMedium" style={styles.preselectedContactText}>
+                        📞 Selected contact: {searchParams.recipientNickname}
+                      </PaperText>
+                    </View>
+                  )}
                   <PaperTextInput
                     mode="outlined"
                     label="Recipient Address"
@@ -223,8 +239,8 @@ export default function SendScreen() {
                 <View style={styles.inputGroup}>
                   <PaperTextInput
                     mode="outlined"
-                    label={`Amount (${avalancheFuji.nativeCurrency.symbol})`}
-                    placeholder={`0.00 ${avalancheFuji.nativeCurrency.symbol}`}
+                    label={`Amount (${avalanche.nativeCurrency.symbol})`}
+                    placeholder={`0.00 ${avalanche.nativeCurrency.symbol}`}
                     value={amount}
                     onChangeText={setAmount}
                     keyboardType="decimal-pad"
@@ -240,7 +256,7 @@ export default function SendScreen() {
                     textStyle={[styles.gasFeeChipText, { color: Color.colorRoyalblue100, fontFamily: FontFamily.geist }]}
                     onPress={() => Alert.alert("Gas Fee Information", "A small network fee (gas) is required for every transaction on the Avalanche network. This fee is paid to network validators and is not collected by Movya Wallet. The amount displayed is an approximation.")}
                   >
-                    Gas fee: ~0.01 {avalancheFuji.nativeCurrency.symbol}
+                    Gas fee: ~0.01 {avalanche.nativeCurrency.symbol}
                   </Chip>
                 </View>
               </Card.Content>
@@ -280,7 +296,7 @@ export default function SendScreen() {
           <Dialog visible={isConfirmDialogVisible} onDismiss={onDialogCancel}>
             <Dialog.Title style={styles.dialogTitle}>Confirm Transaction</Dialog.Title>
             <Dialog.Content>
-              <PaperText style={styles.dialogContentText}>Send {amount} {avalancheFuji.nativeCurrency.symbol} to:</PaperText>
+              <PaperText style={styles.dialogContentText}>Send {amount} {avalanche.nativeCurrency.symbol} to:</PaperText>
               <PaperText selectable style={styles.dialogContentTextRecipient}>{recipient}</PaperText>
             </Dialog.Content>
             <Dialog.Actions>
@@ -405,5 +421,18 @@ const styles = StyleSheet.create({
   warningText: {
     textAlign: 'center',
     opacity: 0.7,
+  },
+  preselectedContactInfo: {
+    backgroundColor: '#F0F8FF',
+    borderRadius: Border.br_12,
+    padding: Padding.p_12,
+    marginBottom: Gap.gap_12,
+    borderWidth: 1,
+    borderColor: Color.colorRoyalblue100,
+  },
+  preselectedContactText: {
+    fontFamily: FontFamily.geist,
+    color: Color.colorRoyalblue100,
+    fontWeight: '600',
   },
 }); 

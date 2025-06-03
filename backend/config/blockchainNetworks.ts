@@ -20,7 +20,7 @@ const blockchainNetworks: BlockchainNetworks = {
   networks: {
     mainnet: {
       name: "Avalanche Mainnet",
-      rpcUrl: process.env.AVALANCHE_MAINNET_RPC_URL || "https://api.avax.network/ext/bc/C/rpc",
+      rpcUrl: process.env.AVALANCHE_MAINNET_RPC_URL || "https://avalanche-c-chain-rpc.publicnode.com",
       chainId: 43114,
       explorerUrl: "https://snowtrace.io/",
     },

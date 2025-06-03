@@ -2,6 +2,7 @@ import { ActionResultSystemPrompt } from '../openrouter/ActionResultSystemPrompt
 import { WalletAssistantSystemPrompt } from '../openrouter/prompts';
 import { OpenRouterService } from '../openrouter/service';
 import RecipientResolver from './recipientResolver';
+import PriceService from '../services/priceService';
 
 // Define interfaces for clarity
 export interface AIResponse {
@@ -93,6 +94,9 @@ export class AgentService {
             console.log('AI Raw Response:', responseJsonString);
             console.log('AI Parsed Response:', aiResponse);
 
+            // Validate and enrich response with price information
+            await this.validateAndEnrichResponse(aiResponse);
+
             // MODIFICACIÓN: Intentar resolver el destinatario incluso para acciones CLARIFY
             // si recipientEmail está presente pero recipientAddress no
             if (aiResponse.parameters && 
@@ -169,6 +173,47 @@ export class AgentService {
     }
 
     /**
+     * Validate currency support and enrich response with price information
+     * @param aiResponse - AI response to validate and enrich
+     */
+    private async validateAndEnrichResponse(aiResponse: AIResponse): Promise<void> {
+        if (!aiResponse.parameters) return;
+
+        const { currency, amount } = aiResponse.parameters;
+
+        // Validate currency support
+        if (currency && !PriceService.isCurrencySupported(currency)) {
+            console.log(`Unsupported currency detected: ${currency}`);
+            aiResponse.action = 'ERROR';
+            aiResponse.responseMessage = `Sorry, I only support AVAX and USDC transactions. ${currency} is not supported on this wallet.`;
+            aiResponse.confirmationRequired = false;
+            aiResponse.confirmationMessage = null;
+            return;
+        }
+
+        // Add USD value information for clarity
+        if (currency && amount && typeof amount === 'number' && aiResponse.action === 'SEND') {
+            try {
+                const usdValue = await PriceService.calculateUSDValue(currency, amount);
+                const formattedAmount = PriceService.formatCurrencyAmount(amount, currency);
+                const formattedUSD = PriceService.formatUSDAmount(usdValue);
+
+                // Enrich confirmation message with USD equivalent
+                if (aiResponse.confirmationRequired && aiResponse.confirmationMessage) {
+                    aiResponse.confirmationMessage = aiResponse.confirmationMessage.replace(
+                        new RegExp(`${amount}\\s*${currency}`, 'i'),
+                        `${formattedAmount} (≈ ${formattedUSD})`
+                    );
+                }
+
+                console.log(`[AgentService] Enriched ${formattedAmount} with USD value: ${formattedUSD}`);
+            } catch (error) {
+                console.warn(`[AgentService] Failed to calculate USD value for ${amount} ${currency}:`, error);
+            }
+        }
+    }
+
+    /**
      * Resuelve el destinatario (nickname o email) a una dirección de wallet
      * @param aiResponse - Respuesta del AI para modificar
      * @param userId - ID del usuario para buscar contactos
@@ -222,6 +267,30 @@ export class AgentService {
     async processActionResult(resultInput: ActionResultInput): Promise<{ responseMessage: string }> {
         console.log('Processing action result:', resultInput);
         const { userId, ...inputData } = resultInput; // Extraer userId del input
+        
+        // Enrich the input data with USD information if it's a successful transaction
+        if (resultInput.status === 'success' && 
+            resultInput.actionType === 'SEND_TRANSACTION' && 
+            resultInput.data.amountSent && 
+            resultInput.data.currencySent) {
+            
+            try {
+                const amount = parseFloat(resultInput.data.amountSent);
+                const currency = resultInput.data.currencySent;
+                
+                if (!isNaN(amount) && PriceService.isCurrencySupported(currency)) {
+                    const usdValue = await PriceService.calculateUSDValue(currency, amount);
+                    const formattedUSD = PriceService.formatUSDAmount(usdValue);
+                    
+                    // Add USD information to the data
+                    (inputData as any).data.usdValue = formattedUSD;
+                    console.log(`[AgentService] Added USD value to action result: ${amount} ${currency} = ${formattedUSD}`);
+                }
+            } catch (error) {
+                console.warn('[AgentService] Failed to calculate USD value for action result:', error);
+            }
+        }
+
         const inputJsonString = JSON.stringify(inputData);
 
         try {

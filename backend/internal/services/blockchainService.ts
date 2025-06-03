@@ -1,18 +1,24 @@
-import { createPublicClient, createWalletClient, http, parseEther } from 'viem';
+import { createPublicClient, createWalletClient, http, parseEther, fallback } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { avalanche, avalancheFuji } from 'viem/chains';
 
-// Configuración de redes
-const NETWORK_CONFIGS = {
-  fuji: {
-    chain: avalancheFuji,
-    rpcUrl: 'https://api.avax-test.network/ext/bc/C/rpc'
-  },
-  mainnet: {
-    chain: avalanche,
-    rpcUrl: 'https://api.avax.network/ext/bc/C/rpc'
-  }
-};
+// Transport con fallbacks para Avalanche Mainnet
+const avalancheMainnetTransport = fallback([
+  http('https://avalanche-c-chain-rpc.publicnode.com'), // 0.134s
+  http('https://api.avax.network/ext/bc/C/rpc'), // 0.405s - oficial
+  http('https://ava-mainnet.public.blastapi.io/ext/bc/C/rpc'), // 0.537s
+  http('https://avalanche.drpc.org'), // 0.602s
+  http('https://0xrpc.io/avax'), // 0.703s
+  http('https://avalanche-mainnet.gateway.tenderly.co'), // 0.728s
+  http('https://endpoints.omniatech.io/v1/avax/mainnet/public'), // 0.780s
+  http('https://avax-pokt.nodies.app/ext/bc/C/rpc'), // 0.799s
+  http('https://1rpc.io/avax/c'), // 0.839s
+  http('https://avax.meowrpc.com'), // 0.904s
+  http('https://rpc.owlracle.info/avax/70d38ce1826c4a60bb2a8e05a6c8b20f'), // 0.917s
+  http('https://avalanche.api.onfinality.io/public/ext/bc/C/rpc'),
+  http('https://avalancheapi.terminet.io/ext/bc/C/rpc'),
+  http('https://avalanche.public-rpc.com')
+]);
 
 /**
  * Servicio de operaciones blockchain
@@ -24,11 +30,20 @@ class BlockchainService {
    * @returns Configuración de red
    */
   private static getNetworkConfig(network: string) {
-    const config = NETWORK_CONFIGS[network.toLowerCase() as keyof typeof NETWORK_CONFIGS];
-    if (!config) {
+    const networkLower = network.toLowerCase();
+    if (networkLower === 'fuji') {
+      return { 
+        chain: avalancheFuji,
+        transport: http() // Usar RPC por defecto para testnet
+      };
+    } else if (networkLower === 'mainnet') {
+      return { 
+        chain: avalanche,
+        transport: avalancheMainnetTransport // Usar fallbacks para mainnet
+      };
+    } else {
       throw new Error(`Red no soportada: ${network}`);
     }
-    return config;
   }
 
   /**
@@ -38,11 +53,11 @@ class BlockchainService {
    * @returns Saldo en AVAX
    */
   static async getBalance(network: string, address: string): Promise<string> {
-    const { chain, rpcUrl } = this.getNetworkConfig(network);
+    const { chain, transport } = this.getNetworkConfig(network);
     
     const client = createPublicClient({
       chain,
-      transport: http(rpcUrl)
+      transport
     });
 
     const balance = await client.getBalance({ address: address as `0x${string}` });
@@ -57,7 +72,7 @@ class BlockchainService {
    * @returns Hash de la transacción
    */
   static async sendAVAX(network: string, toAddress: string, amount: string): Promise<string> {
-    const { chain, rpcUrl } = this.getNetworkConfig(network);
+    const { chain, transport } = this.getNetworkConfig(network);
     
     // Obtener la wallet del faucet desde variables de entorno
     const faucetPrivateKey = process.env.FAUCET_PK;
@@ -70,7 +85,7 @@ class BlockchainService {
     const client = createWalletClient({
       account: faucetAccount,
       chain,
-      transport: http(rpcUrl)
+      transport
     });
 
     const txHash = await client.sendTransaction({

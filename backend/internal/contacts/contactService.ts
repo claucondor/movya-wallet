@@ -177,6 +177,87 @@ class ContactService {
       contactId
     );
   }
+
+  /**
+   * Actualizar un contacto
+   * @param contactId - ID del contacto a actualizar
+   * @param ownerId - ID del usuario propietario
+   * @param updates - Datos a actualizar
+   * @returns Contacto actualizado
+   */
+  static async updateContact(
+    contactId: string,
+    ownerId: string,
+    updates: {
+      nickname?: string;
+      value?: string;
+    }
+  ): Promise<Contact> {
+    // Verificar que el contacto pertenece al usuario
+    const contact = await FirestoreService.getDocument<Contact>(
+      this.CONTACTS_COLLECTION, 
+      contactId
+    );
+
+    if (!contact || contact.ownerId !== ownerId) {
+      throw new Error('Contact not found or unauthorized');
+    }
+
+    // Si se está actualizando el nickname, validar que no exista otro contacto con ese nickname
+    if (updates.nickname && updates.nickname !== contact.nickname) {
+      const nicknameExists = await this.nicknameExists(ownerId, updates.nickname);
+      if (nicknameExists) {
+        throw new Error('Nickname already exists for this user');
+      }
+    }
+
+    // Si se está actualizando el valor, validar según el tipo
+    if (updates.value && updates.value !== contact.value) {
+      if (contact.type === 'address') {
+        // Validar dirección
+        if (!/^0x[a-fA-F0-9]{40}$/.test(updates.value)) {
+          throw new Error('Invalid wallet address');
+        }
+        updates.value = updates.value.toLowerCase();
+      } else if (contact.type === 'email') {
+        // Validar email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(updates.value)) {
+          throw new Error('Invalid email format');
+        }
+        updates.value = updates.value.toLowerCase();
+        
+        // Buscar usuario por email
+        const targetUser = await UserService.getUserByEmail(updates.value);
+        if (!targetUser) {
+          throw new Error('No user found with this email');
+        }
+        // Actualizar targetUserId si el email cambió
+        (updates as any).targetUserId = targetUser.googleUserId;
+      }
+    }
+
+    // Agregar updatedAt
+    const contactUpdates = {
+      ...updates,
+      updatedAt: new Date()
+    };
+
+    // Actualizar en Firestore
+    await FirestoreService.updateDocument(
+      this.CONTACTS_COLLECTION,
+      contactId,
+      contactUpdates
+    );
+
+    // Retornar contacto actualizado
+    const updatedContact = await FirestoreService.getDocument<Contact>(
+      this.CONTACTS_COLLECTION,
+      contactId
+    );
+
+    return updatedContact!;
+  }
 }
 
 export default ContactService; 
