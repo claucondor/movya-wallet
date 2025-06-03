@@ -385,12 +385,7 @@ const Chat = () => {
 					router.push('/swap');
 					break;
 				case 'config':
-					// TODO: Add config modal
-					console.log('Config option pressed');
-					break;
-				case 'export':
-					// TODO: Add export private key functionality
-					console.log('Export key option pressed');
+					router.push('/(app)/settings');
 					break;
 				default:
 					return;
@@ -765,13 +760,6 @@ const Chat = () => {
 										>
 											<MaterialIcons name="settings" size={20} color="#666" />
 											<Text style={styles.floatingMenuText}>Settings</Text>
-										</TouchableOpacity>
-										<TouchableOpacity 
-											style={styles.floatingMenuItem}
-											onPress={() => handleFloatingMenuOption('export')}
-										>
-											<MaterialIcons name="file-download" size={20} color="#666" />
-											<Text style={styles.floatingMenuText}>Export Key</Text>
 										</TouchableOpacity>
 									</View>
 								)}

@@ -127,8 +127,7 @@ const Home = () => {
     // Floating Menu State
     const [showFloatingMenu, setShowFloatingMenu] = React.useState(false);
     
-    // Config Modal State
-    const [isConfigModalVisible, setIsConfigModalVisible] = React.useState(false);
+
     
     // User Data State
     const [userName, setUserName] = React.useState<string>('User');
@@ -605,33 +604,7 @@ const Home = () => {
         }
     };
 
-    // Handle Export Private Key
-    const handleExportPrivateKey = () => {
-        Alert.alert(
-            'Export Private Key',
-            'Are you sure you want to export your private key? Keep it safe and never share it with anyone.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                { 
-                    text: 'Export', 
-                    style: 'destructive',
-                    onPress: () => {
-                        const privateKey = storage.getString('userPrivateKey');
-                        if (privateKey) {
-                            Alert.alert(
-                                'Private Key',
-                                privateKey,
-                                [{ text: 'OK' }],
-                                { userInterfaceStyle: 'light' }
-                            );
-                        } else {
-                            Alert.alert('Error', 'No private key found');
-                        }
-                    }
-                }
-            ]
-        );
-    };
+
 
     // Handle Floating Menu Options
     const handleFloatingMenuOption = (option: string) => {
@@ -641,10 +614,7 @@ const Home = () => {
                 router.push('/swap');
                 break;
             case 'config':
-                setIsConfigModalVisible(true);
-                break;
-            case 'export':
-                handleExportPrivateKey();
+                router.push('/(app)/settings');
                 break;
             default:
                 return;
@@ -1034,13 +1004,6 @@ const Home = () => {
                                     >
                                         <MaterialIcons name="settings" size={20} color="#666" />
                                         <Text style={styles.floatingMenuText}>Settings</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity 
-                                        style={styles.floatingMenuItem}
-                                        onPress={() => handleFloatingMenuOption('export')}
-                                    >
-                                        <MaterialIcons name="file-download" size={20} color="#666" />
-                                        <Text style={styles.floatingMenuText}>Export Key</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}
