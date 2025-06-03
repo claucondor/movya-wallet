@@ -194,7 +194,7 @@ const SwapScreen: React.FC = () => {
         // Reset form
         setAmount('');
         setQuote(null);
-        
+
         // Reload balances
         setTimeout(() => {
           const loadBalances = async () => {
