@@ -334,12 +334,14 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     statusChip: {
-        height: 24,
+        height: 36,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
     },
     statusChipText: {
         fontFamily: FontFamily.geist,
         color: Color.colorWhite,
-        fontSize: 10,
+        fontSize: FontSize.size_12,
         fontWeight: 'bold',
     },
     actionsSection: {
