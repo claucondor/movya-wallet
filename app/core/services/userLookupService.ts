@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+
 /**
  * User Lookup Service
  * Handles API calls to check if wallet addresses belong to app users
@@ -39,7 +41,7 @@ class UserLookupService {
     private backendUrl: string;
 
     private constructor() {
-        this.backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+        this.backendUrl = Constants.expoConfig?.extra?.backendUrl || 'http://localhost:3000';
     }
 
     public static getInstance(): UserLookupService {
@@ -131,8 +133,12 @@ class UserLookupService {
     public async getUserProfile(userId: string, authToken?: string): Promise<UserProfile | null> {
         try {
             if (!userId) {
+                console.log('[UserLookupService] No userId provided');
                 return null;
             }
+
+            const url = `${this.backendUrl}/api/users/profile/${userId}`;
+            console.log('[UserLookupService] Fetching user profile from:', url);
 
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
@@ -142,16 +148,24 @@ class UserLookupService {
                 headers['Authorization'] = `Bearer ${authToken}`;
             }
 
-            const response = await fetch(`${this.backendUrl}/api/users/profile/${userId}`, {
+            console.log('[UserLookupService] Request headers:', headers);
+
+            const response = await fetch(url, {
                 method: 'GET',
                 headers,
             });
 
+            console.log('[UserLookupService] Response status:', response.status);
+
             if (response.ok) {
                 const data = await response.json();
+                console.log('[UserLookupService] Response data:', data);
                 if (data.success) {
                     return data.data;
                 }
+            } else {
+                const errorText = await response.text();
+                console.error('[UserLookupService] Response error:', errorText);
             }
 
             return null;

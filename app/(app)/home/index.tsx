@@ -221,27 +221,36 @@ const Home = () => {
     const loadUserName = async () => {
         try {
             const userId = storage.getString('userId');
+            console.log('[Home] Loading user name for userId:', userId);
+            
             if (userId) {
                 // Try to get user profile from backend first
                 const userLookupService = UserLookupService.getInstance();
+                console.log('[Home] Calling getUserProfile...');
                 const userProfile = await userLookupService.getUserProfile(userId);
                 
+                console.log('[Home] User profile response:', userProfile);
+                
                 if (userProfile && userProfile.name) {
+                    console.log('[Home] Setting user name from backend:', userProfile.name);
                     setUserName(userProfile.name);
                     // Store in local storage for faster subsequent loads
                     storage.set('userName', userProfile.name);
                 } else {
                     // Fallback to storage or default
                     const storedName = storage.getString('userName');
+                    console.log('[Home] Fallback to stored name:', storedName);
                     setUserName(storedName || 'User');
                 }
             } else {
+                console.log('[Home] No userId found, using default');
                 setUserName('User');
             }
         } catch (error) {
             console.error('[Home] Error loading user name:', error);
             // Fallback to storage or default on error
             const storedName = storage.getString('userName');
+            console.log('[Home] Error fallback to stored name:', storedName);
             setUserName(storedName || 'User');
         }
     };

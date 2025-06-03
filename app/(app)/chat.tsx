@@ -415,27 +415,36 @@ const Chat = () => {
 	const loadUserName = React.useCallback(async () => {
 		try {
 			const userId = storage.getString('userId');
+			console.log('[Chat] Loading user name for userId:', userId);
+			
 			if (userId) {
 				// Try to get user profile from backend first
 				const userLookupService = UserLookupService.getInstance();
+				console.log('[Chat] Calling getUserProfile...');
 				const userProfile = await userLookupService.getUserProfile(userId);
 				
+				console.log('[Chat] User profile response:', userProfile);
+				
 				if (userProfile && userProfile.name) {
+					console.log('[Chat] Setting user name from backend:', userProfile.name);
 					setUserName(userProfile.name);
 					// Store in local storage for faster subsequent loads
 					storage.set('userName', userProfile.name);
 				} else {
 					// Fallback to storage or default
 					const storedName = storage.getString('userName');
+					console.log('[Chat] Fallback to stored name:', storedName);
 					setUserName(storedName || 'User');
 				}
 			} else {
+				console.log('[Chat] No userId found, using default');
 				setUserName('User');
 			}
 		} catch (error) {
 			console.error('[Chat] Error loading user name:', error);
 			// Fallback to storage or default on error
 			const storedName = storage.getString('userName');
+			console.log('[Chat] Error fallback to stored name:', storedName);
 			setUserName(storedName || 'User');
 		}
 	}, []);
