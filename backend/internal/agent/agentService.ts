@@ -215,7 +215,7 @@ export class AgentService {
         if (currency && !PriceService.isCurrencySupported(currency)) {
             console.log(`Unsupported currency detected: ${currency}`);
             aiResponse.action = 'ERROR';
-            aiResponse.responseMessage = `Sorry, I only support AVAX and USDC transactions. ${currency} is not supported on this wallet.`;
+            aiResponse.responseMessage = `Sorry, I only support AVAX, WAVAX, and USDC transactions. ${currency} is not supported on this wallet.`;
             aiResponse.confirmationRequired = false;
             aiResponse.confirmationMessage = null;
             return;
@@ -452,6 +452,12 @@ export class AgentService {
                 },
                 {
                     type: 'button',
+                    label: isSpanish ? '💸 Enviar WAVAX' : '💸 Send WAVAX',
+                    value: isSpanish ? 'enviar WAVAX' : 'send WAVAX',
+                    style: 'primary'
+                },
+                {
+                    type: 'button',
                     label: isSpanish ? '💸 Enviar USDC' : '💸 Send USDC',
                     value: isSpanish ? 'enviar USDC' : 'send USDC',
                     style: 'primary'
@@ -553,6 +559,12 @@ export class AgentService {
                 },
                 {
                     type: 'button',
+                    label: '🔷 WAVAX',
+                    value: 'WAVAX',
+                    style: 'primary'
+                },
+                {
+                    type: 'button',
                     label: '💰 USDC',
                     value: 'USDC',
                     style: 'secondary'
@@ -592,8 +604,8 @@ export class AgentService {
                 },
                 {
                     type: 'button',
-                    label: '🔺 5 AVAX',
-                    value: '5 AVAX',
+                    label: '🔷 1 WAVAX',
+                    value: '1 WAVAX',
                     style: 'secondary'
                 }
             ];

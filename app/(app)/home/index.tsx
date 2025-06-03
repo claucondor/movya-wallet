@@ -31,6 +31,8 @@ import TransactionDetailsModal from './TransactionDetailsModal';
 import PortfolioService, { PortfolioToken } from "../../core/services/portfolioService";
 import TransactionHistoryService, { Transaction } from "../../core/services/transactionHistoryService";
 import TransactionDetectionService from "../../core/services/transactionDetectionService";
+import WrapUnwrapButton from "../../../components/WrapUnwrapButton";
+import WrapUnwrapModal from "../../../components/WrapUnwrapModal";
 
 // Define ContactType if not already defined globally or in scope
 type ContactType = 'address' | 'email';
@@ -114,6 +116,11 @@ const Home = () => {
     // Auto-refresh states
     const [lastKnownBalance, setLastKnownBalance] = React.useState<string>('$0.00');
     const [refreshInterval, setRefreshInterval] = React.useState<NodeJS.Timeout | null>(null);
+
+    // Wrap/Unwrap Modal States
+    const [isWrapModalVisible, setIsWrapModalVisible] = React.useState(false);
+    const [wrapTokenSymbol, setWrapTokenSymbol] = React.useState<'AVAX' | 'WAVAX'>('AVAX');
+    const [wrapTokenBalance, setWrapTokenBalance] = React.useState('0');
 
     const loadContacts = async () => {
         setIsLoadingContacts(true);
@@ -382,7 +389,7 @@ const Home = () => {
         router.push('/(app)/chat');
     };
 
-    const handleSendToken = (tokenSymbol: 'USDC' | 'AVAX') => {
+    const handleSendToken = (tokenSymbol: 'USDC' | 'AVAX' | 'WAVAX') => {
         const tokenData = getTokenData(tokenSymbol);
         
         if (tokenData.showDeposit) {
@@ -423,6 +430,20 @@ const Home = () => {
     const handleRefreshData = async () => {
         console.log('[Home] Manual refresh triggered...');
         await Promise.all([loadContacts(), loadPortfolio(), loadTransactionHistory()]);
+    };
+
+    // Wrap/Unwrap Modal Handlers
+    const handleWrapPress = (tokenSymbol: 'AVAX' | 'WAVAX') => {
+        const tokenData = getTokenData(tokenSymbol);
+        setWrapTokenSymbol(tokenSymbol);
+        setWrapTokenBalance(tokenData.amount || '0');
+        setIsWrapModalVisible(true);
+    };
+
+    const handleWrapSuccess = () => {
+        // Refresh portfolio after successful wrap/unwrap
+        loadPortfolio();
+        loadTransactionHistory();
     };
 
     // Contact Modal Handlers
@@ -671,12 +692,55 @@ const Home = () => {
                                                 </Text>
                                             </View>
                                         )}
-                                        <TouchableOpacity onPress={() => handleSendToken('AVAX')} style={[styles.button, styles.buttonFlexBox]}>
-                                            <Text style={styles.deposit}>
-                                                {getTokenData('AVAX').showDeposit ? 'Deposit' : 'Send'}
-                                            </Text>
-                                            <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
-                                        </TouchableOpacity>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <TouchableOpacity onPress={() => handleSendToken('AVAX')} style={[styles.button, styles.buttonFlexBox]}>
+                                                <Text style={styles.deposit}>
+                                                    {getTokenData('AVAX').showDeposit ? 'Deposit' : 'Send'}
+                                                </Text>
+                                                <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
+                                            </TouchableOpacity>
+                                            {!getTokenData('AVAX').showDeposit && (
+                                                <WrapUnwrapButton 
+                                                    tokenSymbol="AVAX" 
+                                                    onPress={() => handleWrapPress('AVAX')} 
+                                                />
+                                            )}
+                                        </View>
+                                    </View>
+                                </View>
+                                <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
+                                    <View style={styles.asset}>
+                                        <Avavector width={48} height={48} />
+                                        <View style={styles.assetId}>
+                                            <Text style={[styles.assetName, styles.text2Typo]}>Wrapped AVAX</Text>
+                                            <Text style={[styles.assetLetters, styles.labelTypo]}>WAVAX</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.rightItems}>
+                                        {isLoadingBalances ? (
+                                            <ActivityIndicator size="small" color="#0461F0" />
+                                        ) : (
+                                            <View style={styles.tokenBalanceInfo}>
+                                                <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('WAVAX').balance}</Text>
+                                                <Text style={[styles.tokenAmount, styles.labelTypo]}>
+                                                    {getTokenData('WAVAX').displayAmount}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <TouchableOpacity onPress={() => handleSendToken('WAVAX')} style={[styles.button, styles.buttonFlexBox]}>
+                                                <Text style={styles.deposit}>
+                                                    {getTokenData('WAVAX').showDeposit ? 'Deposit' : 'Send'}
+                                                </Text>
+                                                <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
+                                            </TouchableOpacity>
+                                            {!getTokenData('WAVAX').showDeposit && (
+                                                <WrapUnwrapButton 
+                                                    tokenSymbol="WAVAX" 
+                                                    onPress={() => handleWrapPress('WAVAX')} 
+                                                />
+                                            )}
+                                        </View>
                                     </View>
                                 </View>
                             </View>
@@ -851,6 +915,14 @@ const Home = () => {
                     visible={isTransactionDetailsModalVisible}
                     transaction={selectedTransaction}
                     onDismiss={() => setIsTransactionDetailsModalVisible(false)}
+                />
+                
+                <WrapUnwrapModal
+                    visible={isWrapModalVisible}
+                    onClose={() => setIsWrapModalVisible(false)}
+                    tokenSymbol={wrapTokenSymbol}
+                    currentBalance={wrapTokenBalance}
+                    onSuccess={handleWrapSuccess}
                 />
             </Portal>
         </SafeAreaView>);

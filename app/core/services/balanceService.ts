@@ -2,7 +2,7 @@ import { createPublicClient, formatEther, formatUnits, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { avalanche, avalancheFuji } from '../../../constants/chains';
 import { storage } from '../storage';
-import { AVALANCHE_TOKENS, TokenInfo, findToken } from '../constants/tokens';
+import { AVALANCHE_TOKENS, getTokenInfo, SUPPORTED_TOKENS } from '../../../constants/tokens';
 
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
@@ -58,7 +58,7 @@ class BalanceService {
     });
 
     const balanceFormatted = formatEther(balanceWei);
-    const avaxToken = findToken('AVAX', networkId);
+    const avaxToken = getTokenInfo('AVAX');
 
     return {
       symbol: 'AVAX',
@@ -79,7 +79,7 @@ class BalanceService {
     try {
       const account = this.getWalletAccount();
       const client = this.createClient(networkId);
-      const token = findToken(tokenSymbol, networkId);
+      const token = getTokenInfo(tokenSymbol as any);
       
       if (!token) {
         console.warn(`[BalanceService] Token ${tokenSymbol} not found for network ${networkId}`);
@@ -124,13 +124,26 @@ class BalanceService {
    * Get USDC balance specifically
    */
   static async getUSDCBalance(networkId: number = 43114): Promise<TokenBalance | null> {
-    const usdcToken = findToken('USDC', networkId);
+    const usdcToken = getTokenInfo('USDC');
     if (!usdcToken || !usdcToken.address) {
       console.warn(`[BalanceService] USDC token not configured for network ${networkId}`);
       return null;
     }
 
     return this.getTokenBalance(usdcToken.address, 'USDC', networkId);
+  }
+
+  /**
+   * Get WAVAX balance specifically
+   */
+  static async getWAVAXBalance(networkId: number = 43114): Promise<TokenBalance | null> {
+    const wavaxToken = getTokenInfo('WAVAX');
+    if (!wavaxToken || !wavaxToken.address) {
+      console.warn(`[BalanceService] WAVAX token not configured for network ${networkId}`);
+      return null;
+    }
+
+    return this.getTokenBalance(wavaxToken.address, 'WAVAX', networkId);
   }
 
   /**
@@ -145,15 +158,15 @@ class BalanceService {
       balances.push(avaxBalance);
 
       // Get ERC-20 token balances
-      const tokens = AVALANCHE_TOKENS.filter(token => 
-        token.networkId === networkId && 
-        !token.isNative && 
-        token.address
-      );
-
-      const tokenBalancePromises = tokens.map(token => 
-        this.getTokenBalance(token.address!, token.symbol, networkId)
-      );
+      const supportedTokens = ['USDC', 'WAVAX'];
+      
+      const tokenBalancePromises = supportedTokens.map(tokenSymbol => {
+        const tokenInfo = getTokenInfo(tokenSymbol as any);
+        if (tokenInfo && tokenInfo.address) {
+          return this.getTokenBalance(tokenInfo.address, tokenSymbol, networkId);
+        }
+        return null;
+      });
 
       const tokenBalances = await Promise.all(tokenBalancePromises);
       const validBalances = tokenBalances.filter(balance => balance !== null) as TokenBalance[];
@@ -200,8 +213,12 @@ class BalanceService {
 
       if (tokenSymbol.toUpperCase() === 'AVAX') {
         balance = await this.getAVAXBalance(networkId);
+      } else if (tokenSymbol.toUpperCase() === 'USDC') {
+        balance = await this.getUSDCBalance(networkId);
+      } else if (tokenSymbol.toUpperCase() === 'WAVAX') {
+        balance = await this.getWAVAXBalance(networkId);
       } else {
-        const token = findToken(tokenSymbol, networkId);
+        const token = getTokenInfo(tokenSymbol as any);
         if (!token || !token.address) {
           throw new Error(`Token ${tokenSymbol} not found or has no address`);
         }

@@ -65,7 +65,7 @@ Based on the actionType, status, and data, generate a user-friendly responseMess
 - For transactions, include relevant details (amount, recipient, hash) when available.
 - When usdValue is provided in the data, include it alongside the crypto amount for clarity (e.g., "0.5 AVAX ($21.25)").
 - For errors, suggest next steps or alternatives when appropriate.
-- The wallet supports AVAX and USDC on Avalanche mainnet - these are the only currencies mentioned.
+- The wallet supports AVAX, WAVAX, and USDC on Avalanche mainnet - these are the only currencies mentioned.
 - RESPOND IN THE SAME LANGUAGE the user was using in the conversation.
 - When userLanguageContext is provided in the data, analyze it to determine the user's language preference and respond accordingly.
 

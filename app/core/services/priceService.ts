@@ -20,6 +20,12 @@ class PriceService {
       change24h: 2.34,
       lastUpdated: Date.now()
     },
+    'WAVAX': {
+      symbol: 'WAVAX',
+      price: 42.50, // Same as AVAX since 1 WAVAX = 1 AVAX
+      change24h: 2.34,
+      lastUpdated: Date.now()
+    },
     'USDC': {
       symbol: 'USDC',
       price: 1.00,
@@ -34,17 +40,30 @@ class PriceService {
     }
   };
 
+  private static hasLogged = false;
+
   /**
    * Get price for a specific token (MOCK DATA)
    * @param symbol Token symbol (e.g., 'AVAX', 'USDC')
    * @returns Mock price data
    */
   static async getTokenPrice(symbol: string): Promise<TokenPrice | null> {
+    // Debug log for first time initialization
+    if (!this.hasLogged) {
+      console.log('[PriceService] 🔄 Available tokens:', Object.keys(this.mockPrices));
+      this.hasLogged = true;
+    }
+
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 100));
     
     const upperSymbol = symbol.toUpperCase();
     const mockPrice = this.mockPrices[upperSymbol];
+    
+    // Debug logging for WAVAX specifically
+    if (upperSymbol === 'WAVAX') {
+      console.log(`[PriceService] DEBUG: Looking for WAVAX, found:`, mockPrice);
+    }
     
     if (!mockPrice) {
       console.warn(`[PriceService] No mock price data for ${symbol}`);

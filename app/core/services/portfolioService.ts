@@ -94,8 +94,13 @@ class PortfolioService {
 
       if (tokenSymbol.toUpperCase() === 'AVAX') {
         balance = await BalanceService.getAVAXBalance(networkId);
-      } else {
+      } else if (tokenSymbol.toUpperCase() === 'USDC') {
         balance = await BalanceService.getUSDCBalance(networkId);
+      } else if (tokenSymbol.toUpperCase() === 'WAVAX') {
+        balance = await BalanceService.getWAVAXBalance(networkId);
+      } else {
+        // Fallback for other tokens
+        return null;
       }
 
       if (!balance) {

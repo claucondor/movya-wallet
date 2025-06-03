@@ -1,9 +1,32 @@
-import { createPublicClient, http, getAddress, Log } from 'viem';
+import { createPublicClient, http, getAddress, Log, decodeEventLog } from 'viem';
 import { avalanche } from '@/constants/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { storage } from '../storage';
 import { getContacts, Contact } from '../../internal/contactService';
 import TransactionHistoryService, { Transaction } from './transactionHistoryService';
+import { WAVAX_CONTRACT_ADDRESS } from '@/constants/tokens';
+
+// WAVAX Contract Events ABI
+const WAVAX_EVENTS_ABI = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'dst', type: 'address' },
+      { indexed: false, name: 'wad', type: 'uint256' }
+    ],
+    name: 'Deposit',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'src', type: 'address' },
+      { indexed: false, name: 'wad', type: 'uint256' }
+    ],
+    name: 'Withdrawal',
+    type: 'event'
+  }
+] as const;
 
 export interface DetectedTransaction {
     hash: string;
@@ -16,6 +39,7 @@ export interface DetectedTransaction {
     recipientNickname?: string;
     isFromApp?: boolean;
     senderAppUserId?: string;
+    transactionType?: 'wrap' | 'unwrap';
 }
 
 class TransactionDetectionService {
@@ -96,8 +120,25 @@ class TransactionDetectionService {
 
             const detectedTransactions: DetectedTransaction[] = [];
 
-            // Check recent blocks for transactions involving our address
-            for (let blockNum = this.lastCheckedBlock + 1; blockNum <= currentBlock; blockNum++) {
+            // Check for AVAX transfers and WAVAX wrap/unwrap events
+            await Promise.all([
+                this.checkAvaxTransfers(this.lastCheckedBlock + 1, currentBlock, detectedTransactions),
+                this.checkWavaxEvents(this.lastCheckedBlock + 1, currentBlock, detectedTransactions)
+            ]);
+
+            this.lastCheckedBlock = currentBlock;
+            return detectedTransactions;
+
+        } catch (error) {
+            console.error('[TransactionDetection] Error checking for transactions:', error);
+            return [];
+        }
+    }
+
+    private async checkAvaxTransfers(fromBlock: number, toBlock: number, detectedTransactions: DetectedTransaction[]): Promise<void> {
+        try {
+            // Check recent blocks for AVAX transactions involving our address
+            for (let blockNum = fromBlock; blockNum <= toBlock; blockNum++) {
                 const block = await this.publicClient.getBlock({
                     blockNumber: BigInt(blockNum),
                     includeTransactions: true
@@ -118,13 +159,139 @@ class TransactionDetectionService {
                     }
                 }
             }
+        } catch (error) {
+            console.error('[TransactionDetection] Error checking AVAX transfers:', error);
+        }
+    }
 
-            this.lastCheckedBlock = currentBlock;
-            return detectedTransactions;
+    private async checkWavaxEvents(fromBlock: number, toBlock: number, detectedTransactions: DetectedTransaction[]): Promise<void> {
+        try {
+            // Get WAVAX contract logs for Deposit and Withdrawal events
+            const logs = await this.publicClient.getLogs({
+                address: WAVAX_CONTRACT_ADDRESS as `0x${string}`,
+                fromBlock: BigInt(fromBlock),
+                toBlock: BigInt(toBlock),
+                events: WAVAX_EVENTS_ABI
+            });
+
+            for (const log of logs) {
+                await this.processWavaxEvent(log, detectedTransactions);
+            }
+        } catch (error) {
+            console.error('[TransactionDetection] Error checking WAVAX events:', error);
+        }
+    }
+
+    private async processWavaxEvent(log: Log, detectedTransactions: DetectedTransaction[]): Promise<void> {
+        try {
+            // Check if required fields are present
+            if (!log.blockNumber || !log.transactionHash) {
+                console.warn('[TransactionDetection] Missing blockNumber or transactionHash in log');
+                return;
+            }
+
+            const decoded = decodeEventLog({
+                abi: WAVAX_EVENTS_ABI,
+                data: log.data,
+                topics: log.topics
+            });
+
+            let userAddress: string;
+            let transactionType: 'wrap' | 'unwrap';
+            
+            if (decoded.eventName === 'Deposit') {
+                userAddress = decoded.args.dst as string;
+                transactionType = 'wrap';
+            } else if (decoded.eventName === 'Withdrawal') {
+                userAddress = decoded.args.src as string;
+                transactionType = 'unwrap';
+            } else {
+                return; // Unknown event
+            }
+
+            // Only process if it involves our user
+            if (userAddress.toLowerCase() !== this.userAddress?.toLowerCase()) {
+                return;
+            }
+
+            const amount = decoded.args.wad as bigint;
+            
+            // Get block details
+            const block = await this.publicClient.getBlock({
+                blockNumber: log.blockNumber
+            });
+
+            // Get transaction details
+            const tx = await this.publicClient.getTransaction({
+                hash: log.transactionHash
+            });
+
+            // Create detected transaction for wrap/unwrap
+            const detectedTransaction: DetectedTransaction = {
+                hash: log.transactionHash,
+                from: transactionType === 'wrap' ? userAddress : userAddress, // Self transaction
+                to: transactionType === 'wrap' ? userAddress : userAddress,   // Self transaction
+                value: amount,
+                blockNumber: Number(log.blockNumber),
+                timestamp: Number(block.timestamp),
+                senderNickname: 'You', // Self transaction
+                recipientNickname: 'You',
+                isFromApp: true,
+                transactionType // Add this field to identify wrap/unwrap
+            };
+
+            console.log(`[TransactionDetection] Detected ${transactionType} transaction:`, {
+                hash: log.transactionHash,
+                amount: (Number(amount) / 1e18).toFixed(4),
+                type: transactionType
+            });
+
+            detectedTransactions.push(detectedTransaction);
+            
+            // Add to transaction history with proper type
+            await this.addWrapUnwrapToHistory(detectedTransaction, transactionType);
 
         } catch (error) {
-            console.error('[TransactionDetection] Error checking for transactions:', error);
-            return [];
+            console.error('[TransactionDetection] Error processing WAVAX event:', error);
+        }
+    }
+
+    private async addWrapUnwrapToHistory(detectedTx: DetectedTransaction, transactionType: 'wrap' | 'unwrap'): Promise<void> {
+        try {
+            const historyService = TransactionHistoryService.getInstance();
+            
+            // For wrap/unwrap, we'll add them as "sent" transactions with special currency notation
+            const displayCurrency = transactionType === 'wrap' ? 'AVAX' : 'AVAX'; // Base currency for amount
+            const displayType: 'sent' | 'received' = 'sent'; // Treat as self-transactions
+            
+            const transaction: Transaction = {
+                id: detectedTx.hash,
+                hash: detectedTx.hash,
+                type: displayType,
+                amount: (Number(detectedTx.value) / 1e18).toFixed(4),
+                currency: displayCurrency,
+                timestamp: detectedTx.timestamp * 1000,
+                recipient: detectedTx.to,
+                recipientNickname: transactionType === 'wrap' ? 'Wrapped to WAVAX' : 'Unwrapped to AVAX',
+                sender: detectedTx.from,
+                senderNickname: 'You',
+                confirmed: true,
+                explorerUrl: `https://snowtrace.io/tx/${detectedTx.hash}`
+            };
+
+            // Add using the outgoing transaction method
+            historyService.addOutgoingTransaction(
+                detectedTx.hash,
+                transaction.amount,
+                displayCurrency,
+                detectedTx.to,
+                transaction.recipientNickname
+            );
+
+            console.log(`[TransactionDetection] Added ${transactionType} transaction to history:`, detectedTx.hash);
+
+        } catch (error) {
+            console.error('[TransactionDetection] Error adding wrap/unwrap to history:', error);
         }
     }
 
