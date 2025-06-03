@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, http, parseEther, formatEther, getContract } from 'viem';
+import { createPublicClient, createWalletClient, http, parseEther, formatEther, getContract, fallback } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { avalanche } from '../../../constants/chains';
 import { WAVAX_CONTRACT_ADDRESS } from '../../../constants/tokens';
@@ -55,9 +55,14 @@ class WrapService {
   private account;
 
   private constructor() {
+    // Use fallback with multiple RPCs for better reliability
+    const transport = fallback(
+      avalanche.rpcUrls.default.http.map(url => http(url))
+    );
+
     this.publicClient = createPublicClient({
       chain: avalanche,
-      transport: http(avalanche.rpcUrls.default.http[0])
+      transport
     });
 
     // Initialize wallet client and account
@@ -70,7 +75,7 @@ class WrapService {
     this.walletClient = createWalletClient({
       account: this.account,
       chain: avalanche,
-      transport: http(avalanche.rpcUrls.default.http[0])
+      transport
     });
   }
 

@@ -1,6 +1,7 @@
-import { createPublicClient, http, getAddress, Log, decodeEventLog } from 'viem';
+import { createPublicClient, http, getAddress, Log, decodeEventLog, fallback } from 'viem';
 import { avalanche } from '@/constants/chains';
 import { privateKeyToAccount } from 'viem/accounts';
+import Constants from 'expo-constants';
 import { storage } from '../storage';
 import { getContacts, Contact } from '../../internal/contactService';
 import TransactionHistoryService, { Transaction } from './transactionHistoryService';
@@ -50,9 +51,14 @@ class TransactionDetectionService {
     private userAddress: string | null = null;
 
     private constructor() {
+        // Use fallback with multiple RPCs for better reliability
+        const transport = fallback(
+            avalanche.rpcUrls.default.http.map(url => http(url))
+        );
+        
         this.publicClient = createPublicClient({
             chain: avalanche,
-            transport: http(avalanche.rpcUrls.default.http[0])
+            transport
         });
     }
 
@@ -147,7 +153,7 @@ class TransactionDetectionService {
                 for (const tx of block.transactions) {
                     if (typeof tx === 'object' && tx.to) {
                         // Check if this transaction is TO our address (received)
-                        if (tx.to.toLowerCase() === this.userAddress.toLowerCase() && tx.value > 0n) {
+                        if (this.userAddress && tx.to.toLowerCase() === this.userAddress.toLowerCase() && tx.value > 0n) {
                             const detectedTx = await this.processTransaction(tx, Number(blockNum), Number(block.timestamp));
                             if (detectedTx) {
                                 detectedTransactions.push(detectedTx);
@@ -347,8 +353,9 @@ class TransactionDetectionService {
     private async checkIfFromApp(senderAddress: string): Promise<boolean> {
         // Check with backend if the sender address belongs to another app user
         try {
-            const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
-            const response = await fetch(`${backendUrl}/api/users/check-address/${senderAddress}`);
+            const backendUrl = Constants.expoConfig?.extra?.backendUrl || 'http://localhost:3000';
+            console.log('[TransactionDetection] Checking if from app:', backendUrl);
+            const response = await fetch(`${backendUrl}/users/check-address/${senderAddress}`);
             
             if (response.ok) {
                 const data = await response.json();
@@ -372,8 +379,8 @@ class TransactionDetectionService {
     }> {
         // Check with backend and get user info if sender address belongs to another app user
         try {
-            const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
-            const response = await fetch(`${backendUrl}/api/users/check-address/${senderAddress}`);
+            const backendUrl = Constants.expoConfig?.extra?.backendUrl || 'http://localhost:3000';
+            const response = await fetch(`${backendUrl}/users/check-address/${senderAddress}`);
             
             if (response.ok) {
                 const data = await response.json();

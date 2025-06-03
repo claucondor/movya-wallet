@@ -145,7 +145,7 @@ routes.get('/users/by-address/:address',
 );
 
 routes.get('/users/profile/:userId', 
-  // authMiddleware,  // Temporarily disabled for testing
+  authMiddleware,
   asyncHandler(getUserProfileHandler)       // Get user profile by user ID (requires auth)
 );
 

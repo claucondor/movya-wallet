@@ -1,4 +1,4 @@
-import { createPublicClient, formatEther, formatUnits, http } from 'viem';
+import { createPublicClient, formatEther, formatUnits, http, fallback } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { avalanche, avalancheFuji } from '../../../constants/chains';
 import { storage } from '../storage';
@@ -34,15 +34,20 @@ class BalanceService {
   }
 
   /**
-   * Create a public client for the specified network
+   * Create a public client for the specified network with fallback RPCs
    */
   private static createClient(networkId: number = 43114) {
     const isTestnet = networkId === 43113;
     const chain = isTestnet ? avalancheFuji : avalanche;
     
+    // Use fallback with multiple RPCs for better reliability
+    const transport = fallback(
+      chain.rpcUrls.default.http.map(url => http(url))
+    );
+    
     return createPublicClient({
       chain,
-      transport: http() // Usar la configuración por defecto del chain que ya incluye fallbacks
+      transport
     });
   }
 

@@ -62,7 +62,7 @@ class UserLookupService {
                 return { isAppUser: false };
             }
 
-            const response = await fetch(`${this.backendUrl}/api/users/check-address/${address}`, {
+            const response = await fetch(`${this.backendUrl}/users/check-address/${address}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ class UserLookupService {
                 headers['Authorization'] = `Bearer ${authToken}`;
             }
 
-            const response = await fetch(`${this.backendUrl}/api/users/by-address/${address}`, {
+            const response = await fetch(`${this.backendUrl}/users/by-address/${address}`, {
                 method: 'GET',
                 headers,
             });
@@ -137,7 +137,7 @@ class UserLookupService {
                 return null;
             }
 
-            const url = `${this.backendUrl}/api/users/profile/${userId}`;
+            const url = `${this.backendUrl}/users/profile/${userId}`;
             console.log('[UserLookupService] Fetching user profile from:', url);
 
             const headers: Record<string, string> = {

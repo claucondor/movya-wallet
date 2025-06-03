@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, http, parseEther, formatEther, parseUnits, formatUnits, getContract, WalletClient, Account } from 'viem';
+import { createPublicClient, createWalletClient, http, parseEther, formatEther, parseUnits, formatUnits, getContract, WalletClient, Account, fallback } from 'viem';
 import { avalanche } from '@/constants/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { storage } from '../storage';
@@ -99,9 +99,14 @@ class SwapService {
   private static instance: SwapService | null = null;
 
   private constructor() {
+    // Use fallback with multiple RPCs for better reliability
+    const transport = fallback(
+      avalanche.rpcUrls.default.http.map(url => http(url))
+    );
+
     this.publicClient = createPublicClient({
       chain: avalanche,
-      transport: http()
+      transport
     });
 
     // Initialize without wallet - will be set when needed
@@ -124,10 +129,16 @@ class SwapService {
       }
 
       this.account = privateKeyToAccount(privateKey as `0x${string}`);
+      
+      // Use fallback with multiple RPCs for better reliability
+      const transport = fallback(
+        avalanche.rpcUrls.default.http.map(url => http(url))
+      );
+
       this.walletClient = createWalletClient({
         account: this.account,
         chain: avalanche,
-        transport: http()
+        transport
       });
 
       console.log('[SwapService] Wallet initialized for address:', this.account.address);
