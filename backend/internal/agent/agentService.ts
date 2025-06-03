@@ -29,12 +29,14 @@ export interface RichContent {
 }
 
 export interface AIResponse {
-    action: 'SEND' | 'CHECK_BALANCE' | 'VIEW_HISTORY' | 'CLARIFY' | 'GREETING' | 'ERROR' | string; // Allow string for potential flexibility/errors
+    action: 'SEND' | 'CHECK_BALANCE' | 'VIEW_HISTORY' | 'SWAP' | 'CLARIFY' | 'GREETING' | 'ERROR' | string; // Allow string for potential flexibility/errors
     parameters: {
         recipientEmail: string | null;
         recipientAddress: string | null;
         amount: number | string | null;
         currency: string | null;
+        fromCurrency: string | null; // For SWAP: source currency
+        toCurrency: string | null;   // For SWAP: target currency
     } | null;
     confirmationRequired: boolean;
     confirmationMessage: string | null;
@@ -49,11 +51,13 @@ export interface AgentServiceResponse {
     responseMessage: string;
     newState: AIResponse | null; // The state passed between turns is the AI's response structure
     actionDetails: {
-        type: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | null;
+        type: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | 'SWAP_TOKENS' | null;
         recipientAddress: string | null; // Explicitly allow null
         recipientEmail: string | null;   // Explicitly allow null
         amount: string | null;           // Explicitly allow null
         currency: string | null;         // Explicitly allow null
+        fromCurrency: string | null;     // For SWAP: source currency
+        toCurrency: string | null;       // For SWAP: target currency
     } | null;
 }
 
@@ -171,12 +175,42 @@ export class AgentService {
                     amount: aiResponse.parameters.amount !== null && aiResponse.parameters.amount !== undefined
                         ? String(aiResponse.parameters.amount)
                         : null,
-                    currency: aiResponse.parameters.currency
+                    currency: aiResponse.parameters.currency,
+                    fromCurrency: null,
+                    toCurrency: null
+                };
+            } else if (aiResponse.action === 'SWAP' && !aiResponse.confirmationRequired && aiResponse.parameters) {
+                actionDetails = {
+                    type: 'SWAP_TOKENS',
+                    recipientAddress: null,
+                    recipientEmail: null,
+                    amount: aiResponse.parameters.amount !== null && aiResponse.parameters.amount !== undefined
+                        ? String(aiResponse.parameters.amount)
+                        : null,
+                    currency: null,
+                    fromCurrency: aiResponse.parameters.fromCurrency,
+                    toCurrency: aiResponse.parameters.toCurrency
                 };
             } else if (aiResponse.action === 'CHECK_BALANCE') {
-                actionDetails = { type: 'FETCH_BALANCE', recipientAddress: null, recipientEmail: null, amount: null, currency: null }; // Fill with nulls
+                actionDetails = { 
+                    type: 'FETCH_BALANCE', 
+                    recipientAddress: null, 
+                    recipientEmail: null, 
+                    amount: null, 
+                    currency: null,
+                    fromCurrency: null,
+                    toCurrency: null
+                };
             } else if (aiResponse.action === 'VIEW_HISTORY') {
-                actionDetails = { type: 'FETCH_HISTORY', recipientAddress: null, recipientEmail: null, amount: null, currency: null }; // Fill with nulls
+                actionDetails = { 
+                    type: 'FETCH_HISTORY', 
+                    recipientAddress: null, 
+                    recipientEmail: null, 
+                    amount: null, 
+                    currency: null,
+                    fromCurrency: null,
+                    toCurrency: null
+                };
             }
 
             // Generar elementos interactivos para la respuesta inicial
@@ -683,15 +717,51 @@ export class AgentService {
                 },
                 {
                     type: 'button',
-                    label: isSpanish ? '📊 Historial de transacciones' : '📊 Transaction history',
-                    value: isSpanish ? 'mostrar mi historial de transacciones' : 'show my transaction history',
+                    label: isSpanish ? '🔄 Intercambiar tokens' : '🔄 Swap tokens',
+                    value: isSpanish ? 'intercambiar WAVAX por USDC' : 'swap WAVAX to USDC',
                     style: 'secondary'
                 },
                 {
                     type: 'button',
-                    label: isSpanish ? '📞 Contactos' : '📞 Contacts',
-                    value: isSpanish ? 'mostrar mis contactos' : 'show my contacts',
+                    label: isSpanish ? '📊 Ver historial' : '📊 View history',
+                    value: isSpanish ? 'ver historial de transacciones' : 'view transaction history',
                     style: 'secondary'
+                }
+            ];
+        }
+
+        // Acciones específicas para SWAP
+        if (action === 'SWAP' && aiResponse.confirmationRequired) {
+            aiResponse.quickActions = [
+                {
+                    type: 'button',
+                    label: isSpanish ? '✅ Confirmar intercambio' : '✅ Confirm swap',
+                    value: isSpanish ? 'sí, confirmar intercambio' : 'yes, confirm swap',
+                    style: 'success'
+                },
+                {
+                    type: 'button',
+                    label: isSpanish ? '❌ Cancelar' : '❌ Cancel',
+                    value: isSpanish ? 'no, cancelar' : 'no, cancel',
+                    style: 'danger'
+                }
+            ];
+        }
+
+        // Opciones de SWAP comunes cuando no está completo
+        if (action === 'CLARIFY' && (message.includes('swap') || message.includes('exchange') || message.includes('intercambi') || message.includes('convert'))) {
+            aiResponse.quickActions = [
+                {
+                    type: 'button',
+                    label: '🔷 WAVAX → 💰 USDC',
+                    value: isSpanish ? 'intercambiar WAVAX por USDC' : 'swap WAVAX to USDC',
+                    style: 'primary'
+                },
+                {
+                    type: 'button',
+                    label: '💰 USDC → 🔷 WAVAX',
+                    value: isSpanish ? 'intercambiar USDC por WAVAX' : 'swap USDC to WAVAX',
+                    style: 'primary'
                 }
             ];
         }
