@@ -105,6 +105,10 @@ const Home = () => {
     const [historyFilter, setHistoryFilter] = React.useState<'all' | 'sent' | 'received'>('all');
     const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
 
+    // Auto-refresh states
+    const [lastKnownBalance, setLastKnownBalance] = React.useState<string>('$0.00');
+    const [refreshInterval, setRefreshInterval] = React.useState<NodeJS.Timeout | null>(null);
+
     const loadContacts = async () => {
         setIsLoadingContacts(true);
         setContactsError(null);
@@ -132,24 +136,45 @@ const Home = () => {
         }
     };
 
-    const loadPortfolio = async () => {
-        setIsLoadingBalances(true);
+    const loadPortfolio = async (isBackgroundRefresh = false) => {
+        if (!isBackgroundRefresh) {
+            setIsLoadingBalances(true);
+        }
         setBalancesError(null);
         try {
             console.log('[Home] Loading portfolio...');
             const portfolio = await PortfolioService.getPortfolio(43114); // Avalanche mainnet
             
+            const newBalance = `$${portfolio.totalValueUSD}`;
+            
+            // Check if balance changed (potential received transaction)
+            if (lastKnownBalance !== '$0.00' && lastKnownBalance !== newBalance) {
+                const oldValue = parseFloat(lastKnownBalance.replace('$', ''));
+                const newValue = parseFloat(newBalance.replace('$', ''));
+                
+                if (newValue > oldValue) {
+                    console.log('[Home] Balance increased! Potential incoming transaction detected');
+                    // Reload transaction history to capture new received transactions
+                    loadTransactionHistory();
+                }
+            }
+            
             setPortfolioTokens(portfolio.tokens);
-            setTotalBalance(`$${portfolio.totalValueUSD}`);
+            setTotalBalance(newBalance);
+            setLastKnownBalance(newBalance);
             
             console.log(`[Home] Portfolio loaded: ${portfolio.tokens.length} tokens, total: $${portfolio.totalValueUSD}`);
         } catch (error: any) {
             console.error('[Home] Error loading portfolio:', error);
-            setBalancesError(error.message || 'Failed to load portfolio data.');
-            setPortfolioTokens([]);
-            setTotalBalance('$0.00');
+            if (!isBackgroundRefresh) {
+                setBalancesError(error.message || 'Failed to load portfolio data.');
+                setPortfolioTokens([]);
+                setTotalBalance('$0.00');
+            }
         } finally {
-            setIsLoadingBalances(false);
+            if (!isBackgroundRefresh) {
+                setIsLoadingBalances(false);
+            }
         }
     };
 
@@ -174,6 +199,33 @@ const Home = () => {
         loadPortfolio();
         loadTransactionHistory();
     }, []); // Load contacts, portfolio, and history on mount
+
+    // Set up periodic balance refresh
+    React.useEffect(() => {
+        // Start auto-refresh every 30 seconds
+        const interval = setInterval(() => {
+            console.log('[Home] Auto-refreshing portfolio...');
+            loadPortfolio(true); // Background refresh
+        }, 30000); // 30 seconds
+
+        setRefreshInterval(interval);
+
+        // Cleanup interval on unmount
+        return () => {
+            if (interval) {
+                clearInterval(interval);
+            }
+        };
+    }, [lastKnownBalance]);
+
+    // Cleanup interval when component unmounts
+    React.useEffect(() => {
+        return () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        };
+    }, [refreshInterval]);
 
     // Load history when switching to history tab
     React.useEffect(() => {
@@ -340,8 +392,8 @@ const Home = () => {
     };
 
     const handleRefreshData = async () => {
-        console.log('[Home] Refreshing data...');
-        await Promise.all([loadContacts(), loadPortfolio()]);
+        console.log('[Home] Manual refresh triggered...');
+        await Promise.all([loadContacts(), loadPortfolio(), loadTransactionHistory()]);
     };
 
     // Contact Modal Handlers

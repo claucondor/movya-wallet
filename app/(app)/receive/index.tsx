@@ -1,21 +1,17 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ResizeMode, Video } from 'expo-av';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Platform,
-  StatusBar as ReactNativeStatusBar,
   ScrollView,
   Share,
   StyleSheet,
-  Text,
   View
 } from 'react-native';
 import {
-  Card,
+  Appbar,
   ActivityIndicator as PaperActivityIndicator,
   Button as PaperButton,
   IconButton as PaperIconButton,
@@ -26,6 +22,7 @@ import {
   Surface,
   useTheme as usePaperTheme
 } from 'react-native-paper';
+import { SafeAreaView } from "react-native-safe-area-context";
 import QRCode from 'react-native-qrcode-svg';
 import { Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -96,266 +93,324 @@ export default function ReceiveScreen() {
 
   if (isLoading) {
     return (
-      <Surface style={[styles.container, styles.center, {backgroundColor: Color.colorGray400}]}>
-        <PaperActivityIndicator size="large" color={Color.colorRoyalblue100} />
-        <PaperText variant="bodyLarge" style={{marginTop: 16, fontFamily: FontFamily.geist, color: Color.colorGray100}}>Loading your address...</PaperText>
-      </Surface>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
+        <Video
+          source={require('../../../assets/bg/header-bg.webm')}
+          style={styles.backgroundVideo}
+          isLooping
+          shouldPlay
+          isMuted
+          resizeMode={ResizeMode.COVER}
+        />
+        <View style={styles.loadingContainer}>
+          <PaperActivityIndicator size="large" color={Color.colorWhite} />
+          <PaperText variant="bodyLarge" style={styles.loadingText}>Loading your address...</PaperText>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (error && !address) {
     return (
-      <Surface style={[styles.container, styles.center, {backgroundColor: Color.colorGray400}]}>
-        <PaperIconButton icon="alert-circle-outline" size={48} iconColor={Color.colorRoyalblue100} />
-        <PaperText variant="headlineSmall" style={{color: Color.colorRoyalblue100, marginTop: 16, marginBottom: 8, textAlign: 'center', fontFamily: FontFamily.geist}}>
-          Error Loading Address
-        </PaperText>
-        <PaperText variant="bodyMedium" style={{textAlign: 'center', paddingHorizontal: 20, fontFamily: FontFamily.geist, color: Color.colorGray200}}>{error}</PaperText>
-      </Surface>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
+        <Video
+          source={require('../../../assets/bg/header-bg.webm')}
+          style={styles.backgroundVideo}
+          isLooping
+          shouldPlay
+          isMuted
+          resizeMode={ResizeMode.COVER}
+        />
+        <View style={styles.errorContainer}>
+          <PaperIconButton icon="alert-circle-outline" size={48} iconColor={Color.colorWhite} />
+          <PaperText variant="headlineSmall" style={styles.errorTitle}>
+            Error Loading Address
+          </PaperText>
+          <PaperText variant="bodyMedium" style={styles.errorMessage}>{error}</PaperText>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <Portal.Host>
-      <View style={styles.container}>
-        <StatusBar style="light" translucent={true} backgroundColor="transparent"/>
-        
-        <Video
-          source={require('@/assets/bg/start-screen-bg.mp4')}
-          style={StyleSheet.absoluteFill}
-          resizeMode={ResizeMode.COVER}
-          isLooping
-          shouldPlay
-          isMuted
-        />
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
+      <Video
+        source={require('../../../assets/bg/header-bg.webm')}
+        style={styles.backgroundVideo}
+        isLooping
+        shouldPlay
+        isMuted
+        resizeMode={ResizeMode.COVER}
+      />
+      
+      <Portal.Host>
+        <View style={styles.content}>
+          {/* Header Section with blue background */}
+          <View style={styles.headerSection}>
+            <Appbar.Header style={styles.appbarHeader}>
+              <Appbar.BackAction onPress={() => router.back()} color={Color.colorWhite} />
+              <Appbar.Content title="Receive Crypto" color={Color.colorWhite} titleStyle={styles.appbarTitle} />
+              <View style={{ width: 48 }} />
+            </Appbar.Header>
 
-        <LinearGradient
-          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.05)']}
-          style={StyleSheet.absoluteFill}
-        />
-
-        <View style={styles.safeTopArea} />
-        
-        <View style={styles.topBar}>
-          <View style={styles.backButtonContainer}>
-            <PaperIconButton
-              icon="arrow-left"
-              size={24}
-              onPress={() => router.back()}
-              iconColor={Color.colorWhite}
-              style={styles.backButton}
-            />
-          </View>
-        </View>
-        
-        <View style={styles.titleContainer}>
-          <Text style={styles.titleText}>Receive Crypto</Text>
-        </View>
-
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent} 
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.qrWrapper}>
-            <View style={styles.qrBackground}>
-              {address && (
-                <QRCode
-                  value={address}
-                  size={220}
-                  backgroundColor={Color.colorWhite}
-                  color="#000000"
-                />
-              )}
+            {/* Simple subtitle in header */}
+            <View style={styles.addressSection}>
+              <PaperText variant="bodyMedium" style={styles.headerSubtitle}>
+                Share your address to receive crypto
+              </PaperText>
             </View>
           </View>
 
-          <Card style={styles.addressCard}>
-            <Card.Content>
-              <PaperText variant="titleMedium" style={styles.addressLabel}>
-                Your Wallet Address
-              </PaperText>
-              <PaperTextInput
-                mode="outlined"
-                value={address ? `${address.slice(0, 10)}...${address.slice(-8)}` : ''}
-                editable={false}
-                style={styles.addressTextContainer}
-                contentStyle={styles.addressTextInputContent}
-                theme={{ 
-                  colors: { 
-                    primary: Color.colorRoyalblue100,
-                    text: Color.colorWhite, 
-                    placeholder: 'rgba(255,255,255,0.7)', 
-                    outline: 'rgba(255,255,255,0.3)' 
-                  },
-                  roundness: Border.br_16 
-                }}
-                right={<PaperTextInput.Icon icon="content-copy" onPress={copyToClipboard} color={Color.colorWhite}/>}
-              />
-            </Card.Content>
-          </Card>
+          {/* Main Content Section with white background */}
+          <View style={styles.mainContent}>
+            <ScrollView 
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.formContainer}>
+                {/* QR Code Section */}
+                <View style={styles.qrSection}>
+                  <View style={styles.qrWrapper}>
+                    {address && (
+                      <QRCode
+                        value={address}
+                        size={200}
+                        backgroundColor={Color.colorWhite}
+                        color="#000000"
+                      />
+                    )}
+                  </View>
+                  <PaperText variant="bodySmall" style={styles.qrDescription}>
+                    Scan this QR code to get your wallet address
+                  </PaperText>
+                </View>
 
-          <View style={styles.buttonContainer}>
-            <PaperButton 
-              mode="outlined" 
-              icon="content-copy"
-              onPress={copyToClipboard}
-              style={styles.actionButtonOutlined}
-              labelStyle={styles.actionButtonLabelOutlined}
-              rippleColor={Color.colorRoyalblue200}
-              compact={true}
-            >
-              Copy Address
-            </PaperButton>
-            <PaperButton 
-              mode="contained" 
-              icon="share-variant"
-              onPress={shareAddress}
-              style={styles.actionButtonContained}
-              labelStyle={styles.actionButtonLabelContained}
-              rippleColor={Color.colorWhite}
-              compact={true}
-            >
-              Share Address
-            </PaperButton>
+                {/* Address Input Section */}
+                <View style={styles.addressInputSection}>
+                  <PaperTextInput
+                    mode="outlined"
+                    label="Your Wallet Address"
+                    value={address || ''}
+                    editable={false}
+                    style={styles.addressInput}
+                    theme={{ 
+                      colors: { 
+                        primary: Color.colorRoyalblue100,
+                        text: Color.colorGray100, 
+                        placeholder: Color.colorGray200, 
+                        outline: Color.colorGray400 
+                      },
+                      roundness: Border.br_16 
+                    }}
+                    right={<PaperTextInput.Icon icon="content-copy" onPress={copyToClipboard} color={Color.colorGray200}/>}
+                  />
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.buttonContainer}>
+                  <PaperButton 
+                    mode="outlined" 
+                    icon="content-copy"
+                    onPress={copyToClipboard}
+                    style={styles.actionButtonOutlined}
+                    labelStyle={styles.actionButtonLabelOutlined}
+                  >
+                    Copy
+                  </PaperButton>
+                  <PaperButton 
+                    mode="contained" 
+                    icon="share-variant"
+                    onPress={shareAddress}
+                    style={styles.actionButtonContained}
+                    labelStyle={styles.actionButtonLabelContained}
+                  >
+                    Share
+                  </PaperButton>
+                </View>
+
+                {/* Info Section */}
+                <View style={styles.infoContainer}>
+                  <PaperText variant="bodySmall" style={styles.infoText}>
+                    💡 Share this address to receive AVAX and other tokens on the Avalanche network
+                  </PaperText>
+                </View>
+              </View>
+            </ScrollView>
           </View>
-        </ScrollView>
+        </View>
 
         <Snackbar
           visible={snackbarVisible}
           onDismiss={() => setSnackbarVisible(false)}
           duration={Snackbar.DURATION_SHORT}
           style={snackbarIsError ? styles.snackbarError : styles.snackbarSuccess}
-          action={{
-            label: 'OK',
-            onPress: () => setSnackbarVisible(false),
-          }}
         >
-          <PaperText style={{color: Color.colorWhite, fontFamily: FontFamily.geist}}>
-            {snackbarMessage}
-          </PaperText>
+          {snackbarMessage}
         </Snackbar>
-      </View>
-    </Portal.Host>
+      </Portal.Host>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  snackbarError: {
-    backgroundColor: '#B00020',
-  },
-  snackbarSuccess: {
-    backgroundColor: '#4CAF50',
-  },
   container: {
     flex: 1,
+    backgroundColor: Color.colorGray400,
   },
-  center: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Padding.p_24,
+  backgroundVideo: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: -1,
   },
-  safeTopArea: {
-    height: Platform.OS === 'ios' ? 50 : ReactNativeStatusBar.currentHeight || 0,
+  content: {
+    flex: 1,
+    flexDirection: 'column',
   },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Padding.p_12,
-    paddingTop: Padding.p_12,
+  headerSection: {
+    paddingBottom: Padding.p_24,
   },
-  backButtonContainer: {
+  appbarHeader: {
+    backgroundColor: 'transparent',
+    elevation: 0,
   },
-  backButton: {
-  },
-  titleContainer: {
-    alignItems: 'center',
-    paddingHorizontal: Padding.p_24,
-    paddingBottom: Padding.p_12,
-  },
-  titleText: {
+  appbarTitle: {
     fontFamily: FontFamily.geist,
     fontSize: FontSize.size_20,
     fontWeight: 'bold',
-    color: Color.colorWhite,
-    textAlign: 'center',
   },
-  scrollContent: {
-    paddingHorizontal: Padding.p_12,
+  addressSection: {
+    paddingHorizontal: Padding.p_24,
     paddingTop: Padding.p_12,
-    paddingBottom: Padding.p_24,
-    gap: Gap.gap_16,
-  },
-  qrWrapper: {
     alignItems: 'center',
-    padding: Padding.p_12,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
-    borderRadius: Border.br_24,
-    marginHorizontal: Padding.p_12,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
   },
-  qrBackground: {
-    padding: Padding.p_12,
-  },
-  addressCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
-    borderRadius: Border.br_12,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
-    elevation: 0, 
-    marginHorizontal: Padding.p_12,
-  },
-  addressLabel: {
+  headerSubtitle: {
     fontFamily: FontFamily.geist,
-    color: Color.colorWhite,
-    marginBottom: Gap.gap_4,
-    fontWeight: 'bold',
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
     fontSize: FontSize.size_14,
   },
-  addressTextContainer: {
-    backgroundColor: 'transparent',
-    fontFamily: FontFamily.geist,
+  mainContent: {
+    flex: 1,
+    backgroundColor: Color.colorWhite,
+    borderTopLeftRadius: Border.br_32,
+    borderTopRightRadius: Border.br_32,
+    paddingTop: Padding.p_24,
   },
-  addressTextInputContent: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: Padding.p_24,
+    paddingBottom: Padding.p_24,
+  },
+  formContainer: {
+    gap: Gap.gap_16,
+  },
+  qrSection: {
+    alignItems: 'center',
+    gap: Gap.gap_12,
+  },
+  qrWrapper: {
+    backgroundColor: Color.colorWhite,
+    padding: Padding.p_24,
+    borderRadius: Border.br_16,
+    shadowColor: Color.colorGray300,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  qrDescription: {
     fontFamily: FontFamily.geist,
-    color: Color.colorWhite,
+    color: Color.colorGray200,
+    textAlign: 'center',
+  },
+  addressInputSection: {
+    gap: Gap.gap_4,
+  },
+  addressInput: {
+    backgroundColor: Color.colorWhite,
+    fontFamily: FontFamily.geist,
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: Gap.gap_12,
-    paddingHorizontal: Padding.p_12,
     gap: Gap.gap_12,
+    marginTop: Gap.gap_12,
   },
   actionButtonOutlined: {
     flex: 1,
-    borderColor: Color.colorWhite,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    borderColor: Color.colorRoyalblue100,
     borderRadius: Border.br_32,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   actionButtonLabelOutlined: {
     fontFamily: FontFamily.geist,
-    color: Color.colorWhite,
+    color: Color.colorRoyalblue100,
     fontWeight: 'bold',
-    fontSize: FontSize.size_12,
+    fontSize: FontSize.size_14,
   },
   actionButtonContained: {
     flex: 1,
     backgroundColor: Color.colorRoyalblue100,
     borderRadius: Border.br_32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 4,
+    paddingVertical: Padding.p_4,
   },
   actionButtonLabelContained: {
     fontFamily: FontFamily.geist,
     color: Color.colorWhite,
     fontWeight: 'bold',
-    fontSize: FontSize.size_12,
+    fontSize: FontSize.size_14,
+  },
+  infoContainer: {
+    paddingHorizontal: Padding.p_12,
+    marginTop: Gap.gap_4,
+  },
+  infoText: {
+    textAlign: 'center',
+    fontFamily: FontFamily.geist,
+    color: Color.colorGray200,
+    lineHeight: 20,
+  },
+  // Loading and Error States
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Padding.p_24,
+  },
+  loadingText: {
+    marginTop: Gap.gap_16,
+    fontFamily: FontFamily.geist,
+    color: Color.colorWhite,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Padding.p_24,
+  },
+     errorTitle: {
+     color: Color.colorWhite,
+     marginTop: Gap.gap_16,
+     marginBottom: Gap.gap_4,
+     textAlign: 'center',
+     fontFamily: FontFamily.geist,
+     fontWeight: 'bold',
+   },
+  errorMessage: {
+    textAlign: 'center',
+    fontFamily: FontFamily.geist,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  // Snackbar
+  snackbarError: {
+    backgroundColor: '#B00020',
+  },
+  snackbarSuccess: {
+    backgroundColor: '#4CAF50',
   },
 }); 
