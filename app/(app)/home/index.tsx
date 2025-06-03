@@ -31,6 +31,7 @@ import TransactionDetailsModal from './TransactionDetailsModal';
 import PortfolioService, { PortfolioToken } from "../../core/services/portfolioService";
 import TransactionHistoryService, { Transaction } from "../../core/services/transactionHistoryService";
 import TransactionDetectionService from "../../core/services/transactionDetectionService";
+import UserLookupService from "../../core/services/userLookupService";
 import WrapUnwrapButton from "../../../components/WrapUnwrapButton";
 import SwapButton from "../../../components/SwapButton";
 import WrapUnwrapModal from "../../../components/WrapUnwrapModal";
@@ -221,18 +222,27 @@ const Home = () => {
         try {
             const userId = storage.getString('userId');
             if (userId) {
-                // TODO: Add API call to get user profile from backend
-                // For now, get from storage or use default
-                const storedName = storage.getString('userName');
-                if (storedName) {
-                    setUserName(storedName);
+                // Try to get user profile from backend first
+                const userLookupService = UserLookupService.getInstance();
+                const userProfile = await userLookupService.getUserProfile(userId);
+                
+                if (userProfile && userProfile.name) {
+                    setUserName(userProfile.name);
+                    // Store in local storage for faster subsequent loads
+                    storage.set('userName', userProfile.name);
                 } else {
-                    setUserName('User');
+                    // Fallback to storage or default
+                    const storedName = storage.getString('userName');
+                    setUserName(storedName || 'User');
                 }
+            } else {
+                setUserName('User');
             }
         } catch (error) {
             console.error('[Home] Error loading user name:', error);
-            setUserName('User');
+            // Fallback to storage or default on error
+            const storedName = storage.getString('userName');
+            setUserName(storedName || 'User');
         }
     };
 

@@ -22,6 +22,18 @@ export interface DetailedUserInfo {
     createdAt?: Date;
 }
 
+export interface UserProfile {
+    userId: string;
+    email?: string;
+    name?: string;
+    picture?: string;
+    walletAddress: string;
+    walletNetwork?: string;
+    walletType?: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
 class UserLookupService {
     private static instance: UserLookupService;
     private backendUrl: string;
@@ -106,6 +118,46 @@ class UserLookupService {
 
         } catch (error) {
             console.error('[UserLookupService] Error getting user by address:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Get user profile by user ID (requires authentication)
+     * @param userId - User ID
+     * @param authToken - Authentication token (optional, will use storage if not provided)
+     * @returns Promise with user profile
+     */
+    public async getUserProfile(userId: string, authToken?: string): Promise<UserProfile | null> {
+        try {
+            if (!userId) {
+                return null;
+            }
+
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
+            const response = await fetch(`${this.backendUrl}/api/users/profile/${userId}`, {
+                method: 'GET',
+                headers,
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    return data.data;
+                }
+            }
+
+            return null;
+
+        } catch (error) {
+            console.error('[UserLookupService] Error getting user profile:', error);
             return null;
         }
     }

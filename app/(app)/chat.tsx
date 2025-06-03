@@ -25,6 +25,7 @@ import { storage } from "../core/storage";
 import { AIResponse, AgentServiceResponse, ChatMessage, ActionResultInput } from "../types/agent";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import PortfolioService from "../core/services/portfolioService";
+import UserLookupService from "../core/services/userLookupService";
 import { handleWalletAction } from "../core/walletActionHandler";
 import { InteractiveChatBubble } from "../../components/ChatBubbles";
 import TransactionHistoryService from "../core/services/transactionHistoryService";
@@ -415,18 +416,27 @@ const Chat = () => {
 		try {
 			const userId = storage.getString('userId');
 			if (userId) {
-				// TODO: Add API call to get user profile from backend
-				// For now, get from storage or use default
-				const storedName = storage.getString('userName');
-				if (storedName) {
-					setUserName(storedName);
+				// Try to get user profile from backend first
+				const userLookupService = UserLookupService.getInstance();
+				const userProfile = await userLookupService.getUserProfile(userId);
+				
+				if (userProfile && userProfile.name) {
+					setUserName(userProfile.name);
+					// Store in local storage for faster subsequent loads
+					storage.set('userName', userProfile.name);
 				} else {
-					setUserName('User');
+					// Fallback to storage or default
+					const storedName = storage.getString('userName');
+					setUserName(storedName || 'User');
 				}
+			} else {
+				setUserName('User');
 			}
 		} catch (error) {
 			console.error('[Chat] Error loading user name:', error);
-			setUserName('User');
+			// Fallback to storage or default on error
+			const storedName = storage.getString('userName');
+			setUserName(storedName || 'User');
 		}
 	}, []);
 

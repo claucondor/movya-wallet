@@ -18,7 +18,8 @@ import {
 } from './walletHandler';
 import {
     checkWalletAddressHandler,
-    getUserByAddressHandler
+    getUserByAddressHandler,
+    getUserProfileHandler
 } from './userHandler';
 
 const routes = express.Router();
@@ -141,6 +142,11 @@ routes.get('/users/check-address/:address',
 routes.get('/users/by-address/:address', 
   authMiddleware,
   asyncHandler(getUserByAddressHandler)     // Get user details by address (requires auth)
+);
+
+routes.get('/users/profile/:userId', 
+  authMiddleware,
+  asyncHandler(getUserProfileHandler)       // Get user profile by user ID (requires auth)
 );
 
 // --- Default/Health Check Route (already in server.js, but can be here too) ---
