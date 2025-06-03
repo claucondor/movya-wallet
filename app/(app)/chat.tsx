@@ -411,6 +411,15 @@ const Chat = () => {
 		}
 	}, []);
 
+	// --- Extract First Name Only ---
+	const getFirstName = React.useCallback((fullName: string): string => {
+		if (!fullName || fullName.trim() === '') {
+			return 'User';
+		}
+		const nameParts = fullName.trim().split(' ');
+		return nameParts[0] || 'User';
+	}, []);
+
 	// --- Load User Name ---
 	const loadUserName = React.useCallback(async () => {
 		try {
@@ -426,15 +435,17 @@ const Chat = () => {
 				console.log('[Chat] User profile response:', userProfile);
 				
 				if (userProfile && userProfile.name) {
-					console.log('[Chat] Setting user name from backend:', userProfile.name);
-					setUserName(userProfile.name);
+					const firstName = getFirstName(userProfile.name);
+					console.log('[Chat] Setting user name from backend:', firstName);
+					setUserName(firstName);
 					// Store in local storage for faster subsequent loads
 					storage.set('userName', userProfile.name);
 				} else {
 					// Fallback to storage or default
 					const storedName = storage.getString('userName');
-					console.log('[Chat] Fallback to stored name:', storedName);
-					setUserName(storedName || 'User');
+					const firstName = getFirstName(storedName || '');
+					console.log('[Chat] Fallback to stored name:', firstName);
+					setUserName(firstName);
 				}
 			} else {
 				console.log('[Chat] No userId found, using default');
@@ -444,10 +455,11 @@ const Chat = () => {
 			console.error('[Chat] Error loading user name:', error);
 			// Fallback to storage or default on error
 			const storedName = storage.getString('userName');
-			console.log('[Chat] Error fallback to stored name:', storedName);
-			setUserName(storedName || 'User');
+			const firstName = getFirstName(storedName || '');
+			console.log('[Chat] Error fallback to stored name:', firstName);
+			setUserName(firstName);
 		}
-	}, []);
+	}, [getFirstName]);
 
 	// --- Effects ---
 	React.useEffect(() => {

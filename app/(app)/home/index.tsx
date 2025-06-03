@@ -218,6 +218,15 @@ const Home = () => {
         }
     };
 
+    // --- Extract First Name Only ---
+    const getFirstName = (fullName: string): string => {
+        if (!fullName || fullName.trim() === '') {
+            return 'User';
+        }
+        const nameParts = fullName.trim().split(' ');
+        return nameParts[0] || 'User';
+    };
+
     const loadUserName = async () => {
         try {
             const userId = storage.getString('userId');
@@ -232,15 +241,17 @@ const Home = () => {
                 console.log('[Home] User profile response:', userProfile);
                 
                 if (userProfile && userProfile.name) {
-                    console.log('[Home] Setting user name from backend:', userProfile.name);
-                    setUserName(userProfile.name);
+                    const firstName = getFirstName(userProfile.name);
+                    console.log('[Home] Setting user name from backend:', firstName);
+                    setUserName(firstName);
                     // Store in local storage for faster subsequent loads
                     storage.set('userName', userProfile.name);
                 } else {
                     // Fallback to storage or default
                     const storedName = storage.getString('userName');
-                    console.log('[Home] Fallback to stored name:', storedName);
-                    setUserName(storedName || 'User');
+                    const firstName = getFirstName(storedName || '');
+                    console.log('[Home] Fallback to stored name:', firstName);
+                    setUserName(firstName);
                 }
             } else {
                 console.log('[Home] No userId found, using default');
@@ -250,8 +261,9 @@ const Home = () => {
             console.error('[Home] Error loading user name:', error);
             // Fallback to storage or default on error
             const storedName = storage.getString('userName');
-            console.log('[Home] Error fallback to stored name:', storedName);
-            setUserName(storedName || 'User');
+            const firstName = getFirstName(storedName || '');
+            console.log('[Home] Error fallback to stored name:', firstName);
+            setUserName(firstName);
         }
     };
 
