@@ -118,7 +118,7 @@ class SwapService {
 
   private async initializeWallet() {
     try {
-      const privateKey = storage.getString('privateKey');
+      const privateKey = storage.getString('userPrivateKey');
       if (!privateKey) {
         throw new Error('No private key found');
       }
@@ -195,10 +195,18 @@ class SwapService {
       const gasCostAVAX = formatEther(gasCostWei);
       const gasEstimateUSD = (parseFloat(gasCostAVAX) * 42.50).toFixed(2); // Approximate AVAX price
 
-      // Calculate price impact (simplified)
+      // Calculate price impact (difference from expected 1:1 value ratio)
       const inputValue = fromToken === 'WAVAX' ? parseFloat(amountIn) * 42.50 : parseFloat(amountIn);
       const outputValue = toToken === 'WAVAX' ? parseFloat(amountOutFormatted) * 42.50 : parseFloat(amountOutFormatted);
-      const priceImpact = Math.abs((outputValue - inputValue) / inputValue) * 100;
+      
+      // Price impact should be the difference from the expected output value
+      // If we swap $1 of token A, we should get ~$1 of token B (minus fees)
+      // Price impact = (expected - actual) / expected * 100
+      const expectedOutputValue = inputValue; // In a perfect world, $1 in = $1 out
+      const priceImpact = Math.abs((expectedOutputValue - outputValue) / expectedOutputValue) * 100;
+      
+      // Cap at reasonable values (DEX swaps typically have 0.1-3% impact for normal amounts)
+      const cappedPriceImpact = Math.min(priceImpact, 15); // Cap at 15% for display
 
       console.log(`[SwapService] Quote: ${amountIn} ${fromToken} → ${amountOutFormatted} ${toToken}`);
 
@@ -208,14 +216,14 @@ class SwapService {
         amountIn,
         amountOut: amountOutFormatted,
         amountOutMin: amountOutMinFormatted,
-        priceImpact,
+        priceImpact: cappedPriceImpact,
         route: [fromToken, toToken],
         gasEstimate,
         gasEstimateUSD: `$${gasEstimateUSD}`
       };
     } catch (error) {
       console.error('[SwapService] Error getting swap quote:', error);
-      throw new Error(`Failed to get swap quote: ${error.message}`);
+      throw new Error(`Failed to get swap quote: ${(error as Error).message}`);
     }
   }
 
@@ -247,7 +255,9 @@ class SwapService {
         address: TRADER_JOE_ROUTER_ADDRESS,
         abi: TRADER_JOE_ROUTER_ABI,
         functionName: 'swapExactTokensForTokens',
-        args: [amountInWei, amountOutMinWei, path, this.account.address, deadline]
+        args: [amountInWei, amountOutMinWei, path, this.account.address, deadline],
+        chain: avalanche,
+        account: this.account
       });
 
       console.log(`[SwapService] WAVAX→USDC swap transaction sent: ${hash}`);
@@ -273,7 +283,7 @@ class SwapService {
         amountIn: amountInWAVAX,
         fromToken: 'WAVAX',
         toToken: 'USDC',
-        error: error.message
+        error: (error as Error).message
       };
     }
   }
@@ -306,7 +316,9 @@ class SwapService {
         address: TRADER_JOE_ROUTER_ADDRESS,
         abi: TRADER_JOE_ROUTER_ABI,
         functionName: 'swapExactTokensForTokens',
-        args: [amountInWei, amountOutMinWei, path, this.account.address, deadline]
+        args: [amountInWei, amountOutMinWei, path, this.account.address, deadline],
+        chain: avalanche,
+        account: this.account
       });
 
       console.log(`[SwapService] USDC→WAVAX swap transaction sent: ${hash}`);
@@ -332,7 +344,7 @@ class SwapService {
         amountIn: amountInUSDC,
         fromToken: 'USDC',
         toToken: 'WAVAX',
-        error: error.message
+        error: (error as Error).message
       };
     }
   }
@@ -368,7 +380,9 @@ class SwapService {
           address: tokenAddress as `0x${string}`,
           abi: ERC20_ABI,
           functionName: 'approve',
-          args: [TRADER_JOE_ROUTER_ADDRESS, amount]
+          args: [TRADER_JOE_ROUTER_ADDRESS, amount],
+          chain: avalanche,
+          account: this.account
         });
 
         await this.publicClient.waitForTransactionReceipt({ hash });

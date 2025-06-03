@@ -32,6 +32,7 @@ import PortfolioService, { PortfolioToken } from "../../core/services/portfolioS
 import TransactionHistoryService, { Transaction } from "../../core/services/transactionHistoryService";
 import TransactionDetectionService from "../../core/services/transactionDetectionService";
 import WrapUnwrapButton from "../../../components/WrapUnwrapButton";
+import SwapButton from "../../../components/SwapButton";
 import WrapUnwrapModal from "../../../components/WrapUnwrapModal";
 
 // Define ContactType if not already defined globally or in scope
@@ -121,6 +122,15 @@ const Home = () => {
     const [isWrapModalVisible, setIsWrapModalVisible] = React.useState(false);
     const [wrapTokenSymbol, setWrapTokenSymbol] = React.useState<'AVAX' | 'WAVAX'>('AVAX');
     const [wrapTokenBalance, setWrapTokenBalance] = React.useState('0');
+    
+    // Floating Menu State
+    const [showFloatingMenu, setShowFloatingMenu] = React.useState(false);
+    
+    // Config Modal State
+    const [isConfigModalVisible, setIsConfigModalVisible] = React.useState(false);
+    
+    // User Data State
+    const [userName, setUserName] = React.useState<string>('User');
 
     const loadContacts = async () => {
         setIsLoadingContacts(true);
@@ -207,12 +217,32 @@ const Home = () => {
         }
     };
 
+    const loadUserName = async () => {
+        try {
+            const userId = storage.getString('userId');
+            if (userId) {
+                // TODO: Add API call to get user profile from backend
+                // For now, get from storage or use default
+                const storedName = storage.getString('userName');
+                if (storedName) {
+                    setUserName(storedName);
+                } else {
+                    setUserName('User');
+                }
+            }
+        } catch (error) {
+            console.error('[Home] Error loading user name:', error);
+            setUserName('User');
+        }
+    };
+
     React.useEffect(() => {
         loadContacts();
         loadPortfolio();
         loadTransactionHistory();
+        loadUserName();
         initializeTransactionDetection();
-    }, []); // Load contacts, portfolio, and history on mount
+    }, []); // Load contacts, portfolio, history and user name on mount
 
     const initializeTransactionDetection = async () => {
         try {
@@ -446,6 +476,21 @@ const Home = () => {
         loadTransactionHistory();
     };
 
+    const handleSwapPress = (tokenSymbol: 'WAVAX' | 'USDC') => {
+        console.log(`[Home] Swap ${tokenSymbol} pressed`);
+        // Navigate to chat with swap message
+        const swapMessage = tokenSymbol === 'WAVAX' 
+            ? 'I want to swap WAVAX to USDC'
+            : 'I want to swap USDC to WAVAX';
+        
+        router.push({
+            pathname: '/(app)/chat',
+            params: {
+                autoMessage: swapMessage
+            }
+        });
+    };
+
     // Contact Modal Handlers
     const handleContactPress = (contact: Contact) => {
         setSelectedContact(contact);
@@ -529,6 +574,52 @@ const Home = () => {
         }
     };
 
+    // Handle Export Private Key
+    const handleExportPrivateKey = () => {
+        Alert.alert(
+            'Export Private Key',
+            'Are you sure you want to export your private key? Keep it safe and never share it with anyone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Export', 
+                    style: 'destructive',
+                    onPress: () => {
+                        const privateKey = storage.getString('userPrivateKey');
+                        if (privateKey) {
+                            Alert.alert(
+                                'Private Key',
+                                privateKey,
+                                [{ text: 'OK' }],
+                                { userInterfaceStyle: 'light' }
+                            );
+                        } else {
+                            Alert.alert('Error', 'No private key found');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    // Handle Floating Menu Options
+    const handleFloatingMenuOption = (option: string) => {
+        setShowFloatingMenu(false);
+        switch (option) {
+            case 'swap':
+                router.push('/swap');
+                break;
+            case 'config':
+                setIsConfigModalVisible(true);
+                break;
+            case 'export':
+                handleExportPrivateKey();
+                break;
+            default:
+                return;
+        }
+    };
+
     return (
         <SafeAreaView style={[styles.home, styles.homeLayout]}>
             <StatusBar style="light" />
@@ -549,7 +640,7 @@ const Home = () => {
                         <View style={styles.text}>
                             <Text style={[styles.hello, styles.helloTypo]}>Hello,</Text>
                             <View style={styles.text}>
-                                <Text style={[styles.hello, styles.helloTypo]}>UserName</Text>
+                                <Text style={[styles.hello, styles.helloTypo]}>{userName}</Text>
                                 <Text style={[styles.hello, styles.helloTypo]}>!</Text>
                             </View>
                         </View>
@@ -647,52 +738,68 @@ const Home = () => {
                         <ScrollView style={styles.listingScrollView} contentContainerStyle={styles.listingContentContainer}>
                             <View style={styles.listing}>
                                 <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
-                                    <View style={styles.asset}>
-                                        <Usdcvector style={styles.buttonIconLayout} width={48} height={48} />
-                                        <View style={styles.assetId}>
-                                            <Text style={[styles.assetName, styles.text2Typo]}>USD Coin</Text>
-                                            <Text style={[styles.assetLetters, styles.labelTypo]}>USDC</Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.rightItems}>
-                                        {isLoadingBalances ? (
-                                            <ActivityIndicator size="small" color="#0461F0" />
-                                        ) : (
-                                            <View style={styles.tokenBalanceInfo}>
-                                                <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('USDC').balance}</Text>
-                                                <Text style={[styles.tokenAmount, styles.labelTypo]}>
-                                                    {getTokenData('USDC').displayAmount}
-                                                </Text>
+                                    <View style={styles.assetCardContent}>
+                                        <View style={styles.assetMainRow}>
+                                            <View style={styles.asset}>
+                                                <Usdcvector style={styles.buttonIconLayout} width={48} height={48} />
+                                                <View style={styles.assetId}>
+                                                    <Text style={[styles.assetName, styles.text2Typo]}>USD Coin</Text>
+                                                    <Text style={[styles.assetLetters, styles.labelTypo]}>USDC</Text>
+                                                </View>
                                             </View>
-                                        )}
-                                        <TouchableOpacity onPress={() => handleSendToken('USDC')} style={[styles.button, styles.buttonFlexBox]}>
-                                            <Text style={styles.deposit}>
-                                                {getTokenData('USDC').showDeposit ? 'Deposit' : 'Send'}
-                                            </Text>
-                                            <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
-                                        </TouchableOpacity>
+                                            <View style={styles.rightItems}>
+                                                {isLoadingBalances ? (
+                                                    <ActivityIndicator size="small" color="#0461F0" />
+                                                ) : (
+                                                    <View style={styles.tokenBalanceInfo}>
+                                                        <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('USDC').balance}</Text>
+                                                        <Text style={[styles.tokenAmount, styles.labelTypo]}>
+                                                            {getTokenData('USDC').displayAmount}
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </View>
+                                        <View style={styles.assetActionsRow}>
+                                            <TouchableOpacity onPress={() => handleSendToken('USDC')} style={[styles.button, styles.buttonFlexBox]}>
+                                                <Text style={styles.deposit}>
+                                                    {getTokenData('USDC').showDeposit ? 'Deposit' : 'Send'}
+                                                </Text>
+                                                <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
+                                            </TouchableOpacity>
+                                            {!getTokenData('USDC').showDeposit && (
+                                                <SwapButton 
+                                                    tokenSymbol="USDC" 
+                                                    onPress={() => handleSwapPress('USDC')} 
+                                                />
+                                            )}
+                                        </View>
                                     </View>
                                 </View>
                                 <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
-                                    <View style={styles.asset}>
-                                        <Avavector width={48} height={48} />
-                                        <View style={styles.assetId}>
-                                            <Text style={[styles.assetName, styles.text2Typo]}>AVAX</Text>
-                                            <Text style={[styles.assetLetters, styles.labelTypo]}>AVA</Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.rightItems}>
-                                        {isLoadingBalances ? (
-                                            <ActivityIndicator size="small" color="#0461F0" />
-                                        ) : (
-                                            <View style={styles.tokenBalanceInfo}>
-                                                <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('AVAX').balance}</Text>
-                                                <Text style={[styles.tokenAmount, styles.labelTypo]}>
-                                                    {getTokenData('AVAX').displayAmount}
-                                                </Text>
+                                    <View style={styles.assetCardContent}>
+                                        <View style={styles.assetMainRow}>
+                                            <View style={styles.asset}>
+                                                <Avavector width={48} height={48} />
+                                                <View style={styles.assetId}>
+                                                    <Text style={[styles.assetName, styles.text2Typo]}>AVAX</Text>
+                                                    <Text style={[styles.assetLetters, styles.labelTypo]}>AVA</Text>
+                                                </View>
                                             </View>
-                                        )}
-                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={styles.rightItems}>
+                                                {isLoadingBalances ? (
+                                                    <ActivityIndicator size="small" color="#0461F0" />
+                                                ) : (
+                                                    <View style={styles.tokenBalanceInfo}>
+                                                        <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('AVAX').balance}</Text>
+                                                        <Text style={[styles.tokenAmount, styles.labelTypo]}>
+                                                            {getTokenData('AVAX').displayAmount}
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </View>
+                                        <View style={styles.assetActionsRow}>
                                             <TouchableOpacity onPress={() => handleSendToken('AVAX')} style={[styles.button, styles.buttonFlexBox]}>
                                                 <Text style={styles.deposit}>
                                                     {getTokenData('AVAX').showDeposit ? 'Deposit' : 'Send'}
@@ -709,25 +816,29 @@ const Home = () => {
                                     </View>
                                 </View>
                                 <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
-                                    <View style={styles.asset}>
-                                        <Avavector width={48} height={48} />
-                                        <View style={styles.assetId}>
-                                            <Text style={[styles.assetName, styles.text2Typo]}>Wrapped AVAX</Text>
-                                            <Text style={[styles.assetLetters, styles.labelTypo]}>WAVAX</Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.rightItems}>
-                                        {isLoadingBalances ? (
-                                            <ActivityIndicator size="small" color="#0461F0" />
-                                        ) : (
-                                            <View style={styles.tokenBalanceInfo}>
-                                                <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('WAVAX').balance}</Text>
-                                                <Text style={[styles.tokenAmount, styles.labelTypo]}>
-                                                    {getTokenData('WAVAX').displayAmount}
-                                                </Text>
+                                    <View style={styles.assetCardContent}>
+                                        <View style={styles.assetMainRow}>
+                                            <View style={styles.asset}>
+                                                <Avavector width={48} height={48} />
+                                                <View style={styles.assetId}>
+                                                    <Text style={[styles.assetName, styles.text2Typo]}>Wrapped AVAX</Text>
+                                                    <Text style={[styles.assetLetters, styles.labelTypo]}>WAVAX</Text>
+                                                </View>
                                             </View>
-                                        )}
-                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={styles.rightItems}>
+                                                {isLoadingBalances ? (
+                                                    <ActivityIndicator size="small" color="#0461F0" />
+                                                ) : (
+                                                    <View style={styles.tokenBalanceInfo}>
+                                                        <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('WAVAX').balance}</Text>
+                                                        <Text style={[styles.tokenAmount, styles.labelTypo]}>
+                                                            {getTokenData('WAVAX').displayAmount}
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </View>
+                                        <View style={styles.assetActionsRow}>
                                             <TouchableOpacity onPress={() => handleSendToken('WAVAX')} style={[styles.button, styles.buttonFlexBox]}>
                                                 <Text style={styles.deposit}>
                                                     {getTokenData('WAVAX').showDeposit ? 'Deposit' : 'Send'}
@@ -735,10 +846,16 @@ const Home = () => {
                                                 <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
                                             </TouchableOpacity>
                                             {!getTokenData('WAVAX').showDeposit && (
-                                                <WrapUnwrapButton 
-                                                    tokenSymbol="WAVAX" 
-                                                    onPress={() => handleWrapPress('WAVAX')} 
-                                                />
+                                                <>
+                                                    <WrapUnwrapButton 
+                                                        tokenSymbol="WAVAX" 
+                                                        onPress={() => handleWrapPress('WAVAX')} 
+                                                    />
+                                                    <SwapButton 
+                                                        tokenSymbol="WAVAX" 
+                                                        onPress={() => handleSwapPress('WAVAX')} 
+                                                    />
+                                                </>
                                             )}
                                         </View>
                                     </View>
@@ -862,9 +979,40 @@ const Home = () => {
                             />
                         </View>
                         <View style={styles.inputFabContainer}>
-                            <View style={styles.dollarButton}>
+                            <TouchableOpacity 
+                                style={styles.dollarButton}
+                                onPress={() => setShowFloatingMenu(!showFloatingMenu)}
+                            >
                                 <Text style={styles.dollarButtonText}>$</Text>
-                            </View>
+                            </TouchableOpacity>
+                            
+                            {/* Floating Menu */}
+                            {showFloatingMenu && (
+                                <View style={styles.floatingMenu}>
+                                    <TouchableOpacity 
+                                        style={styles.floatingMenuItem}
+                                        onPress={() => handleFloatingMenuOption('swap')}
+                                    >
+                                        <MaterialIcons name="swap-horiz" size={20} color="#0461F0" />
+                                        <Text style={styles.floatingMenuText}>Swap</Text>
+                                    </TouchableOpacity>
+                                    <View style={styles.floatingMenuDivider} />
+                                    <TouchableOpacity 
+                                        style={styles.floatingMenuItem}
+                                        onPress={() => handleFloatingMenuOption('config')}
+                                    >
+                                        <MaterialIcons name="settings" size={20} color="#666" />
+                                        <Text style={styles.floatingMenuText}>Settings</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        style={styles.floatingMenuItem}
+                                        onPress={() => handleFloatingMenuOption('export')}
+                                    >
+                                        <MaterialIcons name="file-download" size={20} color="#666" />
+                                        <Text style={styles.floatingMenuText}>Export Key</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                             <TouchableOpacity onPress={handleChatNavigation} style={styles.chatInputTouchable}>
                                 <View style={[styles.chatInputButton, styles.suggestionBorder]}>
                                     <View style={styles.textContainer}>
@@ -877,6 +1025,16 @@ const Home = () => {
                     </View>
                 </View>
             </View>
+            
+            {/* Floating Menu Overlay */}
+            {showFloatingMenu && (
+                <TouchableOpacity 
+                    style={styles.floatingMenuOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowFloatingMenu(false)}
+                />
+            )}
+            
             <Portal>
                 <Modal 
                     visible={isAddContactModalVisible} 
@@ -1563,6 +1721,65 @@ const styles = StyleSheet.create({
         fontSize: FontSize.size_12,
         fontFamily: FontFamily.geist,
         color: Color.colorGray200,
+    },
+    // New Asset Card Layout Styles
+    assetCardContent: {
+        flex: 1,
+        gap: Gap.gap_4,
+    },
+    assetMainRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    assetActionsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: Gap.gap_4,
+    },
+    floatingMenu: {
+        position: 'absolute',
+        bottom: 70,
+        left: 0,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 8,
+        paddingVertical: 8,
+        minWidth: 120,
+        zIndex: 1000,
+    },
+    floatingMenuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 10,
+    },
+    floatingMenuText: {
+        fontSize: 16,
+        fontFamily: FontFamily.geist,
+        fontWeight: '500',
+        color: '#333',
+    },
+    floatingMenuDivider: {
+        height: 1,
+        backgroundColor: '#E8E8E8',
+        marginVertical: 4,
+        marginHorizontal: 16,
+    },
+    floatingMenuOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'transparent',
+        zIndex: 999,
     },
 });
 

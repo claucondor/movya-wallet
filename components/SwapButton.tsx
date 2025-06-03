@@ -3,27 +3,23 @@ import {
   TouchableOpacity, 
   Text, 
   StyleSheet, 
-  Alert,
   ActivityIndicator 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../constants/Colors';
 
-interface WrapUnwrapButtonProps {
-  tokenSymbol: 'AVAX' | 'WAVAX';
+interface SwapButtonProps {
+  tokenSymbol: 'WAVAX' | 'USDC';
   onPress: () => void;
   isLoading?: boolean;
 }
 
-const WrapUnwrapButton: React.FC<WrapUnwrapButtonProps> = ({
+const SwapButton: React.FC<SwapButtonProps> = ({
   tokenSymbol,
   onPress,
   isLoading = false
 }) => {
-  const isWrap = tokenSymbol === 'AVAX';
-  const icon = isWrap ? 'arrow-forward-circle-outline' : 'arrow-back-circle-outline';
-  const label = isWrap ? 'Wrap' : 'Unwrap';
-  const toToken = isWrap ? 'WAVAX' : 'AVAX';
+  const icon = 'swap-horizontal-outline';
+  const label = 'Swap';
 
   return (
     <TouchableOpacity
@@ -48,7 +44,7 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#FF6B00', // Orange color to differentiate from wrap button
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -64,4 +60,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default WrapUnwrapButton; 
+export default SwapButton; 

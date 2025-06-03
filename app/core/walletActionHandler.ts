@@ -7,6 +7,7 @@ import { storage } from './storage';
 import { fetchAvaxBalance } from './walletActions/fetchBalance';
 import { sendTransaction } from './walletActions/sendTransaction';
 import TransactionHistoryService from './services/transactionHistoryService';
+import SwapService from './services/swapService';
 
 const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
@@ -60,7 +61,7 @@ function createClient(networkId: 'mainnet' | 'testnet' = 'testnet') {
 }
 
 // Tipos de acciones disponibles
-export type WalletActionType = 'FETCH_BALANCE' | 'SEND_TRANSACTION' | 'FETCH_HISTORY';
+export type WalletActionType = 'FETCH_BALANCE' | 'SEND_TRANSACTION' | 'FETCH_HISTORY' | 'SWAP';
 
 // Parámetros para las acciones
 export interface WalletActionParams {
@@ -68,6 +69,8 @@ export interface WalletActionParams {
   recipientEmail: string | null;
   amount: string | null;
   currency: string | null;
+  fromCurrency?: string | null;
+  toCurrency?: string | null;
 }
 
 // Resultado de las acciones
@@ -170,6 +173,56 @@ export async function handleWalletAction(
             }
           }
         };
+      
+      case 'SWAP':
+        // Validamos los parámetros necesarios para swap
+        if (!params.fromCurrency || !params.toCurrency) {
+          throw new Error('fromCurrency y toCurrency son requeridos para el swap');
+        }
+        
+        if (!params.amount) {
+          throw new Error('El monto a intercambiar es requerido para el swap');
+        }
+        
+        // Validar que solo sean WAVAX ↔ USDC
+        if (!((params.fromCurrency === 'WAVAX' && params.toCurrency === 'USDC') || 
+              (params.fromCurrency === 'USDC' && params.toCurrency === 'WAVAX'))) {
+          throw new Error('Solo se soportan swaps entre WAVAX y USDC');
+        }
+        
+        try {
+          const swapService = SwapService.getInstance();
+          let swapResult;
+          
+          if (params.fromCurrency === 'WAVAX') {
+            swapResult = await swapService.swapWAVAXToUSDC(params.amount);
+          } else {
+            swapResult = await swapService.swapUSDCToWAVAX(params.amount);
+          }
+          
+          if (swapResult.success) {
+            return {
+              success: true,
+              responseMessage: `Swap exitoso: ${swapResult.amountIn} ${swapResult.fromToken} intercambiado por ${swapResult.amountOut} ${swapResult.toToken}`,
+              data: {
+                actionType: 'SWAP',
+                status: 'success',
+                data: {
+                  transactionHash: swapResult.transactionHash,
+                  fromAmount: swapResult.amountIn,
+                  fromToken: swapResult.fromToken,
+                  toAmount: swapResult.amountOut,
+                  toToken: swapResult.toToken,
+                  gasUsed: swapResult.gasUsed?.toString()
+                }
+              }
+            };
+          } else {
+            throw new Error(swapResult.error || 'Error desconocido en el swap');
+          }
+        } catch (swapError: any) {
+          throw new Error(`Error ejecutando swap: ${swapError.message}`);
+        }
       
       default:
         throw new Error(`Tipo de acción desconocida: ${actionType}`);

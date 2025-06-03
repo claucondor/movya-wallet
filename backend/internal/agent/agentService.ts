@@ -422,8 +422,7 @@ export class AgentService {
             };
 
             // Detect language from user message for button labels
-            const isSpanish = /[\u00C0-\u017F]/.test(userMessage) || 
-                            /\b(enviar|dinero|revisar|balance|ver|mostrar|hola|gracias|sí|no)\b/i.test(userMessage);
+            const isSpanish = this.detectSpanishLanguage(userMessage);
             
             response.quickActions = [
                 {
@@ -474,8 +473,7 @@ export class AgentService {
             };
 
             // Detect language from user message for button labels
-            const isSpanish = /[\u00C0-\u017F]/.test(userMessage) || 
-                            /\b(enviar|dinero|revisar|balance|ver|mostrar|hola|gracias|sí|no)\b/i.test(userMessage);
+            const isSpanish = this.detectSpanishLanguage(userMessage);
 
             response.quickActions = [
                 {
@@ -508,8 +506,7 @@ export class AgentService {
         // Manejo específico para historial de transacciones
         if ((originalResponse.action === 'VIEW_HISTORY' || originalResponse.action === 'FETCH_HISTORY') && actionResult.success && actionResult.history) {
             // Detect language from user message for button labels
-            const isSpanish = /[\u00C0-\u017F]/.test(userMessage) || 
-                            /\b(enviar|dinero|revisar|balance|ver|mostrar|hola|gracias|sí|no|historial|transacciones)\b/i.test(userMessage);
+            const isSpanish = this.detectSpanishLanguage(userMessage);
 
             // No necesitamos richContent para historial, pero sí acciones rápidas útiles
             response.quickActions = [
@@ -548,9 +545,8 @@ export class AgentService {
         const message = userMessage.toLowerCase();
         const action = aiResponse.action;
         
-        // Detect language from user message
-        const isSpanish = /[\u00C0-\u017F]/.test(userMessage) || 
-                        /\b(enviar|dinero|revisar|balance|ver|mostrar|hola|gracias|sí|no|historial|transacciones|cuanto|moneda)\b/i.test(userMessage);
+        // Improved language detection
+        const isSpanish = this.detectSpanishLanguage(userMessage);
 
         // Generar botones de acción rápida basados en el contexto
         if (aiResponse.confirmationRequired) {
@@ -765,5 +761,26 @@ export class AgentService {
                 }
             ];
         }
+    }
+
+    private detectSpanishLanguage(userMessage: string): boolean {
+        // First check for Spanish-specific characters
+        if (/[\u00C0-\u017F]/.test(userMessage)) {
+            return true;
+        }
+
+        // Spanish-specific words that are unlikely to appear in English context
+        const spanishOnlyWords = /\b(enviar|dinero|revisar|mostrar|hola|gracias|sí|historial|transacciones|cuanto|cuánto|moneda|intercambiar|quiero|necesito)\b/i;
+        
+        // English indicators that should override Spanish detection
+        const englishIndicators = /\b(i\s+want|i\s+need|send|swap|check|balance|transaction|history|money|want\s+to|need\s+to|how\s+much|can\s+you)\b/i;
+        
+        // If we find strong English indicators, assume English
+        if (englishIndicators.test(userMessage)) {
+            return false;
+        }
+        
+        // Only detect Spanish if we find Spanish-specific words
+        return spanishOnlyWords.test(userMessage);
     }
 } 

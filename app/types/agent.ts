@@ -24,12 +24,14 @@ export interface RichContent {
 
 // Agent Response and Action Types
 export interface AIResponse {
-    action: 'SEND' | 'CHECK_BALANCE' | 'VIEW_HISTORY' | 'CLARIFY' | 'GREETING' | 'ERROR';
+    action: 'SEND' | 'CHECK_BALANCE' | 'VIEW_HISTORY' | 'SWAP' | 'CLARIFY' | 'GREETING' | 'ERROR';
     parameters: {
         recipientEmail: string | null;
         recipientAddress: string | null;
         amount: string | null;
         currency: string | null;
+        fromCurrency?: string | null;
+        toCurrency?: string | null;
     } | null;
     confirmationRequired: boolean;
     confirmationMessage: string | null;
@@ -44,16 +46,18 @@ export interface AgentServiceResponse {
     responseMessage: string;
     newState: AIResponse | null;
     actionDetails: {
-        type: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | null;
+        type: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | 'SWAP' | null;
         recipientAddress?: string | null;
         recipientEmail?: string | null;
         amount?: string | null;
         currency?: string | null;
+        fromCurrency?: string | null;
+        toCurrency?: string | null;
     } | null;
 }
 
 export interface ActionResultInput {
-    actionType: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY';
+    actionType: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | 'SWAP';
     status: 'success' | 'failure';
     data: {
         // Transaction success data
@@ -72,6 +76,13 @@ export interface ActionResultInput {
             amount: string;
             recipientOrSender: string;
         }>;
+        
+        // Swap success data
+        fromAmount?: string;
+        fromToken?: string;
+        toAmount?: string;
+        toToken?: string;
+        gasUsed?: string;
         
         // Error data
         errorCode?: string;

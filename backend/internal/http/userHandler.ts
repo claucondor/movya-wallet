@@ -123,4 +123,58 @@ export const getUserByAddressHandler = async (req: Request, res: Response): Prom
             error: error.message
         });
     }
+};
+
+/**
+ * Get user profile by user ID
+ * @param req - Express request object
+ * @param res - Express response object
+ */
+export const getUserProfileHandler = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const { userId } = req.params;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID is required'
+            });
+        }
+
+        // Get user profile from Firestore
+        const userProfile = await UserService.getUserProfile(userId);
+
+        if (!userProfile) {
+            return res.status(404).json({
+                success: false,
+                message: 'User profile not found'
+            });
+        }
+
+        // Return safe user information (exclude sensitive data)
+        const safeUserInfo = {
+            userId: userProfile.googleUserId,
+            email: userProfile.email,
+            name: userProfile.name,
+            picture: userProfile.picture,
+            walletAddress: userProfile.walletAddress,
+            walletNetwork: userProfile.walletNetwork,
+            walletType: userProfile.walletType,
+            createdAt: userProfile.createdAt,
+            updatedAt: userProfile.updatedAt
+        };
+
+        return res.status(200).json({
+            success: true,
+            data: safeUserInfo
+        });
+
+    } catch (error: any) {
+        console.error('[getUserProfileHandler] Error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
 }; 

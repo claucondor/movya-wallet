@@ -51,6 +51,8 @@ const Chat = () => {
 	]);
 	const [videoLoaded, setVideoLoaded] = React.useState(false);
 	const [portfolioBalance, setPortfolioBalance] = React.useState<string>('$0.00');
+	const [showFloatingMenu, setShowFloatingMenu] = React.useState(false);
+	const [userName, setUserName] = React.useState<string>('User');
 
 	// --- State Management ---
 	const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -373,6 +375,28 @@ const Chat = () => {
 		}
 	}, [isLoading, addMessage, callAgentApi, conversationState, router]);
 
+	// --- Handle Floating Menu Options ---
+	const handleFloatingMenuOption = React.useCallback((option: string) => {
+		setShowFloatingMenu(false);
+		if (!isLoading) {
+			switch (option) {
+				case 'swap':
+					router.push('/swap');
+					break;
+				case 'config':
+					// TODO: Add config modal
+					console.log('Config option pressed');
+					break;
+				case 'export':
+					// TODO: Add export private key functionality
+					console.log('Export key option pressed');
+					break;
+				default:
+					return;
+			}
+		}
+	}, [isLoading, router]);
+
 	// --- Load Portfolio Balance ---
 	const loadPortfolioBalance = React.useCallback(async () => {
 		try {
@@ -383,6 +407,26 @@ const Chat = () => {
 		} catch (error) {
 			console.error('[Chat] Error loading portfolio balance:', error);
 			setPortfolioBalance('$0.00');
+		}
+	}, []);
+
+	// --- Load User Name ---
+	const loadUserName = React.useCallback(async () => {
+		try {
+			const userId = storage.getString('userId');
+			if (userId) {
+				// TODO: Add API call to get user profile from backend
+				// For now, get from storage or use default
+				const storedName = storage.getString('userName');
+				if (storedName) {
+					setUserName(storedName);
+				} else {
+					setUserName('User');
+				}
+			}
+		} catch (error) {
+			console.error('[Chat] Error loading user name:', error);
+			setUserName('User');
 		}
 	}, []);
 
@@ -400,6 +444,9 @@ const Chat = () => {
 		
 		// Load portfolio balance on mount
 		loadPortfolioBalance();
+		
+		// Load user name on mount
+		loadUserName();
 		
 		// Start transaction history monitoring
 		const historyService = TransactionHistoryService.getInstance();
@@ -519,8 +566,7 @@ const Chat = () => {
 		}
 	};
 
-	// --- User Name (Placeholder) ---
-	const userName = "User"; // Replace with actual user name logic later
+	// --- User Name (Dynamic) ---
 
 	return (
 		<SafeAreaView style={styles.chat} edges={['top', 'left', 'right']}>
@@ -664,9 +710,41 @@ const Chat = () => {
 								/>
 							</View>
 							<View style={[styles.chatContainer, styles.swipeFlexBox]}>
-								<View style={styles.dollarIconContainer}>
+								<TouchableOpacity 
+									style={styles.dollarIconContainer}
+									onPress={() => setShowFloatingMenu(!showFloatingMenu)}
+								>
 									<MaterialIcons name="attach-money" size={30} color="#FFFFFF" />
-								</View>
+								</TouchableOpacity>
+								
+								{/* Floating Menu */}
+								{showFloatingMenu && (
+									<View style={styles.floatingMenu}>
+										<TouchableOpacity 
+											style={styles.floatingMenuItem}
+											onPress={() => handleFloatingMenuOption('swap')}
+										>
+											<MaterialIcons name="swap-horiz" size={20} color="#0461F0" />
+											<Text style={styles.floatingMenuText}>Swap</Text>
+										</TouchableOpacity>
+										<View style={styles.floatingMenuDivider} />
+										<TouchableOpacity 
+											style={styles.floatingMenuItem}
+											onPress={() => handleFloatingMenuOption('config')}
+										>
+											<MaterialIcons name="settings" size={20} color="#666" />
+											<Text style={styles.floatingMenuText}>Settings</Text>
+										</TouchableOpacity>
+										<TouchableOpacity 
+											style={styles.floatingMenuItem}
+											onPress={() => handleFloatingMenuOption('export')}
+										>
+											<MaterialIcons name="file-download" size={20} color="#666" />
+											<Text style={styles.floatingMenuText}>Export Key</Text>
+										</TouchableOpacity>
+									</View>
+								)}
+								
 								<View style={styles.chatInputPosition}>
 									<View style={styles.textField}>
 										<TextInput
@@ -692,6 +770,15 @@ const Chat = () => {
 					</View>
 				</View>
 			</KeyboardAvoidingView>
+			
+			{/* Floating Menu Overlay */}
+			{showFloatingMenu && (
+				<TouchableOpacity 
+					style={styles.floatingMenuOverlay}
+					activeOpacity={1}
+					onPress={() => setShowFloatingMenu(false)}
+				/>
+			)}
 			
 			{/* Chat History Modal */}
 			<Modal
@@ -1311,6 +1398,49 @@ const styles = StyleSheet.create({
 		fontFamily: 'Geist',
 		textAlign: 'center',
 		lineHeight: 22,
+	},
+	floatingMenu: {
+		position: 'absolute',
+		bottom: 70,
+		left: 16,
+		backgroundColor: '#FFFFFF',
+		borderRadius: 12,
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.15,
+		shadowRadius: 8,
+		elevation: 8,
+		paddingVertical: 8,
+		minWidth: 120,
+		zIndex: 1000,
+	},
+	floatingMenuItem: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		paddingHorizontal: 16,
+		paddingVertical: 12,
+		gap: 10,
+	},
+	floatingMenuText: {
+		fontSize: 16,
+		fontFamily: 'Geist',
+		fontWeight: '500',
+		color: '#333',
+	},
+	floatingMenuDivider: {
+		height: 1,
+		backgroundColor: '#E8E8E8',
+		marginVertical: 4,
+		marginHorizontal: 16,
+	},
+	floatingMenuOverlay: {
+		position: 'absolute',
+		top: 0,
+		left: 0,
+		right: 0,
+		bottom: 0,
+		backgroundColor: 'transparent',
+		zIndex: 999,
 	},
 });
 
