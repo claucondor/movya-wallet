@@ -269,14 +269,14 @@ export default function ChatHistoryScreen() {
                 }}
             >
                 <TouchableOpacity
-                                            style={[
-                            styles.examplePromptCard,
-                            { 
-                                backgroundColor: isDark 
+                    style={[
+                        styles.examplePromptCard,
+                        { 
+                            backgroundColor: isDark 
                                     ? 'rgba(4, 97, 240, 0.15)' 
                                     : 'rgba(4, 97, 240, 0.08)',
-                            }
-                        ]}
+                        }
+                    ]}
                     onPress={() => startNewChat(item)}
                     activeOpacity={0.7}
                 >
