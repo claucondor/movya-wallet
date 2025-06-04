@@ -269,25 +269,25 @@ export default function ChatHistoryScreen() {
                 }}
             >
                 <TouchableOpacity
-                    style={[
-                        styles.examplePromptCard,
-                        { 
-                            backgroundColor: isDark 
-                                ? 'rgba(58, 90, 255, 0.15)' 
-                                : 'rgba(58, 90, 255, 0.08)',
-                        }
-                    ]}
+                                            style={[
+                            styles.examplePromptCard,
+                            { 
+                                backgroundColor: isDark 
+                                    ? 'rgba(4, 97, 240, 0.15)' 
+                                    : 'rgba(4, 97, 240, 0.08)',
+                            }
+                        ]}
                     onPress={() => startNewChat(item)}
                     activeOpacity={0.7}
                 >
                     <FontAwesome5 
                         name="lightbulb"
                         size={20}
-                        color={isDark ? 'rgba(128, 177, 255, 1)' : 'rgba(58, 90, 255, 1)'} 
+                        color={isDark ? 'rgba(156, 202, 255, 1)' : 'rgba(4, 97, 240, 1)'} 
                         style={styles.promptIcon} 
                     />
                     <ThemedText style={[styles.promptText, {color: isDark ? '#D0E1FF' : '#1A2E59'}]}>{item}</ThemedText>
-                    <Ionicons name="chevron-forward" size={20} color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(58, 90, 255, 0.8)'} />
+                    <Ionicons name="chevron-forward" size={20} color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(4, 97, 240, 0.8)'} />
                 </TouchableOpacity>
             </Animated.View>
         );
@@ -338,7 +338,7 @@ export default function ChatHistoryScreen() {
                     >
                         <View style={styles.chatAvatarContainer}>
                             <LinearGradient
-                                colors={isDark ? ['#4A6AFF', '#7890FF'] : ['#3A5AFF', '#5E7BFF']}
+                                colors={isDark ? ['#0461F0', '#9CCAFF'] : ['#0461F0', '#0477F0']}
                                 style={styles.chatAvatar}
                             >
                                 <MaterialIcons name="chat-bubble" size={26} color="#FFFFFF" />
@@ -376,7 +376,7 @@ export default function ChatHistoryScreen() {
             {/* Background Video */}
             <View style={styles.videoContainer}>
                 <Video
-                    source={require('../../assets/bg/header-bg.mp4')}
+                    source={require('../../assets/bg/header-bg.webm')}
                     style={StyleSheet.absoluteFill}
                     resizeMode={ResizeMode.COVER}
                     isLooping
@@ -384,7 +384,7 @@ export default function ChatHistoryScreen() {
                     isMuted
                 />
                 <LinearGradient
-                    colors={['rgba(0,24,69,0.4)', 'rgba(0,24,69,0.6)']}
+                    colors={['rgba(4,97,240,0.3)', 'rgba(4,119,240,0.4)']}
                     style={StyleSheet.absoluteFill}
                 />
             </View>
@@ -466,17 +466,17 @@ export default function ChatHistoryScreen() {
                             ]}
                         >
                             <LinearGradient
-                                colors={isDark ? ['rgba(58, 90, 255, 0.25)', 'rgba(94, 123, 255, 0.15)'] : ['rgba(255,255,255,0.15)', 'rgba(230,230,255,0.25)']}
+                                colors={isDark ? ['rgba(4, 97, 240, 0.25)', 'rgba(156, 202, 255, 0.15)'] : ['rgba(255,255,255,0.15)', 'rgba(230,240,255,0.25)']}
                                 style={styles.noChatsIconOuterRing}
                             >
                                 <LinearGradient
-                                    colors={isDark ? ['rgba(58, 90, 255, 0.4)', 'rgba(94, 123, 255, 0.3)'] : ['rgba(80,120,255,0.3)', 'rgba(100,140,255,0.4)']}
+                                    colors={isDark ? ['rgba(4, 97, 240, 0.4)', 'rgba(156, 202, 255, 0.3)'] : ['rgba(4,97,240,0.3)', 'rgba(4,119,240,0.4)']}
                                     style={styles.noChatsIconContainer}
                                 >
                                     <MaterialIcons 
                                         name="forum" 
                                         size={64}
-                                        color={isDark ? "rgba(180, 200, 255, 0.95)" : "rgba(58, 90, 255, 0.9)"}
+                                        color={isDark ? "rgba(156, 202, 255, 0.95)" : "rgba(4, 97, 240, 0.9)"}
                                     />
                                 </LinearGradient>
                             </LinearGradient>
@@ -528,8 +528,8 @@ export default function ChatHistoryScreen() {
                             style={[
                                 styles.newChatButton, 
                                 { 
-                                    backgroundColor: isDark ? 'rgba(58, 90, 255, 1)' : 'rgba(58, 90, 255, 1)', 
-                                    shadowColor: 'rgba(58, 90, 255, 0.7)',
+                                    backgroundColor: isDark ? 'rgba(4, 97, 240, 1)' : 'rgba(4, 97, 240, 1)', 
+                                    shadowColor: 'rgba(4, 97, 240, 0.7)',
                                     shadowOffset: { width: 0, height: 8 },
                                     shadowOpacity: 0.45,
                                     shadowRadius: 12,

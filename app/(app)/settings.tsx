@@ -228,22 +228,7 @@ const Settings = () => {
                                         </LinearGradient>
                                     </View>
                                     <View style={styles.profileInfo}>
-                                        <View style={styles.nameContainer}>
-                                            <MaskedView
-                                                style={styles.maskedView}
-                                                maskElement={
-                                                    <Text style={styles.profileName}>{userName}</Text>
-                                                }>
-                                                <LinearGradient
-                                                    colors={['#0461F0', '#9CCAFF']}
-                                                    start={{ x: 0, y: 0 }}
-                                                    end={{ x: 1, y: 0 }}
-                                                    style={styles.nameGradient}
-                                                >
-                                                    <Text style={[styles.profileName, { opacity: 0 }]}>{userName}</Text>
-                                                </LinearGradient>
-                                            </MaskedView>
-                                        </View>
+                                        <Text style={styles.profileName}>{userName}</Text>
                                         {userEmail ? (
                                             <Text style={styles.profileEmail}>{userEmail}</Text>
                                         ) : null}
@@ -465,18 +450,21 @@ const styles = StyleSheet.create({
     },
     profileInfo: {
         flex: 1,
+        justifyContent: 'center',
     },
     profileName: {
         fontSize: 24,
         fontWeight: '700',
         fontFamily: 'Geist',
-        marginBottom: 4,
+        color: '#0461F0',
+        marginBottom: 8,
     },
     profileEmail: {
         fontSize: 16,
         fontFamily: 'Geist',
         color: '#666',
         fontWeight: '500',
+        marginTop: 8,
     },
     addressContainer: {
         borderTopWidth: 1,
@@ -552,17 +540,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F0F0F0',
         marginHorizontal: 16,
     },
-    nameContainer: {
-        marginBottom: 4,
-    },
-    maskedView: {
-        height: 28,
-        alignSelf: 'flex-start',
-    },
-    nameGradient: {
-        flex: 1,
-        height: '100%',
-    },
+
 });
 
 export default Settings; 
