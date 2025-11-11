@@ -2,7 +2,12 @@
 
 **The AI-Powered Crypto Wallet for Stacks Blockchain**
 
-Movya is a revolutionary cryptocurrency wallet that transforms complex blockchain interactions into natural conversations. Built on Stacks (Bitcoin Layer 2) with sponsored transactions and AI-powered assistance, it brings the security of Bitcoin with smart contract capabilities made as easy as texting.
+Movya is a revolutionary cryptocurrency wallet that transforms complex blockchain interactions into natural conversations.
+Built on Stacks (Bitcoin Layer 2) with sponsored transactions and AI-powered assistance, it combines the security of Bitcoin with smart contract capabilities made as easy as texting.
+
+With a simple message, users can send transactions, add contacts like on a phone, or swap between different tokens—all without dealing with gas fees, signatures, or technical steps.
+Movya is built for Web2 users who know nothing about Web3, helping them enter the crypto world easily and securely.
+Our mission is to onboard the next wave of users to blockchain by making crypto feel simple, human, and accessible to everyone.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue.svg)](https://expo.dev/)
