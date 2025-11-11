@@ -1,4 +1,4 @@
-# Movya Wallet 🚀
+# Movya Wallet
 
 **The AI-Powered Crypto Wallet for Stacks Blockchain**
 
@@ -10,21 +10,21 @@ Movya is a revolutionary cryptocurrency wallet that transforms complex blockchai
 
 ---
 
-## 🎯 **What Makes Movya Different**
+## What Makes Movya Different
 
-### **🤖 Conversational AI Interface**
+### Conversational AI Interface
 - Natural language commands: *"Send 50 USDC to Sarah"* or *"What's my balance?"*
 - Smart transaction interpretation and execution
 - Contextual help and crypto education
 - Multi-language support with consistent language handling
 
-### **⛽ Zero-Friction Experience**
+### Zero-Friction Experience
 - **Sponsored Gas Fees** - We cover all transaction costs
 - **Abstract Transactions** - No complex signing flows
 - **Auto-Detection** - Incoming transactions detected automatically
 - **Contact Management** - Send to friends by name, not addresses
 
-### **🔐 Non-Custodial Security**
+### Non-Custodial Security
 - Users control their private keys
 - Device-level encryption (MMKV)
 - Biometric authentication support
@@ -32,9 +32,9 @@ Movya is a revolutionary cryptocurrency wallet that transforms complex blockchai
 
 ---
 
-## 🏗️ **Architecture Overview**
+## Architecture Overview
 
-### **📱 Mobile Application (`/app`)**
+### Mobile Application (`/app`)
 React Native + Expo application with AI-powered conversational interface
 
 ```
@@ -60,7 +60,7 @@ app/
 └── types/                # TypeScript definitions
 ```
 
-### **🖥️ Backend Services (`/backend`)**
+### Backend Services (`/backend`)
 Node.js/TypeScript backend with AI agent and blockchain integration
 
 ```
@@ -80,27 +80,27 @@ backend/
 
 ---
 
-## 🚀 **Core Features**
+## Core Features
 
-### **💬 AI Conversational Interface**
+### AI Conversational Interface
 - **Natural Language Processing**: Understand complex crypto requests
 - **Smart Actions**: Execute multi-step blockchain operations
 - **Educational Responses**: Learn about crypto while using it
 - **Context Awareness**: Remember conversation history and user preferences
 
-### **💰 Multi-Token Portfolio Management**
+### Multi-Token Portfolio Management
 - **Real-Time Balances**: Live portfolio tracking on Stacks blockchain
 - **Token Support**: STX, Bitcoin rewards, and SIP-010 fungible tokens
 - **Portfolio Analytics**: Track value changes and transaction history
 - **Auto-Refresh**: Background monitoring with transaction detection
 
-### **🔄 Advanced Transaction Features**
+### Advanced Transaction Features
 - **Contact-Based Sending**: Send to friends by name or email
 - **Clarity Smart Contracts**: Interact with secure, decidable smart contracts
 - **Stacking Support**: Stack STX tokens to earn Bitcoin rewards
 - **Sponsored Transactions**: Zero gas fees for users
 
-### **🔒 Enterprise-Grade Security**
+### Enterprise-Grade Security
 - **Non-Custodial**: Private keys never leave user's device
 - **Encrypted Storage**: MMKV with device-level encryption
 - **Biometric Auth**: Face ID / Touch ID support
@@ -108,9 +108,9 @@ backend/
 
 ---
 
-## 🛠️ **Technology Stack**
+## Technology Stack
 
-### **Frontend**
+### Frontend
 - **Framework**: React Native + Expo SDK 52
 - **Language**: TypeScript
 - **State Management**: React Context + Hooks
@@ -119,7 +119,7 @@ backend/
 - **Storage**: MMKV (secure, fast key-value storage)
 - **UI Components**: Custom themed components with video backgrounds
 
-### **Backend**
+### Backend
 - **Runtime**: Node.js + TypeScript
 - **Framework**: Express.js with custom routing
 - **Database**: Google Firestore
@@ -127,7 +127,7 @@ backend/
 - **Authentication**: Google OAuth 2.0
 - **Blockchain RPC**: Stacks blockchain integration
 
-### **Blockchain Integration**
+### Blockchain Integration
 - **Network**: Stacks Mainnet (Layer 2 on Bitcoin)
 - **Testnet**: Stacks Testnet for development
 - **Wallet**: HD wallet generation with mnemonic support
@@ -137,15 +137,15 @@ backend/
 
 ---
 
-## 🚀 **Quick Start**
+## Quick Start
 
-### **Prerequisites**
+### Prerequisites
 - Node.js 18+ LTS
 - Expo CLI: `npm install -g @expo/eas-cli`
 - Android Studio (for Android development)
 - Xcode (for iOS development)
 
-### **Frontend Setup**
+### Frontend Setup
 
 ```bash
 # Clone repository
@@ -167,7 +167,7 @@ npx expo run:android
 npx expo run:ios
 ```
 
-### **Backend Setup**
+### Backend Setup
 
 ```bash
 # Navigate to backend
@@ -188,7 +188,7 @@ npm run build
 npm start
 ```
 
-### **Environment Configuration**
+### Environment Configuration
 
 **Frontend (`app.json`):**
 ```json
@@ -217,9 +217,9 @@ STACKS_NETWORK=mainnet
 
 ---
 
-## 📱 **Building for Production**
+## Building for Production
 
-### **Mobile App (EAS Build)**
+### Mobile App (EAS Build)
 
 ```bash
 # Configure EAS
@@ -236,7 +236,7 @@ eas submit --platform ios
 eas submit --platform android
 ```
 
-### **Backend Deployment**
+### Backend Deployment
 
 ```bash
 # Build Docker image
@@ -248,9 +248,9 @@ docker build -t movya-backend .
 
 ---
 
-## 🧪 **Development & Testing**
+## Development & Testing
 
-### **Running Tests**
+### Running Tests
 
 ```bash
 # Frontend tests
@@ -263,7 +263,7 @@ cd backend && npm test
 npm run test:e2e
 ```
 
-### **Development Workflow**
+### Development Workflow
 
 1. **Feature Development**: Work on feature branches
 2. **Testing**: Test on real devices for blockchain functionality
@@ -272,18 +272,18 @@ npm run test:e2e
 
 ---
 
-## 🔗 **Blockchain Integration**
+## Blockchain Integration
 
-### **Supported Networks**
+### Supported Networks
 - **Stacks Mainnet** (Layer 2 on Bitcoin)
 - **Stacks Testnet** for development
 
-### **Supported Tokens**
+### Supported Tokens
 - **STX**: Native Stacks token
 - **SIP-010 Tokens**: Fungible tokens on Stacks
 - **Bitcoin Rewards**: Earned through Stacking (PoX)
 
-### **Smart Contract Features**
+### Smart Contract Features
 - **Clarity Language**: Decidable, secure smart contracts (non-EVM)
 - SIP-010 fungible token transfers
 - Stacking operations (lock STX, earn BTC)
@@ -293,11 +293,11 @@ npm run test:e2e
 
 ---
 
-## 🤝 **Contributing**
+## Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
-### **Development Setup**
+### Development Setup
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
 3. Commit changes: `git commit -m 'Add amazing feature'`
@@ -306,25 +306,12 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ---
 
-## 📄 **License**
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🔗 **Links**
-
-- **Website**: [movya.ai](https://movya.ai)
-- **Documentation**: [docs.movya.ai](https://docs.movya.ai)
-- **Support**: [support@movya.ai](mailto:support@movya.ai)
-- **Discord**: [discord.gg/movya](https://discord.gg/movya)
-
----
-
-## ⚠️ **Disclaimer**
+## Disclaimer
 
 Movya is experimental software. While we've implemented extensive security measures, users should understand the risks involved in cryptocurrency transactions. Always verify transaction details and keep your private keys secure.
-
----
-
-*Built with ❤️ by the Movya Team*
