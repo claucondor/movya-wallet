@@ -1,12 +1,12 @@
 # Movya Wallet 🚀
 
-**The AI-Powered Crypto Wallet That Makes Blockchain Simple**
+**The AI-Powered Crypto Wallet for Stacks Blockchain**
 
-Movya is a revolutionary cryptocurrency wallet that transforms complex blockchain interactions into natural conversations. Built on Avalanche with sponsored transactions and AI-powered assistance, it's crypto made as easy as texting.
+Movya is a revolutionary cryptocurrency wallet that transforms complex blockchain interactions into natural conversations. Built on Stacks (Bitcoin Layer 2) with sponsored transactions and AI-powered assistance, it brings the security of Bitcoin with smart contract capabilities made as easy as texting.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue.svg)](https://expo.dev/)
-[![Blockchain](https://img.shields.io/badge/Blockchain-Avalanche-red.svg)](https://www.avax.network/)
+[![Blockchain](https://img.shields.io/badge/Blockchain-Stacks-5546FF.svg)](https://www.stacks.co/)
 
 ---
 
@@ -89,15 +89,15 @@ backend/
 - **Context Awareness**: Remember conversation history and user preferences
 
 ### **💰 Multi-Token Portfolio Management**
-- **Real-Time Balances**: Live portfolio tracking across Avalanche
-- **Token Support**: AVAX, WAVAX, USDC with automatic detection
+- **Real-Time Balances**: Live portfolio tracking on Stacks blockchain
+- **Token Support**: STX, Bitcoin rewards, and SIP-010 fungible tokens
 - **Portfolio Analytics**: Track value changes and transaction history
 - **Auto-Refresh**: Background monitoring with transaction detection
 
 ### **🔄 Advanced Transaction Features**
 - **Contact-Based Sending**: Send to friends by name or email
-- **Token Wrapping/Unwrapping**: AVAX ↔ WAVAX conversion
-- **Smart Contract Swapping**: Automated token exchanges
+- **Clarity Smart Contracts**: Interact with secure, decidable smart contracts
+- **Stacking Support**: Stack STX tokens to earn Bitcoin rewards
 - **Sponsored Transactions**: Zero gas fees for users
 
 ### **🔒 Enterprise-Grade Security**
@@ -115,7 +115,7 @@ backend/
 - **Language**: TypeScript
 - **State Management**: React Context + Hooks
 - **Navigation**: Expo Router (file-based)
-- **Blockchain**: Viem (Ethereum/Avalanche integration)
+- **Blockchain**: Stacks.js (Stacks blockchain integration)
 - **Storage**: MMKV (secure, fast key-value storage)
 - **UI Components**: Custom themed components with video backgrounds
 
@@ -125,14 +125,15 @@ backend/
 - **Database**: Google Firestore
 - **AI Integration**: OpenRouter API for conversational AI
 - **Authentication**: Google OAuth 2.0
-- **Blockchain RPC**: Avalanche C-Chain integration
+- **Blockchain RPC**: Stacks blockchain integration
 
 ### **Blockchain Integration**
-- **Network**: Avalanche C-Chain (Mainnet)
-- **Testnet**: Avalanche Fuji for development
+- **Network**: Stacks Mainnet (Layer 2 on Bitcoin)
+- **Testnet**: Stacks Testnet for development
 - **Wallet**: HD wallet generation with mnemonic support
 - **Gas Sponsorship**: Backend-sponsored transaction execution
-- **Smart Contracts**: ERC-20 token interaction (USDC, WAVAX)
+- **Smart Contracts**: Clarity smart contracts (SIP-010 fungible tokens)
+- **Consensus**: Proof of Transfer (PoX) - secured by Bitcoin
 
 ---
 
@@ -210,7 +211,8 @@ GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 FIRESTORE_PROJECT_ID=your-firestore-project
 OPENROUTER_API_KEY=your-openrouter-key
-AVALANCHE_RPC_URL=https://api.avax.network/ext/bc/C/rpc
+STACKS_API_URL=https://api.mainnet.hiro.so
+STACKS_NETWORK=mainnet
 ```
 
 ---
@@ -273,19 +275,21 @@ npm run test:e2e
 ## 🔗 **Blockchain Integration**
 
 ### **Supported Networks**
-- **Avalanche Mainnet** (Chain ID: 43114)
-- **Avalanche Fuji Testnet** (Chain ID: 43113)
+- **Stacks Mainnet** (Layer 2 on Bitcoin)
+- **Stacks Testnet** for development
 
 ### **Supported Tokens**
-- **AVAX**: Native Avalanche token
-- **WAVAX**: Wrapped AVAX (ERC-20)
-- **USDC**: USD Coin on Avalanche
+- **STX**: Native Stacks token
+- **SIP-010 Tokens**: Fungible tokens on Stacks
+- **Bitcoin Rewards**: Earned through Stacking (PoX)
 
 ### **Smart Contract Features**
-- ERC-20 token transfers
-- Token wrapping/unwrapping
+- **Clarity Language**: Decidable, secure smart contracts (non-EVM)
+- SIP-010 fungible token transfers
+- Stacking operations (lock STX, earn BTC)
 - Balance querying
 - Transaction history tracking
+- **Bitcoin-Secured**: All transactions anchored to Bitcoin blockchain
 
 ---
 
