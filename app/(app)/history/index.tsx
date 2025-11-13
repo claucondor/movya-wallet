@@ -37,7 +37,7 @@ const TransactionHistoryScreen = () => {
     // Calculate stats from transactions
     const sent = allTransactions.filter(tx => tx.type === 'sent').length;
     const received = allTransactions.filter(tx => tx.type === 'received').length;
-    setStats({ total: allTransactions.length, sent, received, pending: 0 });
+    setStats({ total: allTransactions.length, sent, received, totalSentUsd: 0, totalReceivedUsd: 0 });
   }, [historyService]);
 
   // Filter transactions based on selected filter

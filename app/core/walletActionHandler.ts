@@ -117,18 +117,18 @@ export async function handleWalletAction(
       
       case 'FETCH_HISTORY':
         const historyService = TransactionHistoryService.getInstance();
-        const recentTransactions = historyService.getRecentTransactions(20);
-        
-        // Convert transactions to the format expected by ActionResultInput (filter out pending)
+        const recentTransactions = await historyService.fetchTransactionHistory(20);
+
+        // Convert transactions to the format expected by ActionResultInput
         const formattedHistory = recentTransactions
-          .filter(tx => tx.type !== 'pending') // Filter out pending transactions
+          .filter(tx => tx.type === 'sent' || tx.type === 'received') // Only sent/received
           .map(tx => ({
             date: new Date(tx.timestamp).toLocaleDateString(),
-            type: tx.type as 'sent' | 'received', // Now safe to cast
+            type: tx.type as 'sent' | 'received',
             amount: `${tx.amount} ${tx.currency}`,
-            recipientOrSender: tx.type === 'sent' 
-              ? (tx.recipientNickname || tx.recipient || 'Unknown')
-              : (tx.senderNickname || tx.sender || 'Unknown')
+            recipientOrSender: tx.type === 'sent'
+              ? (tx.recipient || 'Unknown')
+              : (tx.sender || 'Unknown')
           }));
 
         return {

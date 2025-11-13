@@ -192,7 +192,7 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
 
                     {/* Actions */}
                     <View style={styles.actionsSection}>
-                        {transaction.hash && (
+                        {transaction.txid && (
                             <PaperButton
                                 mode="contained"
                                 onPress={openInExplorer}
@@ -200,7 +200,7 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
                                 style={styles.explorerButton}
                                 labelStyle={styles.explorerButtonLabel}
                             >
-                                View on Snowtrace
+                                View on Stacks Explorer
                             </PaperButton>
                         )}
                     </View>
