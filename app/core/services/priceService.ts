@@ -1,4 +1,4 @@
-import { AVALANCHE_TOKENS } from '../constants/tokens';
+import { STACKS_MAINNET_TOKENS } from '../constants/tokens';
 
 export interface TokenPrice {
   symbol: string;
@@ -8,34 +8,28 @@ export interface TokenPrice {
 }
 
 /**
- * Mock Price Service
+ * Mock Price Service for Stacks
  * Returns simulated prices for tokens - NOT REAL PRICES
  * This is only for development/demo purposes
  */
 class PriceService {
   private static mockPrices: Record<string, TokenPrice> = {
-    'AVAX': {
-      symbol: 'AVAX',
-      price: 42.50,
-      change24h: 2.34,
+    'STX': {
+      symbol: 'STX',
+      price: 1.50,
+      change24h: 3.45,
       lastUpdated: Date.now()
     },
-    'WAVAX': {
-      symbol: 'WAVAX',
-      price: 42.50, // Same as AVAX since 1 WAVAX = 1 AVAX
-      change24h: 2.34,
+    'sBTC': {
+      symbol: 'sBTC',
+      price: 95000.00,
+      change24h: 1.23,
       lastUpdated: Date.now()
     },
-    'USDC': {
-      symbol: 'USDC',
+    'USDA': {
+      symbol: 'USDA',
       price: 1.00,
-      change24h: 0.01,
-      lastUpdated: Date.now()
-    },
-    'USDC.e': {
-      symbol: 'USDC.e',
-      price: 1.00,
-      change24h: 0.01,
+      change24h: 0.02,
       lastUpdated: Date.now()
     }
   };
@@ -60,9 +54,9 @@ class PriceService {
     const upperSymbol = symbol.toUpperCase();
     const mockPrice = this.mockPrices[upperSymbol];
     
-    // Debug logging for WAVAX specifically
-    if (upperSymbol === 'WAVAX') {
-      console.log(`[PriceService] DEBUG: Looking for WAVAX, found:`, mockPrice);
+    // Debug logging
+    if (upperSymbol === 'STX') {
+      console.log(`[PriceService] DEBUG: Looking for STX, found:`, mockPrice);
     }
     
     if (!mockPrice) {
@@ -94,11 +88,11 @@ class PriceService {
   }
 
   /**
-   * Get prices for all Avalanche tokens (MOCK DATA)
+   * Get prices for all Stacks tokens (MOCK DATA)
    * @returns Array of mock price data for all supported tokens
    */
-  static async getAllAvalanchePrices(): Promise<TokenPrice[]> {
-    const symbols = AVALANCHE_TOKENS.map(token => token.symbol);
+  static async getAllStacksPrices(): Promise<TokenPrice[]> {
+    const symbols = STACKS_MAINNET_TOKENS.map(token => token.symbol);
     return this.getTokenPrices(symbols);
   }
 

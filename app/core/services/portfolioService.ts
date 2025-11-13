@@ -7,9 +7,9 @@ export interface PortfolioToken {
   balance: string; // Real balance from blockchain
   balanceRaw: bigint;
   decimals: number;
-  address?: string;
+  contractAddress?: string;
   isNative: boolean;
-  networkId: number;
+  networkId: string;
   // Price information (mock)
   priceUSD: number;
   valueUSD: number; // balance * price
@@ -21,7 +21,7 @@ export interface Portfolio {
   totalValueUSD: number;
   tokens: PortfolioToken[];
   walletAddress: string;
-  networkId: number;
+  networkId: string;
   lastUpdated: number;
 }
 
@@ -33,10 +33,10 @@ class PortfolioService {
   /**
    * Get complete portfolio with real balances and mock prices
    */
-  static async getPortfolio(networkId: number = 43114): Promise<Portfolio> {
+  static async getPortfolio(networkId: string = 'mainnet'): Promise<Portfolio> {
     try {
       console.log('[PortfolioService] Getting portfolio for network:', networkId);
-      
+
       // Get real balances from blockchain
       const balances = await BalanceService.getAllBalances(networkId);
       console.log(`[PortfolioService] Retrieved ${balances.length} real balances`);
@@ -67,7 +67,7 @@ class PortfolioService {
         totalValueUSD += valueUSD;
       }
 
-      const walletAddress = BalanceService.getWalletAddress();
+      const walletAddress = await BalanceService.getWalletAddress();
 
       const portfolio: Portfolio = {
         totalValueUSD: Number(totalValueUSD.toFixed(2)),
@@ -88,20 +88,10 @@ class PortfolioService {
   /**
    * Get real balance for a specific token
    */
-  static async getTokenBalance(tokenSymbol: string, networkId: number = 43114): Promise<PortfolioToken | null> {
+  static async getTokenBalance(tokenSymbol: string, networkId: string = 'mainnet'): Promise<PortfolioToken | null> {
     try {
-      let balance: TokenBalance | null;
-
-      if (tokenSymbol.toUpperCase() === 'AVAX') {
-        balance = await BalanceService.getAVAXBalance(networkId);
-      } else if (tokenSymbol.toUpperCase() === 'USDC') {
-        balance = await BalanceService.getUSDCBalance(networkId);
-      } else if (tokenSymbol.toUpperCase() === 'WAVAX') {
-        balance = await BalanceService.getWAVAXBalance(networkId);
-      } else {
-        // Fallback for other tokens
-        return null;
-      }
+      // Use generic token balance method from BalanceService
+      const balance = await BalanceService.getTokenBalance(tokenSymbol, networkId);
 
       if (!balance) {
         return null;
@@ -129,7 +119,7 @@ class PortfolioService {
   /**
    * Get formatted portfolio summary for display
    */
-  static async getPortfolioSummary(networkId: number = 43114): Promise<{
+  static async getPortfolioSummary(networkId: string = 'mainnet'): Promise<{
     totalBalance: string;
     mainTokenBalance: string;
     tokenCount: number;
@@ -137,10 +127,10 @@ class PortfolioService {
   }> {
     try {
       const portfolio = await this.getPortfolio(networkId);
-      
-      // Find main token (AVAX)
-      const avaxToken = portfolio.tokens.find(token => token.symbol === 'AVAX');
-      const mainTokenBalance = avaxToken ? `${avaxToken.balance} AVAX` : '0 AVAX';
+
+      // Find main token (STX)
+      const stxToken = portfolio.tokens.find(token => token.symbol === 'STX');
+      const mainTokenBalance = stxToken ? `${stxToken.balance} STX` : '0 STX';
 
       return {
         totalBalance: `$${portfolio.totalValueUSD}`,
@@ -152,7 +142,7 @@ class PortfolioService {
       console.error('[PortfolioService] Error getting portfolio summary:', error);
       return {
         totalBalance: '$0.00',
-        mainTokenBalance: '0 AVAX',
+        mainTokenBalance: '0 STX',
         tokenCount: 0,
         walletAddress: ''
       };
@@ -165,7 +155,7 @@ class PortfolioService {
   static async canMakeTransaction(
     tokenSymbol: string,
     amount: number,
-    networkId: number = 43114
+    networkId: string = 'mainnet'
   ): Promise<{
     canProceed: boolean;
     currentBalance: string;
@@ -177,11 +167,11 @@ class PortfolioService {
     try {
       // Get real balance
       const balanceCheck = await BalanceService.hasSufficientBalance(tokenSymbol, amount, networkId);
-      
+
       // Get mock price for USD calculations
       const price = await PriceService.getTokenPrice(tokenSymbol);
       const priceUSD = price?.price || 0;
-      
+
       const currentValueUSD = parseFloat(balanceCheck.currentBalance) * priceUSD;
       const requiredValueUSD = amount * priceUSD;
 
@@ -218,7 +208,7 @@ class PortfolioService {
   /**
    * Refresh portfolio data (useful for pull-to-refresh)
    */
-  static async refreshPortfolio(networkId: number = 43114): Promise<Portfolio> {
+  static async refreshPortfolio(networkId: string = 'mainnet'): Promise<Portfolio> {
     console.log('[PortfolioService] Refreshing portfolio data...');
     return this.getPortfolio(networkId);
   }
