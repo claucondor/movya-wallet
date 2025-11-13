@@ -196,8 +196,10 @@ export default function RootLayout() {
       // Avoid redirecting if already in (app) group to prevent loops, unless it's from root index.
       // Also, allow staying on auth/success or auth/error if those are the current deep link targets.
       let shouldRedirect = true;
-      if (segments.length >= 2) {
-        const secondSegment = segments[1];
+      // Check second segment safely
+      const segmentsArray = [...segments]; // Convert to regular array to avoid tuple type issues
+      if (segmentsArray.length >= 2) {
+        const secondSegment = segmentsArray[1];
         if (secondSegment === 'success' || secondSegment === 'error') {
           shouldRedirect = false;
         }
