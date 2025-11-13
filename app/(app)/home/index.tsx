@@ -32,9 +32,10 @@ import PortfolioService, { PortfolioToken } from "../../core/services/portfolioS
 import TransactionHistoryService, { Transaction } from "../../core/services/transactionHistoryService";
 import TransactionDetectionService from "../../core/services/transactionDetectionService";
 import UserLookupService from "../../core/services/userLookupService";
-import WrapUnwrapButton from "../../../components/WrapUnwrapButton";
+// NOTE: Wrap/Unwrap not needed on Stacks - STX can interact with contracts directly
+// import WrapUnwrapButton from "../../../components/WrapUnwrapButton";
 import SwapButton from "../../../components/SwapButton";
-import WrapUnwrapModal from "../../../components/WrapUnwrapModal";
+// import WrapUnwrapModal from "../../../components/WrapUnwrapModal";
 
 // Define ContactType if not already defined globally or in scope
 type ContactType = 'address' | 'email';
@@ -119,10 +120,10 @@ const Home = () => {
     const [lastKnownBalance, setLastKnownBalance] = React.useState<string>('$0.00');
     const [refreshInterval, setRefreshInterval] = React.useState<NodeJS.Timeout | null>(null);
 
-    // Wrap/Unwrap Modal States
-    const [isWrapModalVisible, setIsWrapModalVisible] = React.useState(false);
-    const [wrapTokenSymbol, setWrapTokenSymbol] = React.useState<'AVAX' | 'WAVAX'>('AVAX');
-    const [wrapTokenBalance, setWrapTokenBalance] = React.useState('0');
+    // Wrap/Unwrap Modal States - DISABLED: Not needed on Stacks
+    // const [isWrapModalVisible, setIsWrapModalVisible] = React.useState(false);
+    // const [wrapTokenSymbol, setWrapTokenSymbol] = React.useState<'AVAX' | 'WAVAX'>('AVAX');
+    // const [wrapTokenBalance, setWrapTokenBalance] = React.useState('0');
     
     // Floating Menu State
     const [showFloatingMenu, setShowFloatingMenu] = React.useState(false);
@@ -490,7 +491,8 @@ const Home = () => {
         await Promise.all([loadContacts(), loadPortfolio(), loadTransactionHistory()]);
     };
 
-    // Wrap/Unwrap Modal Handlers
+    // Wrap/Unwrap Modal Handlers - DISABLED: Not needed on Stacks
+    /*
     const handleWrapPress = (tokenSymbol: 'AVAX' | 'WAVAX') => {
         const tokenData = getTokenData(tokenSymbol);
         setWrapTokenSymbol(tokenSymbol);
@@ -503,6 +505,7 @@ const Home = () => {
         loadPortfolio();
         loadTransactionHistory();
     };
+    */
 
     const handleSwapPress = (tokenSymbol: 'WAVAX' | 'USDC') => {
         console.log(`[Home] Swap ${tokenSymbol} pressed`);
@@ -805,12 +808,13 @@ const Home = () => {
                                                 </Text>
                                                 <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
                                             </TouchableOpacity>
-                                            {!getTokenData('AVAX').showDeposit && (
-                                                <WrapUnwrapButton 
-                                                    tokenSymbol="AVAX" 
-                                                    onPress={() => handleWrapPress('AVAX')} 
+                                            {/* Wrap/Unwrap not needed on Stacks - disabled */}
+                                            {/* {!getTokenData('AVAX').showDeposit && (
+                                                <WrapUnwrapButton
+                                                    tokenSymbol="AVAX"
+                                                    onPress={() => handleWrapPress('AVAX')}
                                                 />
-                                            )}
+                                            )} */}
                                         </View>
                                     </View>
                                 </View>
@@ -846,13 +850,14 @@ const Home = () => {
                                             </TouchableOpacity>
                                             {!getTokenData('WAVAX').showDeposit && (
                                                 <>
-                                                    <WrapUnwrapButton 
-                                                        tokenSymbol="WAVAX" 
-                                                        onPress={() => handleWrapPress('WAVAX')} 
-                                                    />
-                                                    <SwapButton 
-                                                        tokenSymbol="WAVAX" 
-                                                        onPress={() => handleSwapPress('WAVAX')} 
+                                                    {/* Wrap/Unwrap not needed on Stacks - disabled */}
+                                                    {/* <WrapUnwrapButton
+                                                        tokenSymbol="WAVAX"
+                                                        onPress={() => handleWrapPress('WAVAX')}
+                                                    /> */}
+                                                    <SwapButton
+                                                        tokenSymbol="WAVAX"
+                                                        onPress={() => handleSwapPress('WAVAX')}
                                                     />
                                                 </>
                                             )}
@@ -1066,14 +1071,15 @@ const Home = () => {
                     transaction={selectedTransaction}
                     onDismiss={() => setIsTransactionDetailsModalVisible(false)}
                 />
-                
-                <WrapUnwrapModal
+
+                {/* Wrap/Unwrap modal disabled - not needed on Stacks */}
+                {/* <WrapUnwrapModal
                     visible={isWrapModalVisible}
                     onClose={() => setIsWrapModalVisible(false)}
                     tokenSymbol={wrapTokenSymbol}
                     currentBalance={wrapTokenBalance}
                     onSuccess={handleWrapSuccess}
-                />
+                /> */}
             </Portal>
         </SafeAreaView>);
 };
