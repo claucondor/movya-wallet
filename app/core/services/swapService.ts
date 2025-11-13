@@ -15,7 +15,6 @@ import {
 import { StacksMainnet, StacksTestnet } from '@stacks/network';
 import { NETWORKS } from '../constants/networks';
 import { getWalletAddress, getPrivateKey } from '../../internal/walletService';
-import PriceService from './priceService';
 
 /**
  * Supported DEX protocols on Stacks
@@ -167,55 +166,50 @@ class SwapService {
       let outputAmountBigInt: bigint;
       let priceImpact: number = 0;
 
-      try {
-        // Try to call the DEX contract's read-only function to get the quote
-        // ALEX uses get-y-given-x function for quotes
-        console.log(`[SwapService] Calling ${protocol} contract read-only function...`);
+      // Call the DEX contract's read-only function to get the quote
+      // ALEX uses get-y-given-x function for quotes
+      console.log(`[SwapService] Calling ${protocol} contract read-only function...`);
 
-        const functionArgs = [
-          contractPrincipalCV(inputTokenInfo.contractAddress, inputTokenInfo.contractName),
-          contractPrincipalCV(outputTokenInfo.contractAddress, outputTokenInfo.contractName),
-          uintCV(inputAmountBigInt.toString()),
-        ];
+      const functionArgs = [
+        contractPrincipalCV(inputTokenInfo.contractAddress, inputTokenInfo.contractName),
+        contractPrincipalCV(outputTokenInfo.contractAddress, outputTokenInfo.contractName),
+        uintCV(inputAmountBigInt.toString()),
+      ];
 
-        // Call read-only function on ALEX contract
-        // Function name varies by DEX - ALEX uses get-y-given-x or get-helper
-        const readOnlyResult = await callReadOnlyFunction({
-          contractAddress: dexConfig.contractAddress,
-          contractName: dexConfig.contractName,
-          functionName: 'get-helper', // ALEX helper function
-          functionArgs,
-          network,
-          senderAddress,
-        });
+      // Call read-only function on ALEX contract
+      // Function name varies by DEX - ALEX uses get-y-given-x or get-helper
+      const readOnlyResult = await callReadOnlyFunction({
+        contractAddress: dexConfig.contractAddress,
+        contractName: dexConfig.contractName,
+        functionName: 'get-helper', // ALEX helper function
+        functionArgs,
+        network,
+        senderAddress,
+      });
 
-        // Parse the result
-        const resultJSON = cvToJSON(readOnlyResult);
-        console.log(`[SwapService] Read-only result:`, resultJSON);
+      // Parse the result
+      const resultJSON = cvToJSON(readOnlyResult);
+      console.log(`[SwapService] Read-only result:`, resultJSON);
 
-        // Extract output amount from result
-        // The exact structure depends on the DEX contract's response format
-        if (resultJSON.value && typeof resultJSON.value === 'object') {
-          outputAmountBigInt = BigInt(resultJSON.value.dy || resultJSON.value || 0);
-        } else {
-          outputAmountBigInt = BigInt(resultJSON.value || 0);
-        }
-
-        // Calculate price impact if we have the quote
-        const expectedValue = inputAmountBigInt * BigInt(1000000) / BigInt(1000000);
-        const actualValue = outputAmountBigInt;
-        priceImpact = Math.abs(Number(expectedValue - actualValue)) / Number(expectedValue) * 100;
-
-        console.log(`[SwapService] Got real quote from contract: ${outputAmountBigInt.toString()}`);
-      } catch (readOnlyError: any) {
-        // If read-only call fails, fall back to estimated calculation using real prices
-        console.warn(`[SwapService] Read-only call failed, using estimated quote from CoinGecko:`, readOnlyError.message);
-
-        // Use estimated exchange rate based on real prices from CoinGecko
-        const estimatedRate = await this.getEstimatedRate(inputToken, outputToken);
-        outputAmountBigInt = BigInt(Math.floor(parseFloat(inputAmount) * estimatedRate * Math.pow(10, outputTokenInfo.decimals)));
-        priceImpact = 0.3; // Estimate 0.3% impact
+      // Extract output amount from result
+      // The exact structure depends on the DEX contract's response format
+      if (resultJSON.value && typeof resultJSON.value === 'object') {
+        outputAmountBigInt = BigInt(resultJSON.value.dy || resultJSON.value || 0);
+      } else {
+        outputAmountBigInt = BigInt(resultJSON.value || 0);
       }
+
+      // Validate we got a valid quote
+      if (!outputAmountBigInt || outputAmountBigInt === BigInt(0)) {
+        throw new Error('Contract returned invalid quote (zero or null)');
+      }
+
+      // Calculate price impact
+      const expectedValue = inputAmountBigInt * BigInt(1000000) / BigInt(1000000);
+      const actualValue = outputAmountBigInt;
+      priceImpact = Math.abs(Number(expectedValue - actualValue)) / Number(expectedValue) * 100;
+
+      console.log(`[SwapService] Got real quote from contract: ${outputAmountBigInt.toString()}`);
 
       // Calculate minimum received with slippage
       const slippageMultiplier = 1 - (slippageTolerance / 100);
@@ -409,32 +403,6 @@ class SwapService {
       SWAP_TOKENS[toToken.toUpperCase()] !== undefined &&
       fromToken.toUpperCase() !== toToken.toUpperCase()
     );
-  }
-
-  /**
-   * Get estimated exchange rate using real prices from CoinGecko
-   * Used as fallback when read-only contract calls fail
-   */
-  private static async getEstimatedRate(fromToken: string, toToken: string): Promise<number> {
-    try {
-      // Get real prices from CoinGecko
-      const fromPrice = await PriceService.getTokenPrice(fromToken);
-      const toPrice = await PriceService.getTokenPrice(toToken);
-
-      if (!fromPrice || !toPrice) {
-        console.warn(`[SwapService] Missing price data for ${fromToken}/${toToken}`);
-        return 1;
-      }
-
-      // Calculate exchange rate: 1 fromToken = X toToken
-      const rate = fromPrice.price / toPrice.price;
-
-      console.log(`[SwapService] Estimated rate ${fromToken}/${toToken}: ${rate.toFixed(8)}`);
-      return rate;
-    } catch (error: any) {
-      console.error(`[SwapService] Error calculating estimated rate:`, error);
-      return 1; // Fallback to 1:1
-    }
   }
 
   /**
