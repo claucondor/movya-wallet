@@ -91,7 +91,7 @@ export async function handleWalletAction(
         const txResult = await sendTransaction(
           params.recipientAddress,
           params.amount,
-          (params.currency as 'AVAX' | 'USDC') || 'AVAX'
+          (params.currency as 'STX' | 'sBTC' | 'USDA') || 'STX'
         );
         
         // Si la transacción fue exitosa, guardarla en el historial
@@ -101,7 +101,7 @@ export async function handleWalletAction(
             historyService.addOutgoingTransaction(
               txResult.data.data.transactionHash,
               params.amount,
-              (params.currency as 'AVAX' | 'USDC') || 'AVAX', // Default to AVAX if not specified
+              (params.currency as 'STX' | 'sBTC' | 'USDA') || 'STX', // Default to STX if not specified
               params.recipientAddress,
               params.recipientEmail || undefined, // Use email as nickname if available
               undefined // USD value would need to be calculated separately
