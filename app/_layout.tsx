@@ -14,7 +14,7 @@ import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
-import { createAndSaveWallet, getWalletAddress, loadWallet } from '../internal/walletService';
+import { createAndSaveWallet, getWalletAddress, loadWallet } from './internal/walletService';
 import { storage } from './core/storage';
 // import { avalanche, avalancheFuji } from 'viem/chains'; // Keep if needed elsewhere, remove if only for Privy
 
