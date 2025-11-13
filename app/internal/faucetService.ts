@@ -5,13 +5,13 @@ const BACKEND_URL = Constants.expoConfig?.extra?.backendUrl || 'http://localhost
 const FAUCET_USED_KEY = 'faucetUsedTimestamp'; // Para controlar cuando se usó el faucet por última vez
 
 /**
- * Solicita tokens AVAX desde el faucet para la dirección proporcionada
+ * Solicita tokens STX desde el faucet para la dirección proporcionada
  * @param userId ID del usuario
  * @param address Dirección de la wallet
- * @param network Red de blockchain (fuji o mainnet)
- * @returns 
+ * @param network Red de blockchain (testnet o mainnet)
+ * @returns
  */
-export async function requestFaucetTokens(userId: string, address: string, network: 'fuji' | 'mainnet' = 'fuji'): Promise<{
+export async function requestFaucetTokens(userId: string, address: string, network: 'testnet' | 'mainnet' = 'testnet'): Promise<{
   success: boolean;
   message: string;
   txHash?: string;

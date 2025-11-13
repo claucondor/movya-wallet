@@ -37,9 +37,16 @@ async function generateNewWallet(): Promise<WalletData> {
 
     // Get first account
     const account = wallet.accounts[0];
+    const version = DEFAULT_NETWORK.isTestnet ? TransactionVersion.Testnet : TransactionVersion.Mainnet;
+
+    // Get address from private key
+    const address = getStxAddress({
+      account,
+      transactionVersion: version
+    });
 
     return {
-      address: account.address, // Stacks address (SP... for mainnet, ST... for testnet)
+      address: address, // Stacks address (SP... for mainnet, ST... for testnet)
       privateKey: account.stxPrivateKey,
       mnemonic: mnemonic,
     };
@@ -54,7 +61,17 @@ async function generateNewWallet(): Promise<WalletData> {
  */
 function getAddressFromPrivateKey(privateKey: string, isTestnet: boolean = false): string {
   const version = isTestnet ? TransactionVersion.Testnet : TransactionVersion.Mainnet;
-  return getStxAddress({ privateKey, version });
+  // Create account object from private key
+  return getStxAddress({
+    account: {
+      stxPrivateKey: privateKey,
+      dataPrivateKey: privateKey,
+      appsKey: privateKey,
+      salt: '',
+      index: 0
+    },
+    transactionVersion: version
+  });
 }
 
 /**
@@ -320,9 +337,16 @@ export async function restoreWalletFromMnemonic(mnemonic: string): Promise<Walle
     });
 
     const account = wallet.accounts[0];
+    const version = DEFAULT_NETWORK.isTestnet ? TransactionVersion.Testnet : TransactionVersion.Mainnet;
+
+    // Get address from account
+    const address = getStxAddress({
+      account,
+      transactionVersion: version
+    });
 
     const walletData: WalletData = {
-      address: account.address,
+      address: address,
       privateKey: account.stxPrivateKey,
       mnemonic: mnemonic,
     };
