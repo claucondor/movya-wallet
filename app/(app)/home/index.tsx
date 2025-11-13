@@ -32,9 +32,10 @@ import PortfolioService, { PortfolioToken } from "../../core/services/portfolioS
 import TransactionHistoryService, { Transaction } from "../../core/services/transactionHistoryService";
 import TransactionDetectionService from "../../core/services/transactionDetectionService";
 import UserLookupService from "../../core/services/userLookupService";
-import WrapUnwrapButton from "../../../components/WrapUnwrapButton";
+// NOTE: Wrap/Unwrap not needed on Stacks - STX can interact with contracts directly
+// import WrapUnwrapButton from "../../../components/WrapUnwrapButton";
 import SwapButton from "../../../components/SwapButton";
-import WrapUnwrapModal from "../../../components/WrapUnwrapModal";
+// import WrapUnwrapModal from "../../../components/WrapUnwrapModal";
 
 // Define ContactType if not already defined globally or in scope
 type ContactType = 'address' | 'email';
@@ -119,10 +120,10 @@ const Home = () => {
     const [lastKnownBalance, setLastKnownBalance] = React.useState<string>('$0.00');
     const [refreshInterval, setRefreshInterval] = React.useState<NodeJS.Timeout | null>(null);
 
-    // Wrap/Unwrap Modal States
-    const [isWrapModalVisible, setIsWrapModalVisible] = React.useState(false);
-    const [wrapTokenSymbol, setWrapTokenSymbol] = React.useState<'AVAX' | 'WAVAX'>('AVAX');
-    const [wrapTokenBalance, setWrapTokenBalance] = React.useState('0');
+    // Wrap/Unwrap Modal States - DISABLED: Not needed on Stacks
+    // const [isWrapModalVisible, setIsWrapModalVisible] = React.useState(false);
+    // const [wrapTokenSymbol, setWrapTokenSymbol] = React.useState<'AVAX' | 'WAVAX'>('AVAX');
+    // const [wrapTokenBalance, setWrapTokenBalance] = React.useState('0');
     
     // Floating Menu State
     const [showFloatingMenu, setShowFloatingMenu] = React.useState(false);
@@ -166,7 +167,7 @@ const Home = () => {
         setBalancesError(null);
         try {
             console.log('[Home] Loading portfolio...');
-            const portfolio = await PortfolioService.getPortfolio(43114); // Avalanche mainnet
+            const portfolio = await PortfolioService.getPortfolio('mainnet'); // Stacks mainnet
             
             const newBalance = `$${portfolio.totalValueUSD}`;
             
@@ -206,7 +207,7 @@ const Home = () => {
         try {
             console.log('[Home] Loading transaction history...');
             const historyService = TransactionHistoryService.getInstance();
-            const allTransactions = historyService.getRecentTransactions(50);
+            const allTransactions = await historyService.fetchTransactionHistory(50);
             setTransactions(allTransactions);
             console.log(`[Home] Loaded ${allTransactions.length} transactions`);
         } catch (error: any) {
@@ -277,44 +278,42 @@ const Home = () => {
     const initializeTransactionDetection = async () => {
         try {
             const detectionService = TransactionDetectionService.getInstance();
-            await detectionService.initialize();
+            // Start monitoring with callback for new transactions
+            detectionService.startMonitoring((tx) => {
+                console.log(`[Home] 🎉 New incoming transaction detected: ${tx.tx_id}`);
+                // Reload transaction history and portfolio to show new transaction
+                loadTransactionHistory();
+                loadPortfolio(true);
+            });
             console.log('[Home] Transaction detection service initialized');
         } catch (error) {
             console.error('[Home] Error initializing transaction detection:', error);
         }
     };
 
-    // Set up periodic balance refresh
+    // Set up periodic balance refresh and transaction detection
     React.useEffect(() => {
-        // Start auto-refresh every 30 seconds
+        // Start auto-refresh every 60 seconds (detection service already polls at 30s)
         const interval = setInterval(async () => {
             console.log('[Home] Auto-refreshing portfolio...');
             loadPortfolio(true); // Background refresh
-            
-            // Also check for new transactions
+        }, 60000);
+
+        // Start transaction detection
+        initializeTransactionDetection();
+
+        // Cleanup on unmount
+        return () => {
+            clearInterval(interval);
+            // Stop transaction detection on unmount
             try {
                 const detectionService = TransactionDetectionService.getInstance();
-                const newTransactions = await detectionService.checkForNewTransactions();
-                
-                if (newTransactions.length > 0) {
-                    console.log(`[Home] 🎉 Detected ${newTransactions.length} new incoming transactions!`);
-                    // Reload transaction history to show new transactions
-                    loadTransactionHistory();
-                }
+                detectionService.stopMonitoring();
             } catch (error) {
-                console.error('[Home] Error checking for new transactions:', error);
-            }
-        }, 30000); // 30 seconds
-
-        setRefreshInterval(interval);
-
-        // Cleanup interval on unmount
-        return () => {
-            if (interval) {
-                clearInterval(interval);
+                console.error('[Home] Error stopping transaction detection:', error);
             }
         };
-    }, [lastKnownBalance]);
+    }, []);
 
     // Cleanup interval when component unmounts
     React.useEffect(() => {
@@ -492,7 +491,8 @@ const Home = () => {
         await Promise.all([loadContacts(), loadPortfolio(), loadTransactionHistory()]);
     };
 
-    // Wrap/Unwrap Modal Handlers
+    // Wrap/Unwrap Modal Handlers - DISABLED: Not needed on Stacks
+    /*
     const handleWrapPress = (tokenSymbol: 'AVAX' | 'WAVAX') => {
         const tokenData = getTokenData(tokenSymbol);
         setWrapTokenSymbol(tokenSymbol);
@@ -505,6 +505,7 @@ const Home = () => {
         loadPortfolio();
         loadTransactionHistory();
     };
+    */
 
     const handleSwapPress = (tokenSymbol: 'WAVAX' | 'USDC') => {
         console.log(`[Home] Swap ${tokenSymbol} pressed`);
@@ -807,12 +808,13 @@ const Home = () => {
                                                 </Text>
                                                 <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
                                             </TouchableOpacity>
-                                            {!getTokenData('AVAX').showDeposit && (
-                                                <WrapUnwrapButton 
-                                                    tokenSymbol="AVAX" 
-                                                    onPress={() => handleWrapPress('AVAX')} 
+                                            {/* Wrap/Unwrap not needed on Stacks - disabled */}
+                                            {/* {!getTokenData('AVAX').showDeposit && (
+                                                <WrapUnwrapButton
+                                                    tokenSymbol="AVAX"
+                                                    onPress={() => handleWrapPress('AVAX')}
                                                 />
-                                            )}
+                                            )} */}
                                         </View>
                                     </View>
                                 </View>
@@ -848,13 +850,14 @@ const Home = () => {
                                             </TouchableOpacity>
                                             {!getTokenData('WAVAX').showDeposit && (
                                                 <>
-                                                    <WrapUnwrapButton 
-                                                        tokenSymbol="WAVAX" 
-                                                        onPress={() => handleWrapPress('WAVAX')} 
-                                                    />
-                                                    <SwapButton 
-                                                        tokenSymbol="WAVAX" 
-                                                        onPress={() => handleSwapPress('WAVAX')} 
+                                                    {/* Wrap/Unwrap not needed on Stacks - disabled */}
+                                                    {/* <WrapUnwrapButton
+                                                        tokenSymbol="WAVAX"
+                                                        onPress={() => handleWrapPress('WAVAX')}
+                                                    /> */}
+                                                    <SwapButton
+                                                        tokenSymbol="WAVAX"
+                                                        onPress={() => handleSwapPress('WAVAX')}
                                                     />
                                                 </>
                                             )}
@@ -907,8 +910,8 @@ const Home = () => {
                                     </View>
                                 ) : (
                                     getFilteredTransactions().map((transaction, index) => (
-                                        <TouchableOpacity 
-                                            key={transaction.id} 
+                                        <TouchableOpacity
+                                            key={transaction.txid}
                                             style={styles.transactionCard}
                                             onPress={() => handleTransactionPress(transaction)}
                                         >
@@ -926,9 +929,9 @@ const Home = () => {
                                                 </View>
                                                 <View style={styles.transactionMeta}>
                                                                                                 <Text style={styles.transactionTarget}>
-                                                {transaction.type === 'sent' 
-                                                    ? `To: ${transaction.recipientNickname || (transaction.recipient ? transaction.recipient.substring(0, 10) + '...' : 'Unknown')}`
-                                                    : `From: ${transaction.senderNickname || (transaction.sender ? transaction.sender.substring(0, 10) + '...' : 'Unknown')}`}
+                                                {transaction.type === 'sent'
+                                                    ? `To: ${transaction.recipient ? transaction.recipient.substring(0, 10) + '...' : 'Unknown'}`
+                                                    : `From: ${transaction.sender ? transaction.sender.substring(0, 10) + '...' : 'Unknown'}`}
                                             </Text>
                                                     <Text style={styles.transactionDate}>
                                                         {formatTransactionDate(transaction.timestamp)}
@@ -1068,14 +1071,15 @@ const Home = () => {
                     transaction={selectedTransaction}
                     onDismiss={() => setIsTransactionDetailsModalVisible(false)}
                 />
-                
-                <WrapUnwrapModal
+
+                {/* Wrap/Unwrap modal disabled - not needed on Stacks */}
+                {/* <WrapUnwrapModal
                     visible={isWrapModalVisible}
                     onClose={() => setIsWrapModalVisible(false)}
                     tokenSymbol={wrapTokenSymbol}
                     currentBalance={wrapTokenBalance}
                     onSuccess={handleWrapSuccess}
-                />
+                /> */}
             </Portal>
         </SafeAreaView>);
 };

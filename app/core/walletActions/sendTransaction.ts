@@ -1,193 +1,200 @@
-import { avalanche, avalancheFuji } from '@/constants/chains';
-import { createPublicClient, createWalletClient, formatEther, formatUnits, http, parseEther, parseUnits } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import {
+  makeSTXTokenTransfer,
+  makeContractCall,
+  broadcastTransaction,
+  AnchorMode,
+  PostConditionMode,
+  makeStandardSTXPostCondition,
+  makeStandardFungiblePostCondition,
+  FungibleConditionCode,
+  createAssetInfo,
+  TransactionVersion,
+} from '@stacks/transactions';
+import { StacksMainnet, StacksTestnet } from '@stacks/network';
 import { ActionResultInput } from '../../types/agent';
-import { storage } from '../storage';
 import { WalletActionResult } from '../walletActionHandler';
-
-const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
-
-// USDC Contract address on Avalanche mainnet
-const USDC_CONTRACT_ADDRESS = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E';
-
-// ABI for USDC ERC-20 transfer
-const USDC_ABI = [
-  {
-    "inputs": [
-      {"internalType": "address", "name": "to", "type": "address"},
-      {"internalType": "uint256", "name": "amount", "type": "uint256"}
-    ],
-    "name": "transfer",
-    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
-    "name": "balanceOf",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "view",
-    "type": "function"
-  }
-] as const;
+import { getPrivateKey, getWalletAddress } from '../../internal/walletService';
+import { findToken, parseTokenAmount, parseContractPrincipal } from '../constants/tokens';
+import { DEFAULT_NETWORK, getHiroApiKey } from '../constants/networks';
+import { principalCV, uintCV, noneCV, someCV, bufferCV } from '@stacks/transactions';
 
 /**
- * Envía una transacción de AVAX o USDC a otra dirección en la red Avalanche
+ * Send STX or SIP-010 tokens on Stacks blockchain
  */
 export async function sendTransaction(
   recipientAddress: string,
   amount: string,
-  currency: 'AVAX' | 'USDC' = 'AVAX'
+  currency: 'STX' | 'sBTC' | 'USDA' = 'STX'
 ): Promise<WalletActionResult> {
-  console.log(`[sendTransaction] Iniciando envío de ${amount} ${currency} a ${recipientAddress}`);
+  console.log(`[sendTransaction] Starting send of ${amount} ${currency} to ${recipientAddress}`);
 
   try {
-    // Validaciones básicas
+    // Basic validations
     if (!recipientAddress) {
-      throw new Error('La dirección del destinatario es requerida');
+      throw new Error('Recipient address is required');
+    }
+
+    if (!recipientAddress.startsWith('SP') && !recipientAddress.startsWith('ST')) {
+      throw new Error('Invalid Stacks address. Must start with SP (mainnet) or ST (testnet)');
     }
 
     if (!amount || parseFloat(amount) <= 0) {
-      throw new Error('El monto debe ser mayor que cero');
+      throw new Error('Amount must be greater than zero');
     }
 
-    if (!['AVAX', 'USDC'].includes(currency)) {
-      throw new Error('Moneda no soportada. Solo AVAX y USDC están disponibles.');
-    }
-
-    // 1. Obtener la private key almacenada
-    const privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
+    // Get sender's private key and address
+    const privateKey = await getPrivateKey();
     if (!privateKey) {
-      throw new Error('No se encontró la llave privada. Por favor, inicia sesión de nuevo.');
+      throw new Error('Private key not found. Please log in again.');
     }
 
-    // 2. Crear la cuenta a partir de la llave privada
-    const account = privateKeyToAccount(privateKey as `0x${string}`);
-    console.log(`[sendTransaction] Preparando transacción desde ${account.address}`);
+    const senderAddress = await getWalletAddress();
+    if (!senderAddress) {
+      throw new Error('Wallet address not found. Please log in again.');
+    }
 
-    // 3. Usar mainnet para transacciones reales
-    const chain = avalanche; // Cambiado de avalancheFuji a mainnet
-    const publicClient = createPublicClient({
-      chain,
-      transport: http()
-    });
+    console.log(`[sendTransaction] Preparing transaction from ${senderAddress}`);
 
-    // 4. Crear wallet client
-    const walletClient = createWalletClient({
-      account,
-      chain,
-      transport: http()
-    });
+    // Get token info
+    const token = findToken(currency, 'mainnet');
+    if (!token) {
+      throw new Error(`Token ${currency} not supported`);
+    }
 
-    let hash: string;
-    let balanceAfter: string;
+    // Parse amount to base units
+    const amountInBaseUnits = parseTokenAmount(amount, token);
 
-    if (currency === 'AVAX') {
-      // Manejo de AVAX (nativo)
-      const balanceWei = await publicClient.getBalance({
-        address: account.address
-      });
-      
-      const balanceFormatted = formatEther(balanceWei);
-      console.log(`[sendTransaction] Balance actual: ${balanceFormatted} AVAX`);
+    // Setup network
+    const network = DEFAULT_NETWORK.isTestnet ? new StacksTestnet() : new StacksMainnet();
 
-      const amountWei = parseEther(amount);
-      
-      // Verificar balance suficiente
-      if (balanceWei < amountWei) {
-        throw new Error(`Balance insuficiente. Tienes ${balanceFormatted} AVAX pero intentas enviar ${amount} AVAX.`);
+    let txid: string;
+
+    if (currency === 'STX') {
+      // Send native STX
+      console.log(`[sendTransaction] Sending ${amount} STX to ${recipientAddress}`);
+
+      const txOptions = {
+        recipient: recipientAddress,
+        amount: amountInBaseUnits,
+        senderKey: privateKey,
+        network,
+        memo: '', // Optional memo
+        anchorMode: AnchorMode.Any,
+        // Post condition: sender will send exactly this amount of STX
+        postConditions: [
+          makeStandardSTXPostCondition(
+            senderAddress,
+            FungibleConditionCode.Equal,
+            amountInBaseUnits
+          )
+        ],
+        postConditionMode: PostConditionMode.Deny, // Reject if post conditions fail
+      };
+
+      const transaction = await makeSTXTokenTransfer(txOptions);
+
+      // Broadcast transaction
+      const broadcastResponse = await broadcastTransaction(transaction, network);
+
+      if (broadcastResponse.error) {
+        throw new Error(`Transaction failed: ${broadcastResponse.error}`);
       }
 
-      console.log(`[sendTransaction] Enviando ${amount} AVAX a ${recipientAddress}`);
-      hash = await walletClient.sendTransaction({
-        to: recipientAddress as `0x${string}`,
-        value: amountWei,
-        account,
-      });
+      if ('txid' in broadcastResponse) {
+        txid = broadcastResponse.txid;
+      } else {
+        throw new Error('Transaction broadcast failed: no txid returned');
+      }
 
-      // Obtener balance actualizado
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const newBalanceWei = await publicClient.getBalance({
-        address: account.address
-      });
-      balanceAfter = `${formatEther(newBalanceWei)} AVAX`;
-      
     } else {
-      // Manejo de USDC (ERC-20)
-      const usdcBalance = await publicClient.readContract({
-        address: USDC_CONTRACT_ADDRESS,
-        abi: USDC_ABI,
-        functionName: 'balanceOf',
-        args: [account.address]
-      });
-
-      const balanceFormatted = formatUnits(usdcBalance, 6); // USDC tiene 6 decimales
-      console.log(`[sendTransaction] Balance actual: ${balanceFormatted} USDC`);
-
-      const amountUnits = parseUnits(amount, 6); // USDC tiene 6 decimales
-      
-      // Verificar balance suficiente
-      if (usdcBalance < amountUnits) {
-        throw new Error(`Balance insuficiente. Tienes ${balanceFormatted} USDC pero intentas enviar ${amount} USDC.`);
+      // Send SIP-010 token (sBTC, USDA, etc.)
+      if (!token.contractAddress) {
+        throw new Error(`Token ${currency} has no contract address`);
       }
 
-      console.log(`[sendTransaction] Enviando ${amount} USDC a ${recipientAddress}`);
-      hash = await walletClient.writeContract({
-        address: USDC_CONTRACT_ADDRESS,
-        abi: USDC_ABI,
-        functionName: 'transfer',
-        args: [recipientAddress as `0x${string}`, amountUnits],
-        account,
-      });
+      console.log(`[sendTransaction] Sending ${amount} ${currency} to ${recipientAddress}`);
 
-      // Obtener balance actualizado
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const newUsdcBalance = await publicClient.readContract({
-        address: USDC_CONTRACT_ADDRESS,
-        abi: USDC_ABI,
-        functionName: 'balanceOf',
-        args: [account.address]
-      });
-      balanceAfter = `${formatUnits(newUsdcBalance, 6)} USDC`;
+      const { address: contractAddr, contractName } = parseContractPrincipal(token.contractAddress);
+
+      // Post condition: sender will send exactly this amount of tokens
+      const postConditions = [
+        makeStandardFungiblePostCondition(
+          senderAddress,
+          FungibleConditionCode.Equal,
+          amountInBaseUnits,
+          createAssetInfo(contractAddr, contractName, token.assetName || token.symbol.toLowerCase())
+        )
+      ];
+
+      const txOptions = {
+        contractAddress: contractAddr,
+        contractName: contractName,
+        functionName: 'transfer',
+        functionArgs: [
+          uintCV(amountInBaseUnits.toString()),
+          principalCV(senderAddress),
+          principalCV(recipientAddress),
+          noneCV() // Optional memo
+        ],
+        senderKey: privateKey,
+        network,
+        postConditions,
+        postConditionMode: PostConditionMode.Deny,
+        anchorMode: AnchorMode.Any,
+      };
+
+      const transaction = await makeContractCall(txOptions);
+
+      // Broadcast transaction
+      const broadcastResponse = await broadcastTransaction(transaction, network);
+
+      if (broadcastResponse.error) {
+        throw new Error(`Transaction failed: ${broadcastResponse.error}`);
+      }
+
+      if ('txid' in broadcastResponse) {
+        txid = broadcastResponse.txid;
+      } else {
+        throw new Error('Transaction broadcast failed: no txid returned');
+      }
     }
 
-    console.log(`[sendTransaction] Transacción enviada con éxito. Hash: ${hash}`);
-    console.log(`[sendTransaction] Nuevo balance después de la transacción: ${balanceAfter}`);
+    console.log(`[sendTransaction] Transaction sent successfully. Txid: ${txid}`);
 
-    // Preparar los datos para reportar al agente
+    // Prepare data to report to agent
     const actionResult: ActionResultInput = {
       actionType: 'SEND_TRANSACTION',
       status: 'success',
       data: {
-        transactionHash: hash,
+        transactionHash: txid,
         amountSent: amount,
         currencySent: currency,
         recipient: recipientAddress,
-        balance: balanceAfter
       }
     };
 
     return {
       success: true,
-      responseMessage: `Transacción completada. Se enviaron ${amount} ${currency} a ${recipientAddress}. Hash de transacción: ${hash}`,
+      responseMessage: `Transaction completed. Sent ${amount} ${currency} to ${recipientAddress}. Txid: ${txid}`,
       data: actionResult
     };
-  } catch (error: any) {
-    console.error('[sendTransaction] Error al enviar transacción:', error);
 
-    // En caso de error, formatear la respuesta de error
+  } catch (error: any) {
+    console.error('[sendTransaction] Error sending transaction:', error);
+
+    // Format error response
     const actionResult: ActionResultInput = {
       actionType: 'SEND_TRANSACTION',
       status: 'failure',
       data: {
         errorCode: error.code || 'UNKNOWN_ERROR',
-        errorMessage: error.message || 'Error desconocido al enviar la transacción'
+        errorMessage: error.message || 'Unknown error sending transaction'
       }
     };
 
     return {
       success: false,
-      responseMessage: `Error al enviar transacción: ${error.message || 'Error desconocido'}`,
+      responseMessage: `Error sending transaction: ${error.message || 'Unknown error'}`,
       data: actionResult
     };
   }
@@ -195,5 +202,5 @@ export async function sendTransaction(
 
 // Add a default export to suppress Expo Router "missing default export" warning
 export default function SendTransactionExport() {
-  return null; // This will never be rendered
-} 
+  return null;
+}

@@ -1,7 +1,7 @@
 import { Href, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native'; // Import necessary components
-import { getWalletAddress } from '../internal/walletService';
+import { getWalletAddress } from './internal/walletService';
 
 // This component will immediately redirect based on auth state handled in RootLayout
 // Or it could perform an initial check itself

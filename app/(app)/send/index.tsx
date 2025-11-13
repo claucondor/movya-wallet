@@ -28,12 +28,8 @@ import {
 import { Video, ResizeMode } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from "react-native-safe-area-context";
-import { createPublicClient, formatEther, http } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { storage } from '../../core/storage';
+import BalanceService from '../../core/services/balanceService';
 import { FontFamily, Color, Border, Gap, Padding, FontSize } from '../home/GlobalStyles';
-
-const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
 export default function SendScreen() {
   const paperTheme = usePaperTheme();
@@ -78,26 +74,11 @@ export default function SendScreen() {
   const fetchBalance = async () => {
     setIsLoading(true);
     try {
-      const privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
-      if (!privateKey) {
-        throw new Error('No private key found');
-      }
-
-      const account = privateKeyToAccount(privateKey as `0x${string}`);
-      
-      const client = createPublicClient({
-        chain: avalanche,
-        transport: http(avalanche.rpcUrls.default.http[0])
-      });
-
-      const balanceWei = await client.getBalance({
-        address: account.address
-      });
-
-      const balanceFormatted = formatEther(balanceWei);
-      setBalance(parseFloat(balanceFormatted).toFixed(4));
+      const stxBalance = await BalanceService.getSTXBalance('mainnet');
+      setBalance(parseFloat(stxBalance.balance).toFixed(4));
     } catch (error) {
       console.error('Error fetching balance:', error);
+      setBalance('0.0000');
     } finally {
       setIsLoading(false);
     }

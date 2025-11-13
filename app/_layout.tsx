@@ -14,7 +14,7 @@ import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
-import { createAndSaveWallet, getWalletAddress, loadWallet } from '../internal/walletService';
+import { createAndSaveWallet, getWalletAddress, loadWallet } from './internal/walletService';
 import { storage } from './core/storage';
 // import { avalanche, avalancheFuji } from 'viem/chains'; // Keep if needed elsewhere, remove if only for Privy
 
@@ -195,7 +195,16 @@ export default function RootLayout() {
       // Redirect to main app screen.
       // Avoid redirecting if already in (app) group to prevent loops, unless it's from root index.
       // Also, allow staying on auth/success or auth/error if those are the current deep link targets.
-      if (segments[1] !== 'success' && segments[1] !== 'error') {
+      let shouldRedirect = true;
+      // Check second segment safely
+      const segmentsArray = [...segments]; // Convert to regular array to avoid tuple type issues
+      if (segmentsArray.length >= 2) {
+        const secondSegment = segmentsArray[1];
+        if (secondSegment === 'success' || secondSegment === 'error') {
+          shouldRedirect = false;
+        }
+      }
+      if (shouldRedirect) {
          console.log('Redirecting to /(app)/wallet due to walletAddress and current segment');
          router.replace('/(app)/home'); // Changed from '/(app)/wallet' to '/(app)/chat'
       }

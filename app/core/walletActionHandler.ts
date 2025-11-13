@@ -1,10 +1,7 @@
-import { avalanche, avalancheFuji } from '@/constants/chains';
-import { createPublicClient, http } from 'viem';
-import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import { ActionResultInput } from '../types/agent';
 import { reportActionResult } from './agentApi';
 import { storage } from './storage';
-import { fetchAvaxBalance } from './walletActions/fetchBalance';
+import fetchStacksBalance from './walletActions/fetchBalance';
 import { sendTransaction } from './walletActions/sendTransaction';
 import TransactionHistoryService from './services/transactionHistoryService';
 import SwapService from './services/swapService';
@@ -17,48 +14,20 @@ const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 interface ActionHandlerParams {
   networkId?: 'mainnet' | 'testnet'; // Allow overriding which network to use
   privateKey?: string;               // Allow passing private key directly or retrieve from storage
-  account?: PrivateKeyAccount;       // Allow passing account directly
 }
 
 /**
- * Gets the current chain configuration based on preferences
+ * Get private key from storage
  */
-function getChain(networkId: 'mainnet' | 'testnet' = 'testnet') {
-  return networkId === 'mainnet' ? avalanche : avalancheFuji;
-}
-
-/**
- * Load or create wallet account from storage or provided key
- */
-async function getAccount(params?: ActionHandlerParams): Promise<PrivateKeyAccount> {
-  if (params?.account) {
-    return params.account;
+function getPrivateKeyFromStorage(): string {
+  const privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
+  if (!privateKey) {
+    throw new Error('No private key found in storage.');
   }
-
-  try {
-    const privateKey = params?.privateKey || storage.getString(PRIVATE_KEY_STORAGE_KEY);
-    if (!privateKey) {
-      throw new Error('No private key found in storage or provided.');
-    }
-    
-    // Use non-dynamic import (was imported at the top of the file)
-    return privateKeyToAccount(privateKey as `0x${string}`);
-  } catch (error) {
-    console.error('Failed to load account:', error);
-    throw new Error('Could not load wallet account. Please check your wallet setup.');
-  }
+  return privateKey;
 }
 
-/**
- * Creates a public client for the specified network
- */
-function createClient(networkId: 'mainnet' | 'testnet' = 'testnet') {
-  const chain = getChain(networkId);
-  return createPublicClient({
-    chain,
-    transport: http(), // Usar la configuración por defecto del chain que ya incluye fallbacks
-  });
-}
+// Stacks blockchain doesn't need a client - we use Hiro API directly via fetch
 
 // Tipos de acciones disponibles
 export type WalletActionType = 'FETCH_BALANCE' | 'SEND_TRANSACTION' | 'FETCH_HISTORY' | 'SWAP';
@@ -94,7 +63,7 @@ export async function handleWalletAction(
     // Manejar diferentes tipos de acciones
     switch (actionType) {
       case 'FETCH_BALANCE':
-        const result = await fetchAvaxBalance();
+        const result = await fetchStacksBalance();
         
         // Si no hay mensaje de respuesta (debería venir de la IA), agregar un fallback
         if (!result.responseMessage && result.success && result.data) {
@@ -122,7 +91,7 @@ export async function handleWalletAction(
         const txResult = await sendTransaction(
           params.recipientAddress,
           params.amount,
-          (params.currency as 'AVAX' | 'USDC') || 'AVAX'
+          (params.currency as 'STX' | 'sBTC' | 'USDA') || 'STX'
         );
         
         // Si la transacción fue exitosa, guardarla en el historial
@@ -132,7 +101,7 @@ export async function handleWalletAction(
             historyService.addOutgoingTransaction(
               txResult.data.data.transactionHash,
               params.amount,
-              (params.currency as 'AVAX' | 'USDC') || 'AVAX', // Default to AVAX if not specified
+              (params.currency as 'STX' | 'sBTC' | 'USDA') || 'STX', // Default to STX if not specified
               params.recipientAddress,
               params.recipientEmail || undefined, // Use email as nickname if available
               undefined // USD value would need to be calculated separately
@@ -148,18 +117,18 @@ export async function handleWalletAction(
       
       case 'FETCH_HISTORY':
         const historyService = TransactionHistoryService.getInstance();
-        const recentTransactions = historyService.getRecentTransactions(20);
-        
-        // Convert transactions to the format expected by ActionResultInput (filter out pending)
+        const recentTransactions = await historyService.fetchTransactionHistory(20);
+
+        // Convert transactions to the format expected by ActionResultInput
         const formattedHistory = recentTransactions
-          .filter(tx => tx.type !== 'pending') // Filter out pending transactions
+          .filter(tx => tx.type === 'sent' || tx.type === 'received') // Only sent/received
           .map(tx => ({
             date: new Date(tx.timestamp).toLocaleDateString(),
-            type: tx.type as 'sent' | 'received', // Now safe to cast
+            type: tx.type as 'sent' | 'received',
             amount: `${tx.amount} ${tx.currency}`,
-            recipientOrSender: tx.type === 'sent' 
-              ? (tx.recipientNickname || tx.recipient || 'Unknown')
-              : (tx.senderNickname || tx.sender || 'Unknown')
+            recipientOrSender: tx.type === 'sent'
+              ? (tx.recipient || 'Unknown')
+              : (tx.sender || 'Unknown')
           }));
 
         return {
@@ -191,14 +160,22 @@ export async function handleWalletAction(
         }
         
         try {
-          const swapService = SwapService.getInstance();
-          let swapResult;
-          
-          if (params.fromCurrency === 'WAVAX') {
-            swapResult = await swapService.swapWAVAXToUSDC(params.amount);
-          } else {
-            swapResult = await swapService.swapUSDCToWAVAX(params.amount);
-          }
+          // Get quote first to determine minimum output
+          const quote = await SwapService.getSwapQuote(
+            params.fromCurrency,
+            params.toCurrency,
+            params.amount,
+            0.5 // 0.5% slippage
+          );
+
+          // Execute the swap
+          const swapResult = await SwapService.executeSwap(
+            params.fromCurrency,
+            params.toCurrency,
+            params.amount,
+            quote.minimumReceived,
+            0.5 // 0.5% slippage
+          );
           
           if (swapResult.success) {
             return {

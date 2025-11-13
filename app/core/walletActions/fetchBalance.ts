@@ -1,36 +1,35 @@
-import { avalanche } from '@/constants/chains';
-import { createPublicClient, formatEther, http } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
 import { ActionResultInput } from '../../types/agent';
-import { storage } from '../storage';
 import { WalletActionResult } from '../walletActionHandler';
 import BalanceService from '../services/balanceService';
 
-const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
-
 /**
- * Consulta el balance completo del usuario en Avalanche mainnet (AVAX y USDC)
+ * Fetch user's balance on Stacks blockchain (STX and SIP-010 tokens)
  */
-export async function fetchAvaxBalance(): Promise<WalletActionResult> {
-  console.log('[fetchBalance] Iniciando consulta de balance en Avalanche mainnet');
+export async function fetchStacksBalance(): Promise<WalletActionResult> {
+  console.log('[fetchBalance] Starting balance query on Stacks');
 
   try {
-    // 1. Obtener balances de ambos tokens usando el BalanceService
-    const avaxBalance = await BalanceService.getAVAXBalance(43114); // Avalanche mainnet
-    const usdcBalance = await BalanceService.getUSDCBalance(43114); // Avalanche mainnet
+    // 1. Get balances using BalanceService
+    const stxBalance = await BalanceService.getSTXBalance('mainnet');
+    const usdaBalance = await BalanceService.getUSDABalance('mainnet');
+    const sbtcBalance = await BalanceService.getSBTCBalance('mainnet');
 
-    // 2. Formatear la información de balance
-    let balanceText = `${avaxBalance.balance} AVAX`;
-    
-    if (usdcBalance) {
-      balanceText += ` y ${usdcBalance.balance} USDC`;
+    // 2. Format balance information
+    let balanceText = `${stxBalance.balance} STX`;
+
+    if (usdaBalance && parseFloat(usdaBalance.balance) > 0) {
+      balanceText += `, ${usdaBalance.balance} USDA`;
     }
-    
-    balanceText += ` en Avalanche mainnet`;
 
-    console.log(`[fetchBalance] Balance obtenido: ${balanceText}`);
+    if (sbtcBalance && parseFloat(sbtcBalance.balance) > 0) {
+      balanceText += `, ${sbtcBalance.balance} sBTC`;
+    }
 
-    // 3. Preparar los datos para reportar al agente
+    balanceText += ` on Stacks`;
+
+    console.log(`[fetchBalance] Balance obtained: ${balanceText}`);
+
+    // 3. Prepare data to report to agent
     const actionResult: ActionResultInput = {
       actionType: 'FETCH_BALANCE',
       status: 'success',
@@ -39,34 +38,32 @@ export async function fetchAvaxBalance(): Promise<WalletActionResult> {
       }
     };
 
-    // 4. Reportar el resultado al agente para obtener una respuesta natural
+    // 4. Return result for agent to generate natural response
     return {
       success: true,
       responseMessage: "",
       data: actionResult
     };
   } catch (error: any) {
-    console.error('[fetchBalance] Error al consultar balance:', error);
+    console.error('[fetchBalance] Error querying balance:', error);
 
-    // En caso de error, formatear la respuesta de error
-    const actionResult: ActionResultInput = {
+    // Prepare error data
+    const errorResult: ActionResultInput = {
       actionType: 'FETCH_BALANCE',
       status: 'failure',
       data: {
-        errorCode: error.code || 'UNKNOWN_ERROR',
-        errorMessage: error.message || 'Error desconocido al consultar balance'
+        errorCode: 'BALANCE_FETCH_ERROR',
+        errorMessage: error.message || 'Could not query balance'
       }
     };
 
     return {
       success: false,
-      responseMessage: "",
-      data: actionResult
+      responseMessage: `Error: ${error.message}`,
+      data: errorResult
     };
   }
 }
 
-// Add a default export to suppress Expo Router "missing default export" warning
-export default function FetchBalanceExport() {
-  return null; // This will never be rendered
-} 
+// Export as default for backward compatibility
+export default fetchStacksBalance;

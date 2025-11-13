@@ -4,12 +4,8 @@ import { useTheme } from '@/hooks/ThemeContext'; // Assuming ThemeContext exists
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'; // Import viem functions
 import { storage } from '../core/storage'; // UPDATED PATH
-import { checkBalanceAndRequestFaucet, saveWalletToBackend } from '../internal/walletService'; // UPDATED PATH
-
-// Define a key for storing the private key
-const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
+import { getWalletAddress, checkBalanceAndRequestFaucet, saveWalletToBackend } from '../internal/walletService'; // UPDATED PATH
 
 export default function AuthSuccessScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
@@ -23,29 +19,17 @@ export default function AuthSuccessScreen() {
     const handleWallet = async () => {
       try {
         // Store the userId if provided
-        if (userId) {
+        if (userId && typeof userId === 'string') {
           storage.set('userId', userId);
           console.log('User ID stored in secure storage:', userId);
         }
-        
-        // Use MMKV's synchronous getString
-        let privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
-        let account;
 
-        if (!privateKey) {
-          console.log('No private key found, generating a new wallet...');
-          privateKey = generatePrivateKey();
-          account = privateKeyToAccount(privateKey as `0x${string}`);
-          // Use MMKV's synchronous set
-          storage.set(PRIVATE_KEY_STORAGE_KEY, privateKey);
-          console.log('New wallet generated and private key stored securely for address:', account.address);
-        } else {
-          account = privateKeyToAccount(privateKey as `0x${string}`);
-          console.log('Existing private key loaded securely for address:', account.address);
-        }
+        // Get or create wallet address (walletService handles creation)
+        const address = await getWalletAddress();
+        console.log('Wallet address:', address);
 
         // Si tenemos un userId, intentamos guardar la wallet en el backend (solo una vez)
-        if (userId) {
+        if (userId && typeof userId === 'string') {
           try {
             // 1. Guardar la wallet en el backend
             setStatusMessage('Sincronizando wallet con el backend...');
@@ -56,12 +40,12 @@ export default function AuthSuccessScreen() {
               console.log('Could not save wallet address in backend. Will try again on next login.');
             }
 
-            // 2. Verificar balance y solicitar tokens si es necesario
+            // 2. Verificar balance y solicitar tokens si es necesario (testnet only)
             setStatusMessage('Verificando balance de la wallet...');
             const balanceCheck = await checkBalanceAndRequestFaucet(userId);
-            
+
             if (balanceCheck.faucetUsed) {
-              setStatusMessage(`Tokens solicitados del faucet. Balance actual: ${balanceCheck.currentBalance} AVAX`);
+              setStatusMessage(`Tokens solicitados del faucet. Balance actual: ${balanceCheck.currentBalance} STX`);
               // Dar tiempo para que el usuario vea el mensaje
               await new Promise(resolve => setTimeout(resolve, 2000));
             }

@@ -1,4 +1,4 @@
-import { AVALANCHE_TOKENS } from '../constants/tokens';
+import { STACKS_MAINNET_TOKENS } from '../constants/tokens';
 
 export interface TokenPrice {
   symbol: string;
@@ -8,105 +8,164 @@ export interface TokenPrice {
 }
 
 /**
- * Mock Price Service
- * Returns simulated prices for tokens - NOT REAL PRICES
- * This is only for development/demo purposes
+ * Real Price Service for Stacks using CoinGecko API
+ * Fetches live prices for STX, sBTC, USDA tokens
  */
 class PriceService {
-  private static mockPrices: Record<string, TokenPrice> = {
-    'AVAX': {
-      symbol: 'AVAX',
-      price: 42.50,
-      change24h: 2.34,
-      lastUpdated: Date.now()
-    },
-    'WAVAX': {
-      symbol: 'WAVAX',
-      price: 42.50, // Same as AVAX since 1 WAVAX = 1 AVAX
-      change24h: 2.34,
-      lastUpdated: Date.now()
-    },
-    'USDC': {
-      symbol: 'USDC',
-      price: 1.00,
-      change24h: 0.01,
-      lastUpdated: Date.now()
-    },
-    'USDC.e': {
-      symbol: 'USDC.e',
-      price: 1.00,
-      change24h: 0.01,
-      lastUpdated: Date.now()
-    }
+  private static readonly COINGECKO_API = 'https://api.coingecko.com/api/v3';
+  private static readonly CACHE_DURATION = 60 * 1000; // 1 minute cache
+
+  // Map Stacks symbols to CoinGecko IDs
+  private static readonly COINGECKO_IDS: Record<string, string> = {
+    'STX': 'stacks',
+    'sBTC': 'sbtc',
+    'USDA': 'usda',
   };
 
-  private static hasLogged = false;
+  // Price cache to reduce API calls
+  private static priceCache: Map<string, { data: TokenPrice; timestamp: number }> = new Map();
 
   /**
-   * Get price for a specific token (MOCK DATA)
-   * @param symbol Token symbol (e.g., 'AVAX', 'USDC')
-   * @returns Mock price data
+   * Get price for a specific token from CoinGecko
+   * @param symbol Token symbol (e.g., 'STX', 'sBTC', 'USDA')
+   * @returns Real price data from CoinGecko
    */
   static async getTokenPrice(symbol: string): Promise<TokenPrice | null> {
-    // Debug log for first time initialization
-    if (!this.hasLogged) {
-      console.log('[PriceService] 🔄 Available tokens:', Object.keys(this.mockPrices));
-      this.hasLogged = true;
-    }
+    try {
+      const upperSymbol = symbol.toUpperCase();
+      const coingeckoId = this.COINGECKO_IDS[upperSymbol];
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const upperSymbol = symbol.toUpperCase();
-    const mockPrice = this.mockPrices[upperSymbol];
-    
-    // Debug logging for WAVAX specifically
-    if (upperSymbol === 'WAVAX') {
-      console.log(`[PriceService] DEBUG: Looking for WAVAX, found:`, mockPrice);
-    }
-    
-    if (!mockPrice) {
-      console.warn(`[PriceService] No mock price data for ${symbol}`);
+      if (!coingeckoId) {
+        console.warn(`[PriceService] No CoinGecko ID mapping for ${symbol}`);
+        return null;
+      }
+
+      // Check cache first
+      const cached = this.priceCache.get(upperSymbol);
+      if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+        console.log(`[PriceService] Using cached price for ${symbol}`);
+        return cached.data;
+      }
+
+      // Fetch from CoinGecko API
+      console.log(`[PriceService] Fetching live price for ${symbol} from CoinGecko...`);
+      const url = `${this.COINGECKO_API}/simple/price?ids=${coingeckoId}&vs_currencies=usd&include_24hr_change=true`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        console.error(`[PriceService] CoinGecko API error: ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json();
+
+      if (!data[coingeckoId]) {
+        console.error(`[PriceService] No price data for ${coingeckoId}`);
+        return null;
+      }
+
+      const tokenData = data[coingeckoId];
+      const tokenPrice: TokenPrice = {
+        symbol: upperSymbol,
+        price: tokenData.usd || 0,
+        change24h: tokenData.usd_24h_change || 0,
+        lastUpdated: Date.now(),
+      };
+
+      // Cache the result
+      this.priceCache.set(upperSymbol, {
+        data: tokenPrice,
+        timestamp: Date.now(),
+      });
+
+      console.log(`[PriceService] ${symbol}: $${tokenPrice.price} (${tokenPrice.change24h.toFixed(2)}%)`);
+      return tokenPrice;
+    } catch (error: any) {
+      console.error(`[PriceService] Error fetching price for ${symbol}:`, error);
       return null;
     }
-
-    // Add small random variation to make it feel more "live"
-    const randomVariation = (Math.random() - 0.5) * 0.02; // ±1% variation
-    const adjustedPrice = mockPrice.price * (1 + randomVariation);
-    
-    return {
-      ...mockPrice,
-      price: Number(adjustedPrice.toFixed(mockPrice.symbol === 'USDC' || mockPrice.symbol === 'USDC.e' ? 4 : 2)),
-      lastUpdated: Date.now()
-    };
   }
 
   /**
-   * Get prices for multiple tokens (MOCK DATA)
+   * Get prices for multiple tokens from CoinGecko
    * @param symbols Array of token symbols
-   * @returns Array of mock price data
+   * @returns Array of real price data
    */
   static async getTokenPrices(symbols: string[]): Promise<TokenPrice[]> {
-    const pricePromises = symbols.map(symbol => this.getTokenPrice(symbol));
-    const results = await Promise.all(pricePromises);
-    
-    return results.filter(price => price !== null) as TokenPrice[];
+    try {
+      // Filter symbols that have CoinGecko IDs
+      const validSymbols = symbols.filter(s => this.COINGECKO_IDS[s.toUpperCase()]);
+
+      if (validSymbols.length === 0) {
+        console.warn('[PriceService] No valid symbols provided');
+        return [];
+      }
+
+      // Build CoinGecko IDs string
+      const ids = validSymbols
+        .map(s => this.COINGECKO_IDS[s.toUpperCase()])
+        .join(',');
+
+      // Fetch all prices in one API call
+      console.log(`[PriceService] Fetching prices for ${validSymbols.length} tokens from CoinGecko...`);
+      const url = `${this.COINGECKO_API}/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        console.error(`[PriceService] CoinGecko API error: ${response.status}`);
+        return [];
+      }
+
+      const data = await response.json();
+      const prices: TokenPrice[] = [];
+
+      for (const symbol of validSymbols) {
+        const upperSymbol = symbol.toUpperCase();
+        const coingeckoId = this.COINGECKO_IDS[upperSymbol];
+        const tokenData = data[coingeckoId];
+
+        if (tokenData) {
+          const tokenPrice: TokenPrice = {
+            symbol: upperSymbol,
+            price: tokenData.usd || 0,
+            change24h: tokenData.usd_24h_change || 0,
+            lastUpdated: Date.now(),
+          };
+
+          prices.push(tokenPrice);
+
+          // Cache the result
+          this.priceCache.set(upperSymbol, {
+            data: tokenPrice,
+            timestamp: Date.now(),
+          });
+        }
+      }
+
+      console.log(`[PriceService] Successfully fetched ${prices.length} prices`);
+      return prices;
+    } catch (error: any) {
+      console.error('[PriceService] Error fetching multiple prices:', error);
+      return [];
+    }
   }
 
   /**
-   * Get prices for all Avalanche tokens (MOCK DATA)
-   * @returns Array of mock price data for all supported tokens
+   * Get prices for all Stacks tokens
+   * @returns Array of real price data for all supported tokens
    */
-  static async getAllAvalanchePrices(): Promise<TokenPrice[]> {
-    const symbols = AVALANCHE_TOKENS.map(token => token.symbol);
+  static async getAllStacksPrices(): Promise<TokenPrice[]> {
+    const symbols = STACKS_MAINNET_TOKENS.map(token => token.symbol);
     return this.getTokenPrices(symbols);
   }
 
   /**
-   * Calculate USD value of a token amount (using mock prices)
+   * Calculate USD value of a token amount (using real prices)
    * @param symbol Token symbol
    * @param amount Token amount
-   * @returns USD value (mock calculation)
+   * @returns USD value (real calculation)
    */
   static async calculateUSDValue(symbol: string, amount: number): Promise<number> {
     const price = await this.getTokenPrice(symbol);
@@ -114,23 +173,27 @@ class PriceService {
       console.warn(`[PriceService] Cannot calculate USD value for ${symbol} - no price data`);
       return 0;
     }
-    
+
     return amount * price.price;
   }
 
   /**
-   * Update mock price (for testing purposes)
-   * @param symbol Token symbol
-   * @param newPrice New mock price
+   * Clear price cache (useful for testing or forcing refresh)
    */
-  static updateMockPrice(symbol: string, newPrice: number): void {
-    const upperSymbol = symbol.toUpperCase();
-    if (this.mockPrices[upperSymbol]) {
-      this.mockPrices[upperSymbol].price = newPrice;
-      this.mockPrices[upperSymbol].lastUpdated = Date.now();
-      console.log(`[PriceService] Updated mock price for ${symbol}: $${newPrice}`);
-    }
+  static clearCache(): void {
+    this.priceCache.clear();
+    console.log('[PriceService] Price cache cleared');
+  }
+
+  /**
+   * Get cache statistics
+   */
+  static getCacheStats(): { size: number; tokens: string[] } {
+    return {
+      size: this.priceCache.size,
+      tokens: Array.from(this.priceCache.keys()),
+    };
   }
 }
 
-export default PriceService; 
+export default PriceService;

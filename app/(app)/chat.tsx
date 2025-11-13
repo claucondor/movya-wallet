@@ -28,7 +28,7 @@ import PortfolioService from "../core/services/portfolioService";
 import UserLookupService from "../core/services/userLookupService";
 import { handleWalletAction } from "../core/walletActionHandler";
 import { InteractiveChatBubble } from "../../components/ChatBubbles";
-import TransactionHistoryService from "../core/services/transactionHistoryService";
+import TransactionDetectionService from "../core/services/transactionDetectionService";
 
 // --- Chat History Constants ---
 const CHAT_HISTORY_KEY = 'chatHistory';
@@ -397,7 +397,7 @@ const Chat = () => {
 	const loadPortfolioBalance = React.useCallback(async () => {
 		try {
 			console.log('[Chat] Loading portfolio balance...');
-			const summary = await PortfolioService.getPortfolioSummary(43114); // Avalanche mainnet
+			const summary = await PortfolioService.getPortfolioSummary('mainnet'); // Stacks mainnet
 			setPortfolioBalance(summary.totalBalance);
 			console.log('[Chat] Portfolio balance loaded:', summary.totalBalance);
 		} catch (error) {
@@ -473,18 +473,22 @@ const Chat = () => {
 		
 		// Load user name on mount
 		loadUserName();
-		
-		// Start transaction history monitoring
-		const historyService = TransactionHistoryService.getInstance();
-		historyService.startIncomingDetection();
-		console.log('[Chat] Started transaction history monitoring');
-		
+
+		// Start transaction detection monitoring
+		const detectionService = TransactionDetectionService.getInstance();
+		detectionService.startMonitoring((tx) => {
+			console.log('[Chat] New incoming transaction detected:', tx.tx_id);
+			// Optionally refresh portfolio balance when new transaction arrives
+			loadPortfolioBalance();
+		});
+		console.log('[Chat] Started transaction detection monitoring');
+
 		// Cleanup on unmount
 		return () => {
-			historyService.stopIncomingDetection();
-			console.log('[Chat] Stopped transaction history monitoring');
+			detectionService.stopMonitoring();
+			console.log('[Chat] Stopped transaction detection monitoring');
 		};
-	}, []); 
+	}, [loadPortfolioBalance]); 
 
 	// Video loading effect
 	React.useEffect(() => {

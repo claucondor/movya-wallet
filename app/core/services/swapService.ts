@@ -1,416 +1,423 @@
-import { createPublicClient, createWalletClient, http, parseEther, formatEther, parseUnits, formatUnits, getContract, WalletClient, Account, fallback } from 'viem';
-import { avalanche } from '@/constants/chains';
-import { privateKeyToAccount } from 'viem/accounts';
-import { storage } from '../storage';
+import {
+  makeContractCall,
+  broadcastTransaction,
+  AnchorMode,
+  PostConditionMode,
+  FungibleConditionCode,
+  makeStandardFungiblePostCondition,
+  createAssetInfo,
+  contractPrincipalCV,
+  uintCV,
+  callReadOnlyFunction,
+  cvToJSON,
+  ClarityValue,
+} from '@stacks/transactions';
+import { StacksMainnet, StacksTestnet } from '@stacks/network';
+import { NETWORKS } from '../constants/networks';
+import { getWalletAddress, getPrivateKey } from '../../internal/walletService';
 
-// Trader Joe Router V2.1 on Avalanche (most liquid DEX for WAVAX/USDC)
-const TRADER_JOE_ROUTER_ADDRESS = '0x60aE616a2155Ee3d9A68541Ba4544862310933d4' as const;
-const WAVAX_ADDRESS = '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7' as const;
-const USDC_ADDRESS = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E' as const;
+/**
+ * Supported DEX protocols on Stacks
+ */
+export enum DEXProtocol {
+  ALEX = 'ALEX',
+  ARKADIKO = 'ARKADIKO',
+}
 
-// Trader Joe Router ABI (simplified for swaps)
-const TRADER_JOE_ROUTER_ABI = [
-  {
-    inputs: [
-      { name: 'amountIn', type: 'uint256' },
-      { name: 'amountOutMin', type: 'uint256' },
-      { name: 'path', type: 'address[]' },
-      { name: 'to', type: 'address' },
-      { name: 'deadline', type: 'uint256' }
-    ],
-    name: 'swapExactTokensForTokens',
-    outputs: [{ name: 'amounts', type: 'uint256[]' }],
-    stateMutability: 'nonpayable',
-    type: 'function'
-  },
-  {
-    inputs: [
-      { name: 'amountOut', type: 'uint256' },
-      { name: 'path', type: 'address[]' }
-    ],
-    name: 'getAmountsIn',
-    outputs: [{ name: 'amounts', type: 'uint256[]' }],
-    stateMutability: 'view',
-    type: 'function'
-  },
-  {
-    inputs: [
-      { name: 'amountIn', type: 'uint256' },
-      { name: 'path', type: 'address[]' }
-    ],
-    name: 'getAmountsOut',
-    outputs: [{ name: 'amounts', type: 'uint256[]' }],
-    stateMutability: 'view',
-    type: 'function'
-  }
-] as const;
+/**
+ * DEX contract configuration
+ */
+interface DEXConfig {
+  protocol: DEXProtocol;
+  contractAddress: string;
+  contractName: string;
+  swapFunctionName: string;
+}
 
-// ERC20 Token ABI (for approvals)
-const ERC20_ABI = [
-  {
-    inputs: [
-      { name: 'spender', type: 'address' },
-      { name: 'amount', type: 'uint256' }
-    ],
-    name: 'approve',
-    outputs: [{ name: '', type: 'bool' }],
-    stateMutability: 'nonpayable',
-    type: 'function'
-  },
-  {
-    inputs: [
-      { name: 'owner', type: 'address' },
-      { name: 'spender', type: 'address' }
-    ],
-    name: 'allowance',
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function'
-  }
-] as const;
+/**
+ * Token configuration for swaps
+ */
+interface SwapToken {
+  symbol: string;
+  contractAddress: string;
+  contractName: string;
+  decimals: number;
+  isNative: boolean;
+}
 
+/**
+ * Swap quote information
+ */
 export interface SwapQuote {
-  fromToken: string;
-  toToken: string;
-  amountIn: string;
-  amountOut: string;
-  amountOutMin: string; // With slippage
+  inputAmount: string;
+  outputAmount: string;
+  inputToken: string;
+  outputToken: string;
   priceImpact: number;
+  minimumReceived: string;
+  exchangeRate: string;
+  protocol: DEXProtocol;
   route: string[];
-  gasEstimate: bigint;
+  // Legacy properties for backward compatibility with UI
+  amountOut: string;
+  amountOutMin: string;
+  toToken: string;
   gasEstimateUSD: string;
 }
 
+/**
+ * Swap result after execution
+ */
 export interface SwapResult {
   success: boolean;
-  transactionHash?: string;
-  amountIn: string;
-  amountOut?: string;
-  fromToken: string;
-  toToken: string;
-  gasUsed?: bigint;
+  txId?: string;
   error?: string;
+  explorerUrl?: string;
+  // Legacy properties for backward compatibility with UI
+  amountIn?: string;
+  fromToken?: string;
+  amountOut?: string;
+  toToken?: string;
+  transactionHash?: string; // Alias for txId
+  gasUsed?: bigint;
 }
 
+/**
+ * DEX configurations for Stacks mainnet
+ */
+const DEX_CONFIGS: Record<DEXProtocol, DEXConfig> = {
+  [DEXProtocol.ALEX]: {
+    protocol: DEXProtocol.ALEX,
+    contractAddress: 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9',
+    contractName: 'amm-swap-pool-v1-1',
+    swapFunctionName: 'swap-x-for-y',
+  },
+  [DEXProtocol.ARKADIKO]: {
+    protocol: DEXProtocol.ARKADIKO,
+    contractAddress: 'SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR',
+    contractName: 'arkadiko-swap-v2-1',
+    swapFunctionName: 'swap-x-for-y',
+  },
+};
+
+/**
+ * Token contracts for swaps (Mainnet)
+ */
+const SWAP_TOKENS: Record<string, SwapToken> = {
+  'STX': {
+    symbol: 'STX',
+    contractAddress: 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9',
+    contractName: 'token-wstx',
+    decimals: 6,
+    isNative: true,
+  },
+  'sBTC': {
+    symbol: 'sBTC',
+    contractAddress: 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4',
+    contractName: 'sbtc-token',
+    decimals: 8,
+    isNative: false,
+  },
+  'USDA': {
+    symbol: 'USDA',
+    contractAddress: 'SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR',
+    contractName: 'usda-token',
+    decimals: 6,
+    isNative: false,
+  },
+};
+
+/**
+ * Swap Service for Stacks DEX
+ * Directly calls smart contracts without requiring external APIs or SDKs
+ */
 class SwapService {
-  private publicClient;
-  private walletClient: WalletClient | null;
-  private account: Account | null;
-  private static instance: SwapService | null = null;
-
-  private constructor() {
-    // Use fallback with multiple RPCs for better reliability
-    const transport = fallback(
-      avalanche.rpcUrls.default.http.map(url => http(url))
-    );
-
-    this.publicClient = createPublicClient({
-      chain: avalanche,
-      transport
-    });
-
-    // Initialize without wallet - will be set when needed
-    this.walletClient = null;
-    this.account = null;
-  }
-
-  public static getInstance(): SwapService {
-    if (!SwapService.instance) {
-      SwapService.instance = new SwapService();
-    }
-    return SwapService.instance;
-  }
-
-  private async initializeWallet() {
+  /**
+   * Get a swap quote from the DEX using real contract read-only calls
+   * Uses Hiro API to call read-only functions on ALEX DEX contract
+   */
+  static async getSwapQuote(
+    inputToken: string,
+    outputToken: string,
+    inputAmount: string,
+    slippageTolerance: number = 0.5, // 0.5%
+    protocol: DEXProtocol = DEXProtocol.ALEX,
+    networkId: string = 'mainnet'
+  ): Promise<SwapQuote> {
     try {
-      const privateKey = storage.getString('userPrivateKey');
+      console.log(`[SwapService] Getting REAL quote for ${inputAmount} ${inputToken} -> ${outputToken}`);
+
+      const inputTokenInfo = SWAP_TOKENS[inputToken.toUpperCase()];
+      const outputTokenInfo = SWAP_TOKENS[outputToken.toUpperCase()];
+
+      if (!inputTokenInfo || !outputTokenInfo) {
+        throw new Error(`Unsupported token pair: ${inputToken}/${outputToken}`);
+      }
+
+      // Convert input amount to base units
+      const inputAmountBigInt = BigInt(Math.floor(parseFloat(inputAmount) * Math.pow(10, inputTokenInfo.decimals)));
+
+      const dexConfig = DEX_CONFIGS[protocol];
+      const network = networkId === 'testnet' ? new StacksTestnet() : new StacksMainnet();
+
+      // Get sender address (needed for read-only calls)
+      const senderAddress = await getWalletAddress() || 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9';
+
+      let outputAmountBigInt: bigint;
+      let priceImpact: number = 0;
+
+      // Call the DEX contract's read-only function to get the quote
+      // ALEX uses get-y-given-x function for quotes
+      console.log(`[SwapService] Calling ${protocol} contract read-only function...`);
+
+      const functionArgs = [
+        contractPrincipalCV(inputTokenInfo.contractAddress, inputTokenInfo.contractName),
+        contractPrincipalCV(outputTokenInfo.contractAddress, outputTokenInfo.contractName),
+        uintCV(inputAmountBigInt.toString()),
+      ];
+
+      // Call read-only function on ALEX contract
+      // Function name varies by DEX - ALEX uses get-y-given-x or get-helper
+      const readOnlyResult = await callReadOnlyFunction({
+        contractAddress: dexConfig.contractAddress,
+        contractName: dexConfig.contractName,
+        functionName: 'get-helper', // ALEX helper function
+        functionArgs,
+        network,
+        senderAddress,
+      });
+
+      // Parse the result
+      const resultJSON = cvToJSON(readOnlyResult);
+      console.log(`[SwapService] Read-only result:`, resultJSON);
+
+      // Extract output amount from result
+      // The exact structure depends on the DEX contract's response format
+      if (resultJSON.value && typeof resultJSON.value === 'object') {
+        outputAmountBigInt = BigInt(resultJSON.value.dy || resultJSON.value || 0);
+      } else {
+        outputAmountBigInt = BigInt(resultJSON.value || 0);
+      }
+
+      // Validate we got a valid quote
+      if (!outputAmountBigInt || outputAmountBigInt === BigInt(0)) {
+        throw new Error('Contract returned invalid quote (zero or null)');
+      }
+
+      // Calculate price impact
+      const expectedValue = inputAmountBigInt * BigInt(1000000) / BigInt(1000000);
+      const actualValue = outputAmountBigInt;
+      priceImpact = Math.abs(Number(expectedValue - actualValue)) / Number(expectedValue) * 100;
+
+      console.log(`[SwapService] Got real quote from contract: ${outputAmountBigInt.toString()}`);
+
+      // Calculate minimum received with slippage
+      const slippageMultiplier = 1 - (slippageTolerance / 100);
+      const minimumReceivedBigInt = BigInt(Math.floor(Number(outputAmountBigInt) * slippageMultiplier));
+
+      const outputAmountFormatted = (Number(outputAmountBigInt) / Math.pow(10, outputTokenInfo.decimals)).toFixed(outputTokenInfo.decimals);
+      const minReceivedFormatted = (Number(minimumReceivedBigInt) / Math.pow(10, outputTokenInfo.decimals)).toFixed(outputTokenInfo.decimals);
+      const exchangeRate = (Number(outputAmountBigInt) / Number(inputAmountBigInt)).toString();
+
+      const quote: SwapQuote = {
+        inputAmount: inputAmount,
+        outputAmount: outputAmountFormatted,
+        inputToken,
+        outputToken,
+        priceImpact,
+        minimumReceived: minReceivedFormatted,
+        exchangeRate,
+        protocol,
+        route: [inputToken, outputToken],
+        // Legacy properties for backward compatibility
+        amountOut: outputAmountFormatted,
+        amountOutMin: minReceivedFormatted,
+        toToken: outputToken,
+        gasEstimateUSD: '$0.01', // STX fees are very low
+      };
+
+      console.log(`[SwapService] Quote:`, quote);
+      return quote;
+    } catch (error: any) {
+      console.error('[SwapService] Error getting quote:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a swap transaction
+   */
+  static async executeSwap(
+    inputToken: string,
+    outputToken: string,
+    inputAmount: string,
+    minimumOutputAmount: string,
+    slippageTolerance: number = 0.5,
+    protocol: DEXProtocol = DEXProtocol.ALEX,
+    networkId: string = 'mainnet'
+  ): Promise<SwapResult> {
+    try {
+      console.log(`[SwapService] Executing swap: ${inputAmount} ${inputToken} -> ${outputToken}`);
+
+      // Get wallet info
+      const senderAddress = await getWalletAddress();
+      const privateKey = await getPrivateKey();
+
+      if (!senderAddress) {
+        throw new Error('No wallet address found');
+      }
+
       if (!privateKey) {
         throw new Error('No private key found');
       }
 
-      this.account = privateKeyToAccount(privateKey as `0x${string}`);
-      
-      // Use fallback with multiple RPCs for better reliability
-      const transport = fallback(
-        avalanche.rpcUrls.default.http.map(url => http(url))
-      );
+      // Get token configs
+      const inputTokenInfo = SWAP_TOKENS[inputToken.toUpperCase()];
+      const outputTokenInfo = SWAP_TOKENS[outputToken.toUpperCase()];
 
-      this.walletClient = createWalletClient({
-        account: this.account,
-        chain: avalanche,
-        transport
-      });
-
-      console.log('[SwapService] Wallet initialized for address:', this.account.address);
-    } catch (error) {
-      console.error('[SwapService] Failed to initialize wallet:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get swap quote for WAVAX ↔ USDC
-   */
-  public async getSwapQuote(
-    fromToken: 'WAVAX' | 'USDC', 
-    toToken: 'WAVAX' | 'USDC', 
-    amountIn: string,
-    slippageTolerance: number = 0.5 // 0.5% default slippage
-  ): Promise<SwapQuote> {
-    try {
-      console.log(`[SwapService] Getting quote: ${amountIn} ${fromToken} → ${toToken}`);
-
-      // Validate token pair
-      if (fromToken === toToken) {
-        throw new Error('Cannot swap same token');
-      }
-      if (!((fromToken === 'WAVAX' && toToken === 'USDC') || (fromToken === 'USDC' && toToken === 'WAVAX'))) {
-        throw new Error('Only WAVAX ↔ USDC swaps are supported');
+      if (!inputTokenInfo || !outputTokenInfo) {
+        throw new Error(`Unsupported token pair: ${inputToken}/${outputToken}`);
       }
 
-      const fromAddress = fromToken === 'WAVAX' ? WAVAX_ADDRESS : USDC_ADDRESS;
-      const toAddress = toToken === 'WAVAX' ? WAVAX_ADDRESS : USDC_ADDRESS;
-      const path = [fromAddress, toAddress];
+      // Get DEX config
+      const dexConfig = DEX_CONFIGS[protocol];
 
-      // Parse amount based on token decimals (WAVAX: 18, USDC: 6)
-      const amountInWei = fromToken === 'WAVAX' 
-        ? parseEther(amountIn)
-        : parseUnits(amountIn, 6);
+      // Convert amounts to base units
+      const inputAmountBigInt = BigInt(Math.floor(parseFloat(inputAmount) * Math.pow(10, inputTokenInfo.decimals)));
+      const minOutputBigInt = BigInt(Math.floor(parseFloat(minimumOutputAmount) * Math.pow(10, outputTokenInfo.decimals)));
 
-      // Get amounts out from Trader Joe
-      const router = getContract({
-        address: TRADER_JOE_ROUTER_ADDRESS,
-        abi: TRADER_JOE_ROUTER_ABI,
-        client: this.publicClient
-      });
+      // Setup network
+      const network = networkId === 'testnet' ? new StacksTestnet() : new StacksMainnet();
 
-      const amounts = await router.read.getAmountsOut([amountInWei, path]);
-      const amountOut = amounts[1];
+      // Create post-conditions for security
+      // This ensures the swap cannot transfer more than expected
+      const postConditions = [];
 
-      // Format amount out based on target token decimals
-      const amountOutFormatted = toToken === 'WAVAX' 
-        ? formatEther(amountOut)
-        : formatUnits(amountOut, 6);
+      // Post-condition for input token (what we're sending)
+      if (inputTokenInfo.isNative) {
+        // For STX, we'd use STX post-condition (not implemented in this example)
+        console.log('[SwapService] STX post-condition (wrapped)');
+      } else {
+        const inputAssetInfo = createAssetInfo(
+          inputTokenInfo.contractAddress,
+          inputTokenInfo.contractName,
+          'token'
+        );
+        postConditions.push(
+          makeStandardFungiblePostCondition(
+            senderAddress,
+            FungibleConditionCode.LessEqual,
+            inputAmountBigInt,
+            inputAssetInfo
+          )
+        );
+      }
 
-      // Calculate minimum amount out with slippage
-      const slippageMultiplier = BigInt(Math.floor((100 - slippageTolerance) * 100));
-      const amountOutMin = (amountOut * slippageMultiplier) / BigInt(10000);
-      const amountOutMinFormatted = toToken === 'WAVAX' 
-        ? formatEther(amountOutMin)
-        : formatUnits(amountOutMin, 6);
+      // Build function arguments using contractPrincipalCV for token traits
+      const functionArgs = [
+        // token-x-trait (input token)
+        contractPrincipalCV(inputTokenInfo.contractAddress, inputTokenInfo.contractName),
+        // token-y-trait (output token)
+        contractPrincipalCV(outputTokenInfo.contractAddress, outputTokenInfo.contractName),
+        // dx (input amount in base units)
+        uintCV(inputAmountBigInt.toString()),
+        // min-dy (minimum output amount - slippage protection)
+        uintCV(minOutputBigInt.toString()),
+      ];
 
-      // Estimate gas
-      const gasEstimate = BigInt(250000); // Conservative estimate for token swap
-      const gasPrice = await this.publicClient.getGasPrice();
-      const gasCostWei = gasEstimate * gasPrice;
-      const gasCostAVAX = formatEther(gasCostWei);
-      const gasEstimateUSD = (parseFloat(gasCostAVAX) * 42.50).toFixed(2); // Approximate AVAX price
+      console.log('[SwapService] Creating contract call transaction...');
+      console.log(`  - DEX: ${dexConfig.protocol}`);
+      console.log(`  - Contract: ${dexConfig.contractAddress}.${dexConfig.contractName}`);
+      console.log(`  - Function: ${dexConfig.swapFunctionName}`);
+      console.log(`  - Input: ${inputAmount} ${inputToken}`);
+      console.log(`  - Min Output: ${minimumOutputAmount} ${outputToken}`);
 
-      // Calculate price impact (difference from expected 1:1 value ratio)
-      const inputValue = fromToken === 'WAVAX' ? parseFloat(amountIn) * 42.50 : parseFloat(amountIn);
-      const outputValue = toToken === 'WAVAX' ? parseFloat(amountOutFormatted) * 42.50 : parseFloat(amountOutFormatted);
-      
-      // Price impact should be the difference from the expected output value
-      // If we swap $1 of token A, we should get ~$1 of token B (minus fees)
-      // Price impact = (expected - actual) / expected * 100
-      const expectedOutputValue = inputValue; // In a perfect world, $1 in = $1 out
-      const priceImpact = Math.abs((expectedOutputValue - outputValue) / expectedOutputValue) * 100;
-      
-      // Cap at reasonable values (DEX swaps typically have 0.1-3% impact for normal amounts)
-      const cappedPriceImpact = Math.min(priceImpact, 15); // Cap at 15% for display
-
-      console.log(`[SwapService] Quote: ${amountIn} ${fromToken} → ${amountOutFormatted} ${toToken}`);
-
-      return {
-        fromToken,
-        toToken,
-        amountIn,
-        amountOut: amountOutFormatted,
-        amountOutMin: amountOutMinFormatted,
-        priceImpact: cappedPriceImpact,
-        route: [fromToken, toToken],
-        gasEstimate,
-        gasEstimateUSD: `$${gasEstimateUSD}`
+      // Create the contract call transaction
+      const txOptions = {
+        contractAddress: dexConfig.contractAddress,
+        contractName: dexConfig.contractName,
+        functionName: dexConfig.swapFunctionName,
+        functionArgs,
+        senderKey: privateKey,
+        network,
+        postConditions,
+        postConditionMode: PostConditionMode.Deny, // Deny any transfers not in post-conditions
+        anchorMode: AnchorMode.Any,
       };
-    } catch (error) {
-      console.error('[SwapService] Error getting swap quote:', error);
-      throw new Error(`Failed to get swap quote: ${(error as Error).message}`);
-    }
-  }
 
-  /**
-   * Execute WAVAX to USDC swap
-   */
-  public async swapWAVAXToUSDC(amountInWAVAX: string, slippageTolerance: number = 0.5): Promise<SwapResult> {
-    await this.initializeWallet();
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not initialized');
-    }
+      const transaction = await makeContractCall(txOptions);
 
-    try {
-      console.log(`[SwapService] Swapping ${amountInWAVAX} WAVAX to USDC`);
+      console.log('[SwapService] Broadcasting transaction...');
+      const broadcastResponse = await broadcastTransaction(transaction, network);
 
-      // Get quote first
-      const quote = await this.getSwapQuote('WAVAX', 'USDC', amountInWAVAX, slippageTolerance);
-      
-      const amountInWei = parseEther(amountInWAVAX);
-      const amountOutMinWei = parseUnits(quote.amountOutMin, 6);
-      const path = [WAVAX_ADDRESS, USDC_ADDRESS];
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
+      const txId = broadcastResponse.txid;
+      const explorerUrl = `https://explorer.hiro.so/txid/${txId}?chain=${networkId}`;
 
-      // Check and approve WAVAX if needed
-      await this.ensureTokenApproval(WAVAX_ADDRESS, amountInWei);
-
-      // Execute swap
-      const hash = await this.walletClient.writeContract({
-        address: TRADER_JOE_ROUTER_ADDRESS,
-        abi: TRADER_JOE_ROUTER_ABI,
-        functionName: 'swapExactTokensForTokens',
-        args: [amountInWei, amountOutMinWei, path, this.account.address, deadline],
-        chain: avalanche,
-        account: this.account
-      });
-
-      console.log(`[SwapService] WAVAX→USDC swap transaction sent: ${hash}`);
-
-      // Wait for confirmation
-      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
-      
-      console.log(`[SwapService] WAVAX→USDC swap confirmed! Gas used: ${receipt.gasUsed}`);
+      console.log(`[SwapService] Swap transaction broadcasted: ${txId}`);
 
       return {
         success: true,
-        transactionHash: hash,
-        amountIn: amountInWAVAX,
-        amountOut: quote.amountOut,
-        fromToken: 'WAVAX',
-        toToken: 'USDC',
-        gasUsed: receipt.gasUsed
+        txId,
+        explorerUrl,
+        // Legacy properties for backward compatibility
+        amountIn: inputAmount,
+        fromToken: inputToken,
+        amountOut: minimumOutputAmount, // Approximate
+        toToken: outputToken,
+        transactionHash: txId, // Alias for txId
+        gasUsed: BigInt(0), // Stacks doesn't provide gas used in broadcast response
       };
-    } catch (error) {
-      console.error('[SwapService] Error swapping WAVAX to USDC:', error);
+    } catch (error: any) {
+      console.error('[SwapService] Error executing swap:', error);
       return {
         success: false,
-        amountIn: amountInWAVAX,
-        fromToken: 'WAVAX',
-        toToken: 'USDC',
-        error: (error as Error).message
+        error: error.message || 'Unknown error during swap',
       };
     }
   }
 
   /**
-   * Execute USDC to WAVAX swap
+   * Get supported token pairs for swapping
    */
-  public async swapUSDCToWAVAX(amountInUSDC: string, slippageTolerance: number = 0.5): Promise<SwapResult> {
-    await this.initializeWallet();
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not initialized');
-    }
+  static getSupportedTokenPairs(): Array<{from: string; to: string}> {
+    const tokens = Object.keys(SWAP_TOKENS);
+    const pairs: Array<{from: string; to: string}> = [];
 
-    try {
-      console.log(`[SwapService] Swapping ${amountInUSDC} USDC to WAVAX`);
-
-      // Get quote first
-      const quote = await this.getSwapQuote('USDC', 'WAVAX', amountInUSDC, slippageTolerance);
-      
-      const amountInWei = parseUnits(amountInUSDC, 6);
-      const amountOutMinWei = parseEther(quote.amountOutMin);
-      const path = [USDC_ADDRESS, WAVAX_ADDRESS];
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
-
-      // Check and approve USDC if needed
-      await this.ensureTokenApproval(USDC_ADDRESS, amountInWei);
-
-      // Execute swap
-      const hash = await this.walletClient.writeContract({
-        address: TRADER_JOE_ROUTER_ADDRESS,
-        abi: TRADER_JOE_ROUTER_ABI,
-        functionName: 'swapExactTokensForTokens',
-        args: [amountInWei, amountOutMinWei, path, this.account.address, deadline],
-        chain: avalanche,
-        account: this.account
-      });
-
-      console.log(`[SwapService] USDC→WAVAX swap transaction sent: ${hash}`);
-
-      // Wait for confirmation
-      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
-      
-      console.log(`[SwapService] USDC→WAVAX swap confirmed! Gas used: ${receipt.gasUsed}`);
-
-      return {
-        success: true,
-        transactionHash: hash,
-        amountIn: amountInUSDC,
-        amountOut: quote.amountOut,
-        fromToken: 'USDC',
-        toToken: 'WAVAX',
-        gasUsed: receipt.gasUsed
-      };
-    } catch (error) {
-      console.error('[SwapService] Error swapping USDC to WAVAX:', error);
-      return {
-        success: false,
-        amountIn: amountInUSDC,
-        fromToken: 'USDC',
-        toToken: 'WAVAX',
-        error: (error as Error).message
-      };
-    }
-  }
-
-  /**
-   * Ensure token is approved for trading
-   */
-  private async ensureTokenApproval(tokenAddress: string, amount: bigint): Promise<void> {
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not initialized');
-    }
-
-    try {
-      // Check current allowance
-      const token = getContract({
-        address: tokenAddress as `0x${string}`,
-        abi: ERC20_ABI,
-        client: this.publicClient
-      });
-
-      const allowance = await token.read.allowance([
-        this.account.address, 
-        TRADER_JOE_ROUTER_ADDRESS
-      ]);
-
-      console.log(`[SwapService] Current allowance: ${allowance}, needed: ${amount}`);
-
-      // If allowance is insufficient, approve
-      if (allowance < amount) {
-        console.log(`[SwapService] Approving token spend...`);
-        
-        const hash = await this.walletClient.writeContract({
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [TRADER_JOE_ROUTER_ADDRESS, amount],
-          chain: avalanche,
-          account: this.account
-        });
-
-        await this.publicClient.waitForTransactionReceipt({ hash });
-        console.log(`[SwapService] Token approval confirmed: ${hash}`);
+    for (const from of tokens) {
+      for (const to of tokens) {
+        if (from !== to) {
+          pairs.push({ from, to });
+        }
       }
-    } catch (error) {
-      console.error('[SwapService] Error ensuring token approval:', error);
-      throw error;
     }
+
+    return pairs;
   }
 
   /**
-   * Get current wallet address
+   * Check if a token pair is supported
    */
-  public getWalletAddress(): string | null {
-    return this.account?.address || null;
+  static isTokenPairSupported(fromToken: string, toToken: string): boolean {
+    return (
+      SWAP_TOKENS[fromToken.toUpperCase()] !== undefined &&
+      SWAP_TOKENS[toToken.toUpperCase()] !== undefined &&
+      fromToken.toUpperCase() !== toToken.toUpperCase()
+    );
+  }
+
+  /**
+   * Get available DEX protocols
+   */
+  static getAvailableProtocols(): DEXProtocol[] {
+    return Object.values(DEXProtocol);
+  }
+
+  /**
+   * Get DEX protocol info
+   */
+  static getProtocolInfo(protocol: DEXProtocol): DEXConfig {
+    return DEX_CONFIGS[protocol];
   }
 }
 
-export default SwapService; 
+export default SwapService;

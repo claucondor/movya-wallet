@@ -1,10 +1,14 @@
-import { createPublicClient, formatEther, formatUnits, http, fallback } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { avalanche, avalancheFuji } from '../../../constants/chains';
-import { storage } from '../storage';
-import { AVALANCHE_TOKENS, getTokenInfo, SUPPORTED_TOKENS } from '../../../constants/tokens';
-
-const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
+import { DEFAULT_NETWORK, getHiroApiKey } from '../constants/networks';
+import {
+  findToken,
+  formatTokenAmount,
+  parseTokenAmount,
+  getTokensByNetwork,
+  parseContractPrincipal,
+  STACKS_MAINNET_TOKENS
+} from '../constants/tokens';
+import type { TokenInfo } from '../constants/tokens';
+import { getPrivateKey, getWalletAddress } from '../../internal/walletService';
 
 export interface TokenBalance {
   symbol: string;
@@ -12,110 +16,165 @@ export interface TokenBalance {
   balance: string; // Formatted balance (e.g., "10.5")
   balanceRaw: bigint; // Raw balance in smallest unit
   decimals: number;
-  address?: string; // Contract address (undefined for native tokens)
+  contractAddress?: string; // SIP-010 contract principal (undefined for native STX)
   isNative: boolean;
-  networkId: number;
+  networkId: string;
 }
 
 /**
- * Real Balance Service
- * Connects to Avalanche blockchain to get actual wallet balances
+ * Balance Service for Stacks Blockchain
+ * Connects to Hiro API to get actual wallet balances
  */
 class BalanceService {
   /**
-   * Get the current wallet account from storage
+   * Get the current wallet address
    */
-  private static getWalletAccount() {
-    const privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
-    if (!privateKey) {
+  private static async getAddress(): Promise<string> {
+    const address = await getWalletAddress();
+    if (!address) {
       throw new Error('No wallet found. Please log in again.');
     }
-    return privateKeyToAccount(privateKey as `0x${string}`);
+    return address;
   }
 
   /**
-   * Create a public client for the specified network with fallback RPCs
+   * Get STX (native token) balance from Hiro API
    */
-  private static createClient(networkId: number = 43114) {
-    const isTestnet = networkId === 43113;
-    const chain = isTestnet ? avalancheFuji : avalanche;
-    
-    // Use fallback with multiple RPCs for better reliability
-    const transport = fallback(
-      chain.rpcUrls.default.http.map(url => http(url))
-    );
-    
-    return createPublicClient({
-      chain,
-      transport
-    });
-  }
-
-  /**
-   * Get AVAX (native token) balance
-   */
-  static async getAVAXBalance(networkId: number = 43114): Promise<TokenBalance> {
-    const account = this.getWalletAccount();
-    const client = this.createClient(networkId);
-
-    const balanceWei = await client.getBalance({
-      address: account.address
-    });
-
-    const balanceFormatted = formatEther(balanceWei);
-    const avaxToken = getTokenInfo('AVAX');
-
-    return {
-      symbol: 'AVAX',
-      name: 'Avalanche',
-      balance: Number(balanceFormatted).toFixed(4),
-      balanceRaw: balanceWei,
-      decimals: 18,
-      isNative: true,
-      networkId,
-      address: undefined
-    };
-  }
-
-  /**
-   * Get ERC-20 token balance (like USDC)
-   */
-  static async getTokenBalance(tokenAddress: string, tokenSymbol: string, networkId: number = 43114): Promise<TokenBalance | null> {
+  static async getSTXBalance(networkId: string = 'mainnet'): Promise<TokenBalance> {
     try {
-      const account = this.getWalletAccount();
-      const client = this.createClient(networkId);
-      const token = getTokenInfo(tokenSymbol as any);
-      
+      const address = await this.getAddress();
+      const network = networkId === 'mainnet' ? DEFAULT_NETWORK : DEFAULT_NETWORK; // TODO: Support testnet
+
+      // Add API key to headers if available
+      const headers: Record<string, string> = {};
+      const apiKey = getHiroApiKey();
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+      }
+
+      const response = await fetch(`${network.url}/extended/v1/address/${address}/balances`, {
+        headers
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch balance: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Balance is in microSTX (6 decimals)
+      const balanceRaw = BigInt(data.stx.balance || '0');
+      const stxToken = findToken('STX', networkId);
+
+      if (!stxToken) {
+        throw new Error('STX token not configured');
+      }
+
+      const balanceFormatted = formatTokenAmount(balanceRaw, stxToken);
+
+      return {
+        symbol: 'STX',
+        name: 'Stacks',
+        balance: balanceFormatted,
+        balanceRaw,
+        decimals: 6,
+        isNative: true,
+        networkId,
+        contractAddress: undefined
+      };
+    } catch (error) {
+      console.error('[BalanceService] Error getting STX balance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get SIP-010 token balance (like sBTC, USDA)
+   */
+  static async getTokenBalance(
+    tokenSymbol: string,
+    networkId: string = 'mainnet'
+  ): Promise<TokenBalance | null> {
+    try {
+      const address = await this.getAddress();
+      const token = findToken(tokenSymbol, networkId);
+
       if (!token) {
         console.warn(`[BalanceService] Token ${tokenSymbol} not found for network ${networkId}`);
         return null;
       }
 
-      // ERC-20 balanceOf function call
-      const balanceRaw = await client.readContract({
-        address: tokenAddress as `0x${string}`,
-        abi: [
-          {
-            constant: true,
-            inputs: [{ name: '_owner', type: 'address' }],
-            name: 'balanceOf',
-            outputs: [{ name: 'balance', type: 'uint256' }],
-            type: 'function'
-          }
-        ],
-        functionName: 'balanceOf',
-        args: [account.address]
-      }) as bigint;
+      if (token.isNative) {
+        return this.getSTXBalance(networkId);
+      }
 
-      const balanceFormatted = formatUnits(balanceRaw, token.decimals);
+      if (!token.contractAddress) {
+        console.warn(`[BalanceService] Token ${tokenSymbol} has no contract address`);
+        return null;
+      }
+
+      const network = networkId === 'mainnet' ? DEFAULT_NETWORK : DEFAULT_NETWORK;
+      const { address: contractAddr, contractName } = parseContractPrincipal(token.contractAddress);
+
+      // Call read-only function get-balance on the SIP-010 token contract
+      const readOnlyFunctionArgs = {
+        sender: address,
+        arguments: [`0x${Buffer.from(address).toString('hex')}`]
+      };
+
+      // Add API key to headers if available
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const apiKey = getHiroApiKey();
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+      }
+
+      const response = await fetch(
+        `${network.url}/v2/contracts/call-read/${contractAddr}/${contractName}/get-balance`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(readOnlyFunctionArgs)
+        }
+      );
+
+      if (!response.ok) {
+        console.warn(`[BalanceService] Failed to fetch ${tokenSymbol} balance:`, response.statusText);
+        return null;
+      }
+
+      const data = await response.json();
+
+      // Parse Clarity value response
+      // The response should be a uint or ok with uint
+      let balanceRaw: bigint;
+
+      if (data.okay === true && data.result) {
+        // Parse hex result - it's a Clarity value
+        const resultHex = data.result.replace('0x', '');
+
+        // For SIP-010, get-balance typically returns (ok uint)
+        // We need to parse the uint part
+        // For now, try to parse as bigint directly
+        try {
+          balanceRaw = BigInt(`0x${resultHex}`);
+        } catch {
+          console.warn(`[BalanceService] Could not parse balance for ${tokenSymbol}`);
+          balanceRaw = 0n;
+        }
+      } else {
+        balanceRaw = 0n;
+      }
+
+      const balanceFormatted = formatTokenAmount(balanceRaw, token);
 
       return {
         symbol: token.symbol,
         name: token.name,
-        balance: Number(balanceFormatted).toFixed(token.decimals === 6 ? 2 : 4),
+        balance: balanceFormatted,
         balanceRaw,
         decimals: token.decimals,
-        address: tokenAddress,
+        contractAddress: token.contractAddress,
         isNative: false,
         networkId
       };
@@ -126,56 +185,41 @@ class BalanceService {
   }
 
   /**
-   * Get USDC balance specifically
+   * Get sBTC balance specifically
    */
-  static async getUSDCBalance(networkId: number = 43114): Promise<TokenBalance | null> {
-    const usdcToken = getTokenInfo('USDC');
-    if (!usdcToken || !usdcToken.address) {
-      console.warn(`[BalanceService] USDC token not configured for network ${networkId}`);
-      return null;
-    }
-
-    return this.getTokenBalance(usdcToken.address, 'USDC', networkId);
+  static async getSBTCBalance(networkId: string = 'mainnet'): Promise<TokenBalance | null> {
+    return this.getTokenBalance('sBTC', networkId);
   }
 
   /**
-   * Get WAVAX balance specifically
+   * Get USDA balance specifically
    */
-  static async getWAVAXBalance(networkId: number = 43114): Promise<TokenBalance | null> {
-    const wavaxToken = getTokenInfo('WAVAX');
-    if (!wavaxToken || !wavaxToken.address) {
-      console.warn(`[BalanceService] WAVAX token not configured for network ${networkId}`);
-      return null;
-    }
-
-    return this.getTokenBalance(wavaxToken.address, 'WAVAX', networkId);
+  static async getUSDABalance(networkId: string = 'mainnet'): Promise<TokenBalance | null> {
+    return this.getTokenBalance('USDA', networkId);
   }
 
   /**
    * Get all token balances for the current wallet
    */
-  static async getAllBalances(networkId: number = 43114): Promise<TokenBalance[]> {
+  static async getAllBalances(networkId: string = 'mainnet'): Promise<TokenBalance[]> {
     try {
       const balances: TokenBalance[] = [];
 
-      // Get AVAX balance
-      const avaxBalance = await this.getAVAXBalance(networkId);
-      balances.push(avaxBalance);
+      // Get STX balance
+      const stxBalance = await this.getSTXBalance(networkId);
+      balances.push(stxBalance);
 
-      // Get ERC-20 token balances
-      const supportedTokens = ['USDC', 'WAVAX'];
-      
-      const tokenBalancePromises = supportedTokens.map(tokenSymbol => {
-        const tokenInfo = getTokenInfo(tokenSymbol as any);
-        if (tokenInfo && tokenInfo.address) {
-          return this.getTokenBalance(tokenInfo.address, tokenSymbol, networkId);
-        }
-        return null;
-      });
+      // Get SIP-010 token balances
+      const tokens = getTokensByNetwork(networkId);
+      const sip010Tokens = tokens.filter(t => !t.isNative);
+
+      const tokenBalancePromises = sip010Tokens.map(token =>
+        this.getTokenBalance(token.symbol, networkId)
+      );
 
       const tokenBalances = await Promise.all(tokenBalancePromises);
       const validBalances = tokenBalances.filter(balance => balance !== null) as TokenBalance[];
-      
+
       balances.push(...validBalances);
 
       console.log(`[BalanceService] Retrieved ${balances.length} balances for network ${networkId}`);
@@ -189,16 +233,16 @@ class BalanceService {
   /**
    * Get total portfolio value in USD (requires price service)
    */
-  static async getPortfolioValue(networkId: number = 43114): Promise<{
+  static async getPortfolioValue(networkId: string = 'mainnet'): Promise<{
     totalUSD: number;
     balances: TokenBalance[];
   }> {
     const balances = await this.getAllBalances(networkId);
-    
+
     // For now, return 0 USD value - this would integrate with PriceService
     // to calculate real USD values: balance.amount * tokenPrice
     console.log('[BalanceService] Portfolio value calculation would integrate with PriceService');
-    
+
     return {
       totalUSD: 0, // This would be calculated using PriceService
       balances
@@ -209,26 +253,12 @@ class BalanceService {
    * Check if wallet has sufficient balance for a transaction
    */
   static async hasSufficientBalance(
-    tokenSymbol: string, 
-    amount: number, 
-    networkId: number = 43114
+    tokenSymbol: string,
+    amount: number,
+    networkId: string = 'mainnet'
   ): Promise<{ sufficient: boolean; currentBalance: string; required: string }> {
     try {
-      let balance: TokenBalance | null;
-
-      if (tokenSymbol.toUpperCase() === 'AVAX') {
-        balance = await this.getAVAXBalance(networkId);
-      } else if (tokenSymbol.toUpperCase() === 'USDC') {
-        balance = await this.getUSDCBalance(networkId);
-      } else if (tokenSymbol.toUpperCase() === 'WAVAX') {
-        balance = await this.getWAVAXBalance(networkId);
-      } else {
-        const token = getTokenInfo(tokenSymbol as any);
-        if (!token || !token.address) {
-          throw new Error(`Token ${tokenSymbol} not found or has no address`);
-        }
-        balance = await this.getTokenBalance(token.address, tokenSymbol, networkId);
-      }
+      const balance = await this.getTokenBalance(tokenSymbol, networkId);
 
       if (!balance) {
         throw new Error(`Could not retrieve balance for ${tokenSymbol}`);
@@ -253,12 +283,11 @@ class BalanceService {
   }
 
   /**
-   * Get wallet address
+   * Get wallet address (public method)
    */
-  static getWalletAddress(): string {
-    const account = this.getWalletAccount();
-    return account.address;
+  static async getWalletAddress(): Promise<string> {
+    return this.getAddress();
   }
 }
 
-export default BalanceService; 
+export default BalanceService;
