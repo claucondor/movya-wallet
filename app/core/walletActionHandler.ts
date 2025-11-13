@@ -1,10 +1,7 @@
-import { avalanche, avalancheFuji } from '@/constants/chains';
-import { createPublicClient, http } from 'viem';
-import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import { ActionResultInput } from '../types/agent';
 import { reportActionResult } from './agentApi';
 import { storage } from './storage';
-import { fetchAvaxBalance } from './walletActions/fetchBalance';
+import fetchStacksBalance from './walletActions/fetchBalance';
 import { sendTransaction } from './walletActions/sendTransaction';
 import TransactionHistoryService from './services/transactionHistoryService';
 import SwapService from './services/swapService';
@@ -17,48 +14,20 @@ const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 interface ActionHandlerParams {
   networkId?: 'mainnet' | 'testnet'; // Allow overriding which network to use
   privateKey?: string;               // Allow passing private key directly or retrieve from storage
-  account?: PrivateKeyAccount;       // Allow passing account directly
 }
 
 /**
- * Gets the current chain configuration based on preferences
+ * Get private key from storage
  */
-function getChain(networkId: 'mainnet' | 'testnet' = 'testnet') {
-  return networkId === 'mainnet' ? avalanche : avalancheFuji;
-}
-
-/**
- * Load or create wallet account from storage or provided key
- */
-async function getAccount(params?: ActionHandlerParams): Promise<PrivateKeyAccount> {
-  if (params?.account) {
-    return params.account;
+function getPrivateKeyFromStorage(): string {
+  const privateKey = storage.getString(PRIVATE_KEY_STORAGE_KEY);
+  if (!privateKey) {
+    throw new Error('No private key found in storage.');
   }
-
-  try {
-    const privateKey = params?.privateKey || storage.getString(PRIVATE_KEY_STORAGE_KEY);
-    if (!privateKey) {
-      throw new Error('No private key found in storage or provided.');
-    }
-    
-    // Use non-dynamic import (was imported at the top of the file)
-    return privateKeyToAccount(privateKey as `0x${string}`);
-  } catch (error) {
-    console.error('Failed to load account:', error);
-    throw new Error('Could not load wallet account. Please check your wallet setup.');
-  }
+  return privateKey;
 }
 
-/**
- * Creates a public client for the specified network
- */
-function createClient(networkId: 'mainnet' | 'testnet' = 'testnet') {
-  const chain = getChain(networkId);
-  return createPublicClient({
-    chain,
-    transport: http(), // Usar la configuración por defecto del chain que ya incluye fallbacks
-  });
-}
+// Stacks blockchain doesn't need a client - we use Hiro API directly via fetch
 
 // Tipos de acciones disponibles
 export type WalletActionType = 'FETCH_BALANCE' | 'SEND_TRANSACTION' | 'FETCH_HISTORY' | 'SWAP';
@@ -94,7 +63,7 @@ export async function handleWalletAction(
     // Manejar diferentes tipos de acciones
     switch (actionType) {
       case 'FETCH_BALANCE':
-        const result = await fetchAvaxBalance();
+        const result = await fetchStacksBalance();
         
         // Si no hay mensaje de respuesta (debería venir de la IA), agregar un fallback
         if (!result.responseMessage && result.success && result.data) {
