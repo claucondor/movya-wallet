@@ -73,6 +73,12 @@ export function getAddressExplorerUrl(address: string, networkId: string = 'main
   return `${baseUrl}/address/${address}${network.isTestnet ? '?chain=testnet' : ''}`;
 }
 
+// Helper to get Hiro API key from environment
+export function getHiroApiKey(): string | undefined {
+  // In React Native/Expo, use EXPO_PUBLIC_ prefix for public environment variables
+  return process.env.EXPO_PUBLIC_HIRO_API_KEY;
+}
+
 // Add a default export to suppress Expo Router "missing default export" warning
 export default function NetworksExport() {
   return null;

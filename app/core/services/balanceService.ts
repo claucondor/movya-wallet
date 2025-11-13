@@ -1,4 +1,4 @@
-import { DEFAULT_NETWORK } from '../constants/networks';
+import { DEFAULT_NETWORK, getHiroApiKey } from '../constants/networks';
 import {
   findToken,
   formatTokenAmount,
@@ -45,7 +45,16 @@ class BalanceService {
       const address = await this.getAddress();
       const network = networkId === 'mainnet' ? DEFAULT_NETWORK : DEFAULT_NETWORK; // TODO: Support testnet
 
-      const response = await fetch(`${network.url}/extended/v1/address/${address}/balances`);
+      // Add API key to headers if available
+      const headers: Record<string, string> = {};
+      const apiKey = getHiroApiKey();
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+      }
+
+      const response = await fetch(`${network.url}/extended/v1/address/${address}/balances`, {
+        headers
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch balance: ${response.statusText}`);
@@ -113,11 +122,18 @@ class BalanceService {
         arguments: [`0x${Buffer.from(address).toString('hex')}`]
       };
 
+      // Add API key to headers if available
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const apiKey = getHiroApiKey();
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+      }
+
       const response = await fetch(
         `${network.url}/v2/contracts/call-read/${contractAddr}/${contractName}/get-balance`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify(readOnlyFunctionArgs)
         }
       );
