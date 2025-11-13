@@ -1,87 +1,153 @@
 export interface TokenInfo {
-    symbol: string;
-    name: string;
-    address?: string; // Optional: Contract address (undefined for native tokens)
-    decimals: number;
-    logoUri?: string;
-    isNative?: boolean; // True for native network tokens like AVAX, ETH
-    networkId: number; // Network where this token exists
+  symbol: string;
+  name: string;
+  contractAddress?: string; // SIP-010 contract principal (undefined for native STX)
+  decimals: number;
+  logoUri?: string;
+  isNative?: boolean; // True for native STX token
+  networkId: string; // 'mainnet' or 'testnet'
+  contractName?: string; // Contract name for SIP-010 tokens
+  assetName?: string; // Asset name for SIP-010 tokens
+}
+
+// Stacks Mainnet Tokens
+export const STACKS_MAINNET_TOKENS: TokenInfo[] = [
+  {
+    symbol: 'STX',
+    name: 'Stacks',
+    decimals: 6, // STX uses 6 decimals (microSTX = 1 STX / 1,000,000)
+    isNative: true,
+    networkId: 'mainnet',
+    logoUri: 'https://cryptologos.cc/logos/stacks-stx-logo.png'
+  },
+  {
+    symbol: 'sBTC',
+    name: 'Synthetic Bitcoin',
+    contractAddress: 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token',
+    decimals: 8, // Same as Bitcoin
+    isNative: false,
+    networkId: 'mainnet',
+    contractName: 'sbtc-token',
+    assetName: 'sbtc',
+    logoUri: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png'
+  },
+  {
+    symbol: 'USDA',
+    name: 'USD Arkadiko',
+    contractAddress: 'SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.usda-token',
+    decimals: 6,
+    isNative: false,
+    networkId: 'mainnet',
+    contractName: 'usda-token',
+    assetName: 'usda',
+    logoUri: 'https://arkadiko.finance/usda-logo.png'
+  },
+  {
+    symbol: 'ALEX',
+    name: 'ALEX',
+    contractAddress: 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token',
+    decimals: 8,
+    isNative: false,
+    networkId: 'mainnet',
+    contractName: 'age000-governance-token',
+    assetName: 'alex',
+    logoUri: 'https://alexgo.io/alex-logo.png'
+  },
+  {
+    symbol: 'DIKO',
+    name: 'Arkadiko Token',
+    contractAddress: 'SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.arkadiko-token',
+    decimals: 6,
+    isNative: false,
+    networkId: 'mainnet',
+    contractName: 'arkadiko-token',
+    assetName: 'diko',
+    logoUri: 'https://arkadiko.finance/diko-logo.png'
+  }
+];
+
+// Stacks Testnet Tokens (for development)
+export const STACKS_TESTNET_TOKENS: TokenInfo[] = [
+  {
+    symbol: 'STX',
+    name: 'Stacks (Testnet)',
+    decimals: 6,
+    isNative: true,
+    networkId: 'testnet',
+    logoUri: 'https://cryptologos.cc/logos/stacks-stx-logo.png'
+  },
+  // Add testnet tokens as needed for testing
+];
+
+// All supported tokens
+export const ALL_TOKENS = [...STACKS_MAINNET_TOKENS, ...STACKS_TESTNET_TOKENS];
+
+// Helper function to get tokens by network
+export function getTokensByNetwork(networkId: string): TokenInfo[] {
+  return ALL_TOKENS.filter(token => token.networkId === networkId);
+}
+
+// Helper function to find token by symbol and network
+export function findToken(symbol: string, networkId: string): TokenInfo | undefined {
+  return ALL_TOKENS.find(token =>
+    token.symbol.toLowerCase() === symbol.toLowerCase() &&
+    token.networkId === networkId
+  );
+}
+
+// Helper function to get token by contract address
+export function findTokenByContract(contractAddress: string, networkId: string): TokenInfo | undefined {
+  return ALL_TOKENS.find(token =>
+    token.contractAddress === contractAddress &&
+    token.networkId === networkId
+  );
+}
+
+// Helper to format token amount (convert from base units)
+export function formatTokenAmount(amount: bigint, token: TokenInfo): string {
+  const divisor = BigInt(10 ** token.decimals);
+  const integerPart = amount / divisor;
+  const fractionalPart = amount % divisor;
+
+  if (fractionalPart === 0n) {
+    return integerPart.toString();
   }
 
-  // Avalanche Mainnet Tokens
-  export const AVALANCHE_TOKENS: TokenInfo[] = [
-    {
-      symbol: 'AVAX',
-      name: 'Avalanche',
-      decimals: 18,
-      isNative: true,
-      networkId: 43114,
-      logoUri: 'https://cryptologos.cc/logos/avalanche-avax-logo.png'
-    },
-    {
-      symbol: 'USDC',
-      name: 'USD Coin',
-      address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E', // USDC.e on Avalanche
-      decimals: 6,
-      isNative: false,
-      networkId: 43114,
-      logoUri: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
-    },
-    {
-      symbol: 'USDC.e',
-      name: 'USD Coin (Bridged)',
-      address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
-      decimals: 6,
-      isNative: false,
-      networkId: 43114,
-      logoUri: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
-    },
-  ];
+  const fractionalStr = fractionalPart.toString().padStart(token.decimals, '0');
+  const trimmedFractional = fractionalStr.replace(/0+$/, '');
 
-  // Legacy tokens (keeping for backward compatibility)
-  export const SWAP_TOKENS: TokenInfo[] = [
-    {
-      symbol: 'ETH',
-      name: 'Ethereum',
-      decimals: 18,
-      networkId: 1,
-      logoUri: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
-    },
-    {
-      symbol: 'USDC',
-      name: 'USD Coin',
-      address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-      decimals: 6,
-      networkId: 1,
-      logoUri: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
-    },
-    {
-      symbol: 'MVY',
-      name: 'Movya Token',
-      address: '0x123...', // Placeholder address
-      decimals: 18,
-      networkId: 1,
-      logoUri: 'https://example.com/logos/mvy.png'
-    },
-  ];
+  return `${integerPart}.${trimmedFractional}`;
+}
 
-  // All supported tokens
-  export const ALL_TOKENS = [...AVALANCHE_TOKENS, ...SWAP_TOKENS];
+// Helper to parse token amount (convert to base units)
+export function parseTokenAmount(amount: string, token: TokenInfo): bigint {
+  const parts = amount.split('.');
+  const integerPart = BigInt(parts[0] || '0');
+  const fractionalPart = parts[1] || '';
 
-  // Helper function to get tokens by network
-  export function getTokensByNetwork(networkId: number): TokenInfo[] {
-    return ALL_TOKENS.filter(token => token.networkId === networkId);
+  const paddedFractional = fractionalPart.padEnd(token.decimals, '0').slice(0, token.decimals);
+  const fractionalValue = BigInt(paddedFractional);
+
+  const multiplier = BigInt(10 ** token.decimals);
+  return integerPart * multiplier + fractionalValue;
+}
+
+// Parse contract principal into parts
+export function parseContractPrincipal(contractAddress: string): {
+  address: string;
+  contractName: string;
+} {
+  const parts = contractAddress.split('.');
+  if (parts.length !== 2) {
+    throw new Error(`Invalid contract principal: ${contractAddress}`);
   }
+  return {
+    address: parts[0],
+    contractName: parts[1]
+  };
+}
 
-  // Helper function to find token by symbol and network
-  export function findToken(symbol: string, networkId: number): TokenInfo | undefined {
-    return ALL_TOKENS.find(token => 
-      token.symbol.toLowerCase() === symbol.toLowerCase() && 
-      token.networkId === networkId
-    );
-  }
-
-  // Default export to suppress Expo Router warning
-  export default function TokensExport() {
-    return null;
-  }
+// Default export to suppress Expo Router warning
+export default function TokensExport() {
+  return null;
+}

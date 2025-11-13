@@ -22,12 +22,12 @@
   "description": "",
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",
+    "@stacks/transactions": "^6.16.0",
+    "@stacks/network": "^6.16.0",
     "axios": "^1.9.0",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.5.0",
-    "ethers": "^5.7.2",
-    "express": "^5.1.0",
-    "viem": "^2.29.1"
+    "express": "^5.1.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.1",
