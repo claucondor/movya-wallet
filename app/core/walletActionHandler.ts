@@ -160,14 +160,22 @@ export async function handleWalletAction(
         }
         
         try {
-          const swapService = SwapService.getInstance();
-          let swapResult;
-          
-          if (params.fromCurrency === 'WAVAX') {
-            swapResult = await swapService.swapWAVAXToUSDC(params.amount);
-          } else {
-            swapResult = await swapService.swapUSDCToWAVAX(params.amount);
-          }
+          // Get quote first to determine minimum output
+          const quote = await SwapService.getSwapQuote(
+            params.fromCurrency,
+            params.toCurrency,
+            params.amount,
+            0.5 // 0.5% slippage
+          );
+
+          // Execute the swap
+          const swapResult = await SwapService.executeSwap(
+            params.fromCurrency,
+            params.toCurrency,
+            params.amount,
+            quote.minimumReceived,
+            0.5 // 0.5% slippage
+          );
           
           if (swapResult.success) {
             return {

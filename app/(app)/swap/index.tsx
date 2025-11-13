@@ -117,8 +117,7 @@ const SwapScreen: React.FC = () => {
 
     setIsGettingQuote(true);
     try {
-      const swapService = SwapService.getInstance();
-      const quoteResult = await swapService.getSwapQuote(
+      const quoteResult = await SwapService.getSwapQuote(
         fromToken.symbol,
         toToken.symbol,
         amount,
@@ -176,14 +175,15 @@ const SwapScreen: React.FC = () => {
     setShowConfirmDialog(false);
 
     try {
-      const swapService = SwapService.getInstance();
-      let result: SwapResult;
-
-      if (fromToken.symbol === 'WAVAX') {
-        result = await swapService.swapWAVAXToUSDC(amount);
-      } else {
-        result = await swapService.swapUSDCToWAVAX(amount);
-      }
+      // Use the new executeSwap method with quote's minimum received
+      const minimumOutput = quote?.minimumReceived || '0';
+      const result: SwapResult = await SwapService.executeSwap(
+        fromToken.symbol,
+        toToken.symbol,
+        amount,
+        minimumOutput,
+        0.5 // 0.5% slippage
+      );
 
       setSwapResult(result);
 
