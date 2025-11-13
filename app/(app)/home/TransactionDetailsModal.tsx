@@ -51,10 +51,9 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
     };
 
     const openInExplorer = () => {
-        if (transaction.hash) {
+        if (transaction.txid && transaction.explorerUrl) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            const explorerUrl = `https://snowtrace.io/tx/${transaction.hash}`;
-            Linking.openURL(explorerUrl).catch(() => {
+            Linking.openURL(transaction.explorerUrl).catch(() => {
                 Alert.alert('Error', 'Could not open transaction in explorer');
             });
         }
@@ -154,9 +153,9 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
                             >
                                 <View style={styles.recipientInfo}>
                                     <PaperText style={styles.detailValue}>
-                                        {transaction.type === 'sent' 
-                                            ? (transaction.recipientNickname || (transaction.recipient ? formatAddress(transaction.recipient) : 'Unknown'))
-                                            : (transaction.senderNickname || (transaction.sender ? formatAddress(transaction.sender) : 'Unknown'))
+                                        {transaction.type === 'sent'
+                                            ? (transaction.recipient ? formatAddress(transaction.recipient) : 'Unknown')
+                                            : (transaction.sender ? formatAddress(transaction.sender) : 'Unknown')
                                         }
                                     </PaperText>
                                     {/* Show app user indicator if sender is from the app */}
@@ -172,35 +171,15 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
                             </TouchableOpacity>
                         </View>
 
-                        {/* Transaction Hash */}
-                        {transaction.hash && (
-                            <View style={styles.detailRow}>
-                                <PaperText style={styles.detailLabel}>Transaction Hash</PaperText>
-                                <TouchableOpacity 
-                                    onPress={() => copyToClipboard(transaction.hash!, 'Transaction hash')}
-                                    style={styles.addressContainer}
-                                >
-                                    <PaperText style={styles.detailValue}>
-                                        {formatAddress(transaction.hash)}
-                                    </PaperText>
-                                    <IconButton
-                                        icon="content-copy"
-                                        size={16}
-                                        iconColor={Color.colorRoyalblue100}
-                                    />
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
                         {/* Transaction ID */}
                         <View style={styles.detailRow}>
                             <PaperText style={styles.detailLabel}>Transaction ID</PaperText>
-                            <TouchableOpacity 
-                                onPress={() => copyToClipboard(transaction.id, 'Transaction ID')}
+                            <TouchableOpacity
+                                onPress={() => copyToClipboard(transaction.txid, 'Transaction ID')}
                                 style={styles.addressContainer}
                             >
                                 <PaperText style={styles.detailValue}>
-                                    {formatAddress(transaction.id)}
+                                    {formatAddress(transaction.txid)}
                                 </PaperText>
                                 <IconButton
                                     icon="content-copy"

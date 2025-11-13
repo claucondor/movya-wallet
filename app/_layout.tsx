@@ -195,7 +195,7 @@ export default function RootLayout() {
       // Redirect to main app screen.
       // Avoid redirecting if already in (app) group to prevent loops, unless it's from root index.
       // Also, allow staying on auth/success or auth/error if those are the current deep link targets.
-      if (segments[1] !== 'success' && segments[1] !== 'error') {
+      if (segments.length < 2 || (segments[1] !== 'success' && segments[1] !== 'error')) {
          console.log('Redirecting to /(app)/wallet due to walletAddress and current segment');
          router.replace('/(app)/home'); // Changed from '/(app)/wallet' to '/(app)/chat'
       }

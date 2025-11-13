@@ -24,12 +24,8 @@ import {
 } from 'react-native-paper';
 import { SafeAreaView } from "react-native-safe-area-context";
 import QRCode from 'react-native-qrcode-svg';
-import { Hex } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { storage } from '../../core/storage';
+import { getWalletAddress } from '../../internal/walletService';
 import { FontFamily, Color, Border, Gap, Padding, FontSize } from '../home/GlobalStyles';
-
-const PRIVATE_KEY_STORAGE_KEY = 'userPrivateKey';
 
 export default function ReceiveScreen() {
   const [address, setAddress] = useState<string | null>(null);
@@ -40,17 +36,15 @@ export default function ReceiveScreen() {
   const [snackbarIsError, setSnackbarIsError] = useState(false);
   
   useEffect(() => {
-    const loadAddress = () => {
+    const loadAddress = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const pk = storage.getString(PRIVATE_KEY_STORAGE_KEY);
-        if (!pk) {
-          throw new Error('Private key not found in storage.');
+        const walletAddress = await getWalletAddress();
+        if (!walletAddress) {
+          throw new Error('Wallet address not found. Please log in again.');
         }
-        const privateKeyHex = pk.startsWith('0x') ? pk as Hex : `0x${pk}` as Hex;
-        const account = privateKeyToAccount(privateKeyHex);
-        setAddress(account.address);
+        setAddress(walletAddress);
       } catch (err: any) {
         console.error("Failed to load address:", err);
         const msg = err.message || 'Failed to load wallet address.';

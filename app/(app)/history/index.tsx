@@ -31,10 +31,13 @@ const TransactionHistoryScreen = () => {
   const historyService = TransactionHistoryService.getInstance();
 
   // Load transaction data
-  const loadTransactions = useCallback(() => {
-    const allTransactions = historyService.getRecentTransactions(100);
+  const loadTransactions = useCallback(async () => {
+    const allTransactions = await historyService.fetchTransactionHistory(100);
     setTransactions(allTransactions);
-    setStats(historyService.getStats());
+    // Calculate stats from transactions
+    const sent = allTransactions.filter(tx => tx.type === 'sent').length;
+    const received = allTransactions.filter(tx => tx.type === 'received').length;
+    setStats({ total: allTransactions.length, sent, received, pending: 0 });
   }, [historyService]);
 
   // Filter transactions based on selected filter
@@ -85,10 +88,10 @@ const TransactionHistoryScreen = () => {
 
   // Handle transaction press (open in explorer)
   const handleTransactionPress = (transaction: Transaction) => {
-    if (transaction.hash && transaction.explorerUrl) {
+    if (transaction.txid && transaction.explorerUrl) {
       Alert.alert(
         'Open Transaction',
-        `View transaction ${transaction.hash.slice(0, 8)}... on Snowtrace?`,
+        `View transaction ${transaction.txid.slice(0, 8)}... on Stacks Explorer?`,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Open', onPress: () => Linking.openURL(transaction.explorerUrl!) },
@@ -99,22 +102,12 @@ const TransactionHistoryScreen = () => {
     }
   };
 
-  // Clear history (for testing)
+  // Clear history (for testing) - Note: History is fetched from blockchain, not stored locally
   const handleClearHistory = () => {
     Alert.alert(
       'Clear History',
-      'Are you sure you want to clear all transaction history? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: () => {
-            historyService.clearHistory();
-            loadTransactions();
-          },
-        },
-      ]
+      'Transaction history is fetched from the blockchain and cannot be cleared.',
+      [{ text: 'OK' }]
     );
   };
 
@@ -147,17 +140,17 @@ const TransactionHistoryScreen = () => {
         </View>
         <View style={styles.transactionDetails}>
           <Text style={styles.transactionTitle}>
-            {item.type === 'sent' 
-              ? `To ${item.recipientNickname || item.recipient?.slice(0, 8) + '...' || 'Unknown'}`
-              : `From ${item.senderNickname || item.sender || 'Unknown'}`
+            {item.type === 'sent'
+              ? `To ${item.recipient?.slice(0, 8) + '...' || 'Unknown'}`
+              : `From ${item.sender?.slice(0, 8) + '...' || 'Unknown'}`
             }
           </Text>
           <Text style={styles.transactionDate}>
             {new Date(item.timestamp).toLocaleDateString()} at {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
-          {item.hash && (
+          {item.txid && (
             <Text style={styles.transactionHash}>
-              {item.hash.slice(0, 10)}...{item.hash.slice(-6)}
+              {item.txid.slice(0, 10)}...{item.txid.slice(-6)}
             </Text>
           )}
         </View>
@@ -166,17 +159,14 @@ const TransactionHistoryScreen = () => {
         <Text style={[styles.transactionAmount, { color: getTransactionColor(item) }]}>
           {formatAmount(item)}
         </Text>
-        {item.usdValue && (
-          <Text style={styles.transactionUsd}>{item.usdValue}</Text>
-        )}
         <View style={styles.transactionStatus}>
           <MaterialIcons
-            name={item.confirmed ? 'check-circle' : 'schedule'}
+            name={item.status === 'success' ? 'check-circle' : 'schedule'}
             size={12}
-            color={item.confirmed ? '#10B981' : '#F59E0B'}
+            color={item.status === 'success' ? '#10B981' : '#F59E0B'}
           />
-          <Text style={[styles.statusText, { color: item.confirmed ? '#10B981' : '#F59E0B' }]}>
-            {item.confirmed ? 'Confirmed' : 'Pending'}
+          <Text style={[styles.statusText, { color: item.status === 'success' ? '#10B981' : '#F59E0B' }]}>
+            {item.status === 'success' ? 'Confirmed' : 'Pending'}
           </Text>
         </View>
       </View>
@@ -222,7 +212,7 @@ const TransactionHistoryScreen = () => {
       {/* Transaction List */}
       <FlatList
         data={filteredTransactions}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.txid}
         renderItem={renderTransaction}
         style={styles.transactionsList}
         contentContainerStyle={styles.transactionsListContent}
