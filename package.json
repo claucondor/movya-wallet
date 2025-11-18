@@ -28,6 +28,7 @@
     "@stacks/transactions": "^6.16.0",
     "@stacks/wallet-sdk": "^6.16.0",
     "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.1",
     "expo": "~52.0.46",
     "expo-auth-session": "^6.0.3",
     "expo-av": "~15.0.2",
@@ -68,6 +69,8 @@
     "react-native-vector-icons": "^10.2.0",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5",
+    "readable-stream": "^4.7.0",
+    "stream-browserify": "^3.0.0",
     "util": "^0.12.5"
   },
   "devDependencies": {
