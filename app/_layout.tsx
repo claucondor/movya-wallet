@@ -10,7 +10,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import "react-native-get-random-values";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
