@@ -9,6 +9,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Buffer } from 'buffer';
+global.Buffer = Buffer;
 import "react-native-get-random-values";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
@@ -190,10 +192,9 @@ export default function RootLayout() {
 
     console.log(`RootLayout Auth Redirect: walletAddress: ${walletAddress}, segments: ${segments.join('/')}, inAuthGroup: ${inAuthGroup}, inAppGroup: ${inAppGroup}`);
 
-    if (walletAddress && (inAuthGroup || segments[0] === 'index')) {
-      // User is authenticated but is in auth group, at root, or on the initial index.tsx
+    if (walletAddress && inAuthGroup) {
+      // User is authenticated but is in auth group
       // Redirect to main app screen.
-      // Avoid redirecting if already in (app) group to prevent loops, unless it's from root index.
       // Also, allow staying on auth/success or auth/error if those are the current deep link targets.
       let shouldRedirect = true;
       // Check second segment safely

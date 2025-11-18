@@ -19,6 +19,7 @@ module.exports = (async () => {
       sourceExts: [...sourceExts, 'svg'],
       extraNodeModules: {
         util: require.resolve('util/'),
+        buffer: require.resolve('buffer/'),
       },
     },
   };

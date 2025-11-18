@@ -27,6 +27,7 @@
     "@stacks/stacking": "^6.16.0",
     "@stacks/transactions": "^6.16.0",
     "@stacks/wallet-sdk": "^6.16.0",
+    "buffer": "^6.0.3",
     "expo": "~52.0.46",
     "expo-auth-session": "^6.0.3",
     "expo-av": "~15.0.2",
