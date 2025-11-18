@@ -21,7 +21,7 @@ module.exports = (async () => {
         util: require.resolve('util/'),
         buffer: require.resolve('buffer/'),
         process: require.resolve('process/browser'),
-        crypto: require.resolve('react-native-quick-crypto'),
+        crypto: require.resolve('crypto-browserify'),
         stream: require.resolve('stream-browserify'),
       },
     },

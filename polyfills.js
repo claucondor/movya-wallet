@@ -1,3 +1,6 @@
+// Import react-native-get-random-values FIRST
+import 'react-native-get-random-values';
+
 // Polyfills for Node.js modules required by @stacks/* libraries
 import { Buffer } from 'buffer';
 import process from 'process';
@@ -11,18 +14,27 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = __DEV__ ? 'development' : 'production';
 }
 
-// Use react-native-quick-crypto for comprehensive crypto support
-const QuickCrypto = require('react-native-quick-crypto');
+// Setup a minimal shim that delegates to the proper implementations
+const crypto = require('crypto-browserify');
 
-// Install quick-crypto polyfill
-QuickCrypto.install();
+// Make crypto global
+global.crypto = crypto;
 
-// Setup crypto.web for @stacks libraries that use crypto.web.getRandomValues
-if (global.crypto && !global.crypto.web) {
-  global.crypto.web = {
-    getRandomValues: global.crypto.getRandomValues,
-    subtle: global.crypto.subtle || {}
+// Ensure getRandomValues from react-native-get-random-values is used
+// (it should already be set, but we make sure)
+if (!global.crypto.getRandomValues && typeof crypto.randomBytes === 'function') {
+  global.crypto.getRandomValues = function(arr) {
+    const bytes = crypto.randomBytes(arr.length);
+    for (let i = 0; i < arr.length; i++) {
+      arr[i] = bytes[i];
+    }
+    return arr;
   };
 }
+
+// Setup crypto.web for @stacks libraries
+global.crypto.web = global.crypto.web || {};
+global.crypto.web.getRandomValues = global.crypto.getRandomValues;
+global.crypto.web.subtle = global.crypto.subtle || {};
 
 export {};

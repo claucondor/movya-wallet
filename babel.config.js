@@ -7,7 +7,7 @@ module.exports = function (api) {
         'module-resolver',
         {
           alias: {
-            'crypto': 'react-native-quick-crypto',
+            'crypto': 'crypto-browserify',
             'stream': 'stream-browserify',
             'buffer': 'buffer',
           },
