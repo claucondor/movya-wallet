@@ -15,22 +15,27 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = __DEV__ ? 'development' : 'production';
 }
 
-// After react-native-get-random-values is imported, global.crypto.getRandomValues should exist
-// Setup crypto.web for @stacks libraries that use crypto.web.getRandomValues
-if (!global.crypto.web) {
-  global.crypto.web = {
-    getRandomValues: global.crypto.getRandomValues,
-    subtle: global.crypto.subtle || {}
-  };
+// Setup crypto object before loading crypto-browserify
+if (typeof global.crypto !== 'object') {
+  global.crypto = {};
 }
 
-// Import crypto-browserify after setting up the web crypto API
+// Preserve getRandomValues from react-native-get-random-values
+const getRandomValues = global.crypto.getRandomValues;
+
+// Import crypto-browserify
 const cryptoBrowserify = require('crypto-browserify');
-// Merge crypto-browserify functions into global.crypto without overwriting web
-Object.keys(cryptoBrowserify).forEach(key => {
-  if (key !== 'web' && key !== 'getRandomValues') {
-    global.crypto[key] = cryptoBrowserify[key];
-  }
-});
+
+// Replace global.crypto with crypto-browserify
+global.crypto = cryptoBrowserify;
+
+// Restore getRandomValues from react-native-get-random-values
+global.crypto.getRandomValues = getRandomValues;
+
+// Setup crypto.web for @stacks libraries that use crypto.web.getRandomValues
+global.crypto.web = {
+  getRandomValues: getRandomValues,
+  subtle: global.crypto.subtle || {}
+};
 
 export {};
