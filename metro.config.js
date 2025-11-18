@@ -20,6 +20,7 @@ module.exports = (async () => {
       extraNodeModules: {
         util: require.resolve('util/'),
         buffer: require.resolve('buffer/'),
+        process: require.resolve('process/browser'),
       },
     },
   };
