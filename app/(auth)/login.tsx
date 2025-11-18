@@ -12,6 +12,9 @@ export default function LoginScreen() {
   const { colorScheme } = useTheme();
   const isDark = colorScheme === 'dark';
 
+  console.log('[LoginScreen] Component rendered');
+  console.log('[LoginScreen] startGoogleLogin:', startGoogleLogin);
+
   return (
     <View style={styles.container}>
       {/* Background Video */}
@@ -50,7 +53,10 @@ export default function LoginScreen() {
             styles.oauthButton,
             pressed && styles.oauthButtonPressed,
           ]}
-          onPress={startGoogleLogin}
+          onPress={() => {
+            console.log('[LoginScreen] Pressable onPress triggered');
+            startGoogleLogin();
+          }}
         >
           <View style={styles.buttonContent}>
             <View style={styles.googleIconContainer}>

@@ -126,8 +126,10 @@ export default function RootLayout() {
 
   // Function to manually start the Google Login flow
   const startGoogleLogin = useCallback(async () => {
+    console.log('[startGoogleLogin] Button pressed!');
     if (!GOOGLE_WEB_CLIENT_ID) {
-      console.error('Google Web Client ID not found.');
+      console.error('[startGoogleLogin] Google Web Client ID not found.');
+      console.error('[startGoogleLogin] GOOGLE_WEB_CLIENT_ID:', GOOGLE_WEB_CLIENT_ID);
       return;
     }
     try {
@@ -137,9 +139,11 @@ export default function RootLayout() {
                       `?client_id=${GOOGLE_WEB_CLIENT_ID}` +
                       `&redirect_uri=${redirectUri}` +
                       `&response_type=code&scope=${scopes}&access_type=offline`;
-      await WebBrowser.openBrowserAsync(authUrl);
+      console.log('[startGoogleLogin] Opening browser with URL:', authUrl);
+      const result = await WebBrowser.openBrowserAsync(authUrl);
+      console.log('[startGoogleLogin] Browser result:', result);
     } catch (error) {
-      console.error('Error opening web browser for Google Login:', error);
+      console.error('[startGoogleLogin] Error opening web browser for Google Login:', error);
     }
   }, []);
 
