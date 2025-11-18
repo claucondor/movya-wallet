@@ -17,6 +17,9 @@ module.exports = (async () => {
       ...defaultConfig.resolver,
       assetExts: assetExts.filter((ext) => ext !== 'svg'),
       sourceExts: [...sourceExts, 'svg'],
+      extraNodeModules: {
+        util: require.resolve('util/'),
+      },
     },
   };
 })();

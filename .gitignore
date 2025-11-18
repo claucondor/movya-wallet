@@ -44,3 +44,7 @@ app-example
 # misc
 local.properties
 /.vscode
+
+# wallet credentials
+*wallet*.json
+*wallet*.txt

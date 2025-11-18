@@ -21,12 +21,12 @@
     "@react-native-masked-view/masked-view": "0.3.2",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
-    "@stacks/transactions": "^6.16.0",
-    "@stacks/wallet-sdk": "^6.16.0",
-    "@stacks/network": "^6.16.0",
     "@stacks/common": "^6.16.0",
     "@stacks/encryption": "^6.16.0",
+    "@stacks/network": "^6.16.0",
     "@stacks/stacking": "^6.16.0",
+    "@stacks/transactions": "^6.16.0",
+    "@stacks/wallet-sdk": "^6.16.0",
     "expo": "~52.0.46",
     "expo-auth-session": "^6.0.3",
     "expo-av": "~15.0.2",
@@ -65,7 +65,8 @@
     "react-native-svg-transformer": "^1.5.1",
     "react-native-vector-icons": "^10.2.0",
     "react-native-web": "~0.19.13",
-    "react-native-webview": "13.12.5"
+    "react-native-webview": "13.12.5",
+    "util": "^0.12.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
