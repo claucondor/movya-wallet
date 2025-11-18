@@ -1,3 +1,4 @@
+import '../polyfills';
 import { ThemeProvider as CustomThemeProvider } from '@/hooks/ThemeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationDefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
@@ -9,10 +10,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Buffer } from 'buffer';
-import process from 'process';
-global.Buffer = Buffer;
-global.process = process;
 import "react-native-get-random-values";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
