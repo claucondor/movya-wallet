@@ -435,29 +435,32 @@ export class AgentService {
         };
 
         // Generar contenido rico basado en el tipo de acción
-        if (originalResponse.action === 'SEND' && actionResult.success && actionResult.transactionHash) {
+        // Note: actionResult here is the ActionResultInput with { actionType, status, data }
+        const isSuccess = actionResult.status === 'success';
+
+        if (originalResponse.action === 'SEND' && isSuccess && actionResult.data?.transactionHash) {
             response.richContent = {
                 type: 'transaction_details',
                 data: {
-                    transactionHash: actionResult.transactionHash,
-                    amount: actionResult.amount || originalResponse.parameters?.amount?.toString(),
-                    currency: actionResult.currency || originalResponse.parameters?.currency,
-                    recipient: actionResult.recipient || originalResponse.parameters?.recipientAddress,
-                    recipientNickname: actionResult.recipientNickname,
-                    explorerUrl: `https://explorer.hiro.so/txid/${actionResult.transactionHash}?chain=mainnet`,
-                    usdValue: actionResult.usdValue
+                    transactionHash: actionResult.data.transactionHash,
+                    amount: actionResult.data.amountSent || originalResponse.parameters?.amount?.toString(),
+                    currency: actionResult.data.currencySent || originalResponse.parameters?.currency,
+                    recipient: actionResult.data.recipient || originalResponse.parameters?.recipientAddress,
+                    recipientNickname: actionResult.data.recipientNickname,
+                    explorerUrl: `https://explorer.hiro.so/txid/${actionResult.data.transactionHash}?chain=mainnet`,
+                    usdValue: actionResult.data.usdValue
                 }
             };
 
             // Detect language from user message for button labels
             const isSpanish = this.detectSpanishLanguage(userMessage);
-            
+
             response.quickActions = [
                 {
                     type: 'transaction_link',
                     label: isSpanish ? '🔍 Ver en explorador' : '🔍 View on Explorer',
-                    value: actionResult.transactionHash,
-                    url: `https://explorer.hiro.so/txid/${actionResult.transactionHash}?chain=mainnet`,
+                    value: actionResult.data.transactionHash,
+                    url: `https://explorer.hiro.so/txid/${actionResult.data.transactionHash}?chain=mainnet`,
                     style: 'primary'
                 },
                 {
@@ -475,7 +478,7 @@ export class AgentService {
             ];
         }
 
-        if (originalResponse.action === 'CHECK_BALANCE' && actionResult.success && actionResult.balance) {
+        if (originalResponse.action === 'CHECK_BALANCE' && isSuccess && actionResult.data?.balance) {
             const tokens = [];
             if (actionResult.balance.stx) {
                 tokens.push({
