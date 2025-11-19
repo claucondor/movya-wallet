@@ -19,22 +19,22 @@ export interface CurrencyConversion {
  */
 class PriceService {
   private static mockPrices: Record<string, TokenPrice> = {
-    'AVAX': {
-      symbol: 'AVAX',
-      price: 42.50,
-      change24h: 2.34,
+    'STX': {
+      symbol: 'STX',
+      price: 1.50,
+      change24h: 3.45,
       lastUpdated: Date.now()
     },
-    'USDC': {
-      symbol: 'USDC',
+    'sBTC': {
+      symbol: 'sBTC',
+      price: 95000.00, // Pegged 1:1 with Bitcoin
+      change24h: 1.23,
+      lastUpdated: Date.now()
+    },
+    'USDA': {
+      symbol: 'USDA',
       price: 1.00,
-      change24h: 0.01,
-      lastUpdated: Date.now()
-    },
-    'WAVAX': {
-      symbol: 'WAVAX',
-      price: 42.50, // Same as AVAX since 1 WAVAX = 1 AVAX
-      change24h: 2.34,
+      change24h: 0.02,
       lastUpdated: Date.now()
     }
   };
@@ -68,15 +68,9 @@ class PriceService {
     const upperSymbol = symbol.toUpperCase();
     let mockPrice = this.mockPrices[upperSymbol];
     
-    // Handle WAVAX specifically - should always be same price as AVAX
-    if (upperSymbol === 'WAVAX' && !mockPrice) {
-      mockPrice = this.mockPrices['AVAX'];
-      if (mockPrice) {
-        mockPrice = {
-          ...mockPrice,
-          symbol: 'WAVAX'
-        };
-      }
+    // Handle sBTC specifically - should always track Bitcoin price
+    if (upperSymbol === 'SBTC' && !mockPrice) {
+      mockPrice = this.mockPrices['sBTC'];
     }
     
     if (!mockPrice) {
@@ -90,7 +84,7 @@ class PriceService {
     
     return {
       ...mockPrice,
-      price: Number(adjustedPrice.toFixed(mockPrice.symbol === 'USDC' ? 4 : 2)),
+      price: Number(adjustedPrice.toFixed(mockPrice.symbol === 'USDA' ? 4 : mockPrice.symbol === 'sBTC' ? 2 : 2)),
       lastUpdated: Date.now()
     };
   }
@@ -149,7 +143,7 @@ class PriceService {
    */
   static formatCurrencyAmount(amount: number, currency: string): string {
     const upperCurrency = currency.toUpperCase();
-    const decimals = upperCurrency === 'USDC' ? 2 : 4;
+    const decimals = upperCurrency === 'USDA' ? 2 : upperCurrency === 'sBTC' ? 8 : 4;
     return `${amount.toFixed(decimals)} ${upperCurrency}`;
   }
 

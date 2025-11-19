@@ -249,7 +249,7 @@ export class AgentService {
         if (currency && !PriceService.isCurrencySupported(currency)) {
             console.log(`Unsupported currency detected: ${currency}`);
             aiResponse.action = 'ERROR';
-            aiResponse.responseMessage = `Sorry, I only support AVAX, WAVAX, and USDC transactions. ${currency} is not supported on this wallet.`;
+            aiResponse.responseMessage = `Sorry, I only support STX, sBTC, and USDA transactions. ${currency} is not supported on this wallet.`;
             aiResponse.confirmationRequired = false;
             aiResponse.confirmationMessage = null;
             return;
@@ -416,7 +416,7 @@ export class AgentService {
                     currency: actionResult.currency || originalResponse.parameters?.currency,
                     recipient: actionResult.recipient || originalResponse.parameters?.recipientAddress,
                     recipientNickname: actionResult.recipientNickname,
-                    explorerUrl: `https://snowtrace.io/tx/${actionResult.transactionHash}`,
+                    explorerUrl: `https://explorer.hiro.so/txid/${actionResult.transactionHash}?chain=mainnet`,
                     usdValue: actionResult.usdValue
                 }
             };
@@ -429,7 +429,7 @@ export class AgentService {
                     type: 'transaction_link',
                     label: isSpanish ? '🔍 Ver en explorador' : '🔍 View on Explorer',
                     value: actionResult.transactionHash,
-                    url: `https://snowtrace.io/tx/${actionResult.transactionHash}`,
+                    url: `https://explorer.hiro.so/txid/${actionResult.transactionHash}?chain=mainnet`,
                     style: 'primary'
                 },
                 {
@@ -449,18 +449,25 @@ export class AgentService {
 
         if (originalResponse.action === 'CHECK_BALANCE' && actionResult.success && actionResult.balance) {
             const tokens = [];
-            if (actionResult.balance.avax) {
+            if (actionResult.balance.stx) {
                 tokens.push({
-                    symbol: 'AVAX',
-                    balance: actionResult.balance.avax,
-                    usdValue: actionResult.balance.avaxUsd || 'N/A'
+                    symbol: 'STX',
+                    balance: actionResult.balance.stx,
+                    usdValue: actionResult.balance.stxUsd || 'N/A'
                 });
             }
-            if (actionResult.balance.usdc) {
+            if (actionResult.balance.usda) {
                 tokens.push({
-                    symbol: 'USDC',
-                    balance: actionResult.balance.usdc,
-                    usdValue: actionResult.balance.usdcUsd || 'N/A'
+                    symbol: 'USDA',
+                    balance: actionResult.balance.usda,
+                    usdValue: actionResult.balance.usdaUsd || 'N/A'
+                });
+            }
+            if (actionResult.balance.sbtc) {
+                tokens.push({
+                    symbol: 'sBTC',
+                    balance: actionResult.balance.sbtc,
+                    usdValue: actionResult.balance.sbtcUsd || 'N/A'
                 });
             }
 
@@ -478,20 +485,20 @@ export class AgentService {
             response.quickActions = [
                 {
                     type: 'button',
-                    label: isSpanish ? '💸 Enviar AVAX' : '💸 Send AVAX',
-                    value: isSpanish ? 'enviar AVAX' : 'send AVAX',
+                    label: isSpanish ? '💸 Enviar STX' : '💸 Send STX',
+                    value: isSpanish ? 'enviar STX' : 'send STX',
                     style: 'primary'
                 },
                 {
                     type: 'button',
-                    label: isSpanish ? '💸 Enviar WAVAX' : '💸 Send WAVAX',
-                    value: isSpanish ? 'enviar WAVAX' : 'send WAVAX',
+                    label: isSpanish ? '💸 Enviar USDA' : '💸 Send USDA',
+                    value: isSpanish ? 'enviar USDA' : 'send USDA',
                     style: 'primary'
                 },
                 {
                     type: 'button',
-                    label: isSpanish ? '💸 Enviar USDC' : '💸 Send USDC',
-                    value: isSpanish ? 'enviar USDC' : 'send USDC',
+                    label: isSpanish ? '💸 Enviar sBTC' : '💸 Send sBTC',
+                    value: isSpanish ? 'enviar sBTC' : 'send sBTC',
                     style: 'primary'
                 },
                 {
@@ -572,8 +579,9 @@ export class AgentService {
             message.includes('moneda') ||
             message.includes('much') ||
             message.includes('cuanto') ||
-            aiResponse.responseMessage.toLowerCase().includes('avax') ||
-            aiResponse.responseMessage.toLowerCase().includes('usdc') ||
+            aiResponse.responseMessage.toLowerCase().includes('stx') ||
+            aiResponse.responseMessage.toLowerCase().includes('usda') ||
+            aiResponse.responseMessage.toLowerCase().includes('sbtc') ||
             aiResponse.responseMessage.toLowerCase().includes('how much') ||
             aiResponse.responseMessage.toLowerCase().includes('specify in') ||
             (action === 'CLARIFY' && aiResponse.parameters?.recipientAddress && !aiResponse.parameters?.amount)
@@ -583,20 +591,20 @@ export class AgentService {
             aiResponse.quickActions = [
                 {
                     type: 'button',
-                    label: '🔺 AVAX',
-                    value: 'AVAX',
+                    label: '🔷 STX',
+                    value: 'STX',
                     style: 'primary'
                 },
                 {
                     type: 'button',
-                    label: '🔷 WAVAX',
-                    value: 'WAVAX',
+                    label: '💰 USDA',
+                    value: 'USDA',
                     style: 'primary'
                 },
                 {
                     type: 'button',
-                    label: '💰 USDC',
-                    value: 'USDC',
+                    label: '₿ sBTC',
+                    value: 'sBTC',
                     style: 'secondary'
                 }
             ];
@@ -617,25 +625,25 @@ export class AgentService {
                 {
                     type: 'button',
                     label: isSpanish ? '💵 $10 USD' : '💵 $10 USD worth',
-                    value: '10 USDC',
+                    value: '10 USDA',
                     style: 'secondary'
                 },
                 {
                     type: 'button',
                     label: isSpanish ? '💵 $50 USD' : '💵 $50 USD worth',
-                    value: '50 USDC',
+                    value: '50 USDA',
                     style: 'primary'
                 },
                 {
                     type: 'button',
-                    label: '🔺 1 AVAX',
-                    value: '1 AVAX',
+                    label: '🔷 100 STX',
+                    value: '100 STX',
                     style: 'secondary'
                 },
                 {
                     type: 'button',
-                    label: '🔷 1 WAVAX',
-                    value: '1 WAVAX',
+                    label: '₿ 0.001 sBTC',
+                    value: '0.001 sBTC',
                     style: 'secondary'
                 }
             ];
@@ -714,7 +722,7 @@ export class AgentService {
                 {
                     type: 'button',
                     label: isSpanish ? '🔄 Intercambiar tokens' : '🔄 Swap tokens',
-                    value: isSpanish ? 'intercambiar WAVAX por USDC' : 'swap WAVAX to USDC',
+                    value: isSpanish ? 'intercambiar STX por USDA' : 'swap STX to USDA',
                     style: 'secondary'
                 },
                 {
@@ -749,14 +757,14 @@ export class AgentService {
             aiResponse.quickActions = [
                 {
                     type: 'button',
-                    label: '🔷 WAVAX → 💰 USDC',
-                    value: isSpanish ? 'intercambiar WAVAX por USDC' : 'swap WAVAX to USDC',
+                    label: '🔷 STX → 💰 USDA',
+                    value: isSpanish ? 'intercambiar STX por USDA' : 'swap STX to USDA',
                     style: 'primary'
                 },
                 {
                     type: 'button',
-                    label: '💰 USDC → 🔷 WAVAX',
-                    value: isSpanish ? 'intercambiar USDC por WAVAX' : 'swap USDC to WAVAX',
+                    label: '💰 USDA → 🔷 STX',
+                    value: isSpanish ? 'intercambiar USDA por STX' : 'swap USDA to STX',
                     style: 'primary'
                 }
             ];
