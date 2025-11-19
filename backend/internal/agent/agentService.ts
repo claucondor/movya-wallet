@@ -181,7 +181,7 @@ export class AgentService {
                 };
             } else if (aiResponse.action === 'SWAP' && !aiResponse.confirmationRequired && aiResponse.parameters) {
                 actionDetails = {
-                    type: 'SWAP_TOKENS',
+                    type: 'SWAP',
                     recipientAddress: null,
                     recipientEmail: null,
                     amount: aiResponse.parameters.amount !== null && aiResponse.parameters.amount !== undefined
@@ -385,9 +385,9 @@ export class AgentService {
         const actionResultInput: ActionResultInput = {
             actionType: originalResponse.action === 'SEND' ? 'SEND_TRANSACTION' :
                        originalResponse.action === 'CHECK_BALANCE' ? 'FETCH_BALANCE' : 'FETCH_HISTORY',
-            status: actionResult.success ? 'success' : 'failure',
+            status: actionResult.status === 'success' ? 'success' : 'failure',
             data: {
-                ...actionResult,
+                ...actionResult.data,
                 // Add user context for language consistency
                 userLanguageContext: userMessage
             }
