@@ -79,7 +79,7 @@ export class GeminiService {
   private config: Required<GeminiConfig>;
 
   private static defaultConfig = {
-    model: 'gemini-2.0-flash-lite',
+    model: 'gemini-2.5-flash-lite',
     temperature: 0.7,
     maxOutputTokens: 4096
   };
