@@ -47,7 +47,7 @@ const aiResponseSchema: any = {
           enum: ["STX", "sBTC", "USDA"]
         }
       },
-      required: []
+      required: ["recipientEmail", "recipientAddress", "amount", "currency", "fromCurrency", "toCurrency"]
     },
     confirmationRequired: {
       type: SchemaType.BOOLEAN,
