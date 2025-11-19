@@ -252,7 +252,9 @@ const Chat = () => {
 				recipientAddress: actionDetails.recipientAddress || null,
 				recipientEmail: actionDetails.recipientEmail || null,
 				amount: actionDetails.amount || null,
-				currency: actionDetails.currency || null
+				currency: actionDetails.currency || null,
+				fromCurrency: actionDetails.fromCurrency || null,
+				toCurrency: actionDetails.toCurrency || null
 			});
 			
 			// Use the wallet result data to report to the AI

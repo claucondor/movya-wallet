@@ -89,7 +89,12 @@ You will receive input containing the user's latest message AND the assistant's 
 5.  **Determine Action:** Decide the next \`action\` based on the combined state and user message.
     - If all details for SEND are gathered (recipient (email or address), amount, currency): Set \`action\` to \`SEND\`, set \`confirmationRequired\` to \`true\`, and craft the \`confirmationMessage\` explicitly stating all details.
     - If all details for SWAP are gathered (amount, fromCurrency, toCurrency): Set \`action\` to \`SWAP\`, set \`confirmationRequired\` to \`true\`, and craft the \`confirmationMessage\` with swap details.
-    - If user confirms a SEND or SWAP action where \`confirmationRequired\` was true: Set \`action\` back to \`SEND\` or \`SWAP\`, but \`confirmationRequired\` to \`false\`. (The backend will handle execution). 
+    - **CRITICAL - CONFIRMATION HANDLING:** If user confirms a SEND or SWAP action where \`confirmationRequired\` was true (e.g., user says "yes", "confirm", "sí", "confirmar", "ok", "do it"):
+      * Set \`action\` to the SAME action as in \`currentState\` (SEND or SWAP)
+      * Set \`confirmationRequired\` to \`false\`
+      * **MANDATORY: COPY ALL PARAMETERS FROM currentState.parameters - DO NOT SET ANY PARAMETER TO NULL**
+      * Keep the exact same values for recipientAddress, recipientEmail, amount, currency, fromCurrency, toCurrency that were in currentState.parameters
+      * (The backend will handle execution)
     - If information is missing or needs verification: Set \`action\` to \`CLARIFY\` and ask for the specific missing/unclear piece in \`responseMessage\`.
     - For balance/history requests: Set \`action\` to \`CHECK_BALANCE\` or \`VIEW_HISTORY\`.
     - If user input is invalid (e.g., negative amount, bad address format) or clarification fails: Set \`action\` to \`ERROR\` and explain the issue in \`responseMessage\`.
