@@ -229,7 +229,7 @@ export default function ReceiveScreen() {
                 {/* Info Section */}
                 <View style={styles.infoContainer}>
                   <PaperText variant="bodySmall" style={styles.infoText}>
-                    💡 Share this address to receive AVAX and other tokens on the Avalanche network
+                    💡 Share this address to receive STX and other tokens on the Stacks network
                   </PaperText>
                 </View>
               </View>

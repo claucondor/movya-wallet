@@ -8,7 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 interface SwapButtonProps {
-  tokenSymbol: 'WAVAX' | 'USDC';
+  tokenSymbol: 'STX' | 'sBTC' | 'USDA';
   onPress: () => void;
   isLoading?: boolean;
 }

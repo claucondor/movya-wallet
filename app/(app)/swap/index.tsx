@@ -35,7 +35,7 @@ import Usdcvector from "../../../assets/usdclogo.svg";
 import Avavector from "../../../assets/avalogo.svg";
 
 interface TokenOption {
-  symbol: 'WAVAX' | 'USDC';
+  symbol: 'STX' | 'sBTC' | 'USDA';
   name: string;
   balance: string;
   decimals: number;
@@ -58,19 +58,25 @@ const SwapScreen: React.FC = () => {
   const theme = usePaperTheme();
   const videoRef = useRef<Video>(null);
 
-  // Available tokens for swap
+  // Available tokens for swap on Stacks
   const availableTokens: TokenOption[] = [
     {
-      symbol: 'WAVAX',
-      name: 'Wrapped AVAX',
-      balance: '0',
-      decimals: 18
-    },
-    {
-      symbol: 'USDC',
-      name: 'USD Coin',
+      symbol: 'STX',
+      name: 'Stacks',
       balance: '0',
       decimals: 6
+    },
+    {
+      symbol: 'USDA',
+      name: 'USD Anchor',
+      balance: '0',
+      decimals: 6
+    },
+    {
+      symbol: 'sBTC',
+      name: 'Synthetic Bitcoin',
+      balance: '0',
+      decimals: 8
     }
   ];
 
@@ -90,10 +96,10 @@ const SwapScreen: React.FC = () => {
         
         // Set default tokens if not set
         if (!fromToken && updatedTokens.length > 0) {
-          setFromToken(updatedTokens[0]); // WAVAX
+          setFromToken(updatedTokens[0]); // STX
         }
         if (!toToken && updatedTokens.length > 1) {
-          setToToken(updatedTokens[1]); // USDC
+          setToToken(updatedTokens[1]); // USDA
         }
       } catch (error) {
         console.error('Error loading balances:', error);
@@ -253,7 +259,7 @@ const SwapScreen: React.FC = () => {
         <PaperText style={styles.tokenLabel}>{label}</PaperText>
         {selectedToken ? (
           <View style={styles.tokenOption}>
-            {selectedToken.symbol === 'USDC' ? (
+            {selectedToken.symbol === 'USDA' ? (
               <Usdcvector width={32} height={32} />
             ) : (
               <Avavector width={32} height={32} />
@@ -282,7 +288,7 @@ const SwapScreen: React.FC = () => {
                 onPress={() => onSelect(token)}
                 style={styles.tokenOption}
               >
-                {token.symbol === 'USDC' ? (
+                {token.symbol === 'USDA' ? (
                   <Usdcvector width={32} height={32} />
                 ) : (
                   <Avavector width={32} height={32} />
@@ -471,7 +477,7 @@ const SwapScreen: React.FC = () => {
                 <View style={styles.confirmSwapInfo}>
                   <View style={styles.confirmTokenRow}>
                     <View style={styles.confirmTokenInfo}>
-                      {fromToken.symbol === 'USDC' ? (
+                      {fromToken.symbol === 'USDA' ? (
                         <Usdcvector width={24} height={24} />
                       ) : (
                         <Avavector width={24} height={24} />
@@ -486,7 +492,7 @@ const SwapScreen: React.FC = () => {
 
                   <View style={styles.confirmTokenRow}>
                     <View style={styles.confirmTokenInfo}>
-                      {toToken.symbol === 'USDC' ? (
+                      {toToken.symbol === 'USDA' ? (
                         <Usdcvector width={24} height={24} />
                       ) : (
                         <Avavector width={24} height={24} />

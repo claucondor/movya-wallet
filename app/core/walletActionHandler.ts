@@ -148,15 +148,16 @@ export async function handleWalletAction(
         if (!params.fromCurrency || !params.toCurrency) {
           throw new Error('fromCurrency y toCurrency son requeridos para el swap');
         }
-        
+
         if (!params.amount) {
           throw new Error('El monto a intercambiar es requerido para el swap');
         }
-        
-        // Validar que solo sean WAVAX ↔ USDC
-        if (!((params.fromCurrency === 'WAVAX' && params.toCurrency === 'USDC') || 
-              (params.fromCurrency === 'USDC' && params.toCurrency === 'WAVAX'))) {
-          throw new Error('Solo se soportan swaps entre WAVAX y USDC');
+
+        // Validar que sean tokens soportados en Stacks (STX, sBTC, USDA)
+        const supportedTokens = ['STX', 'sBTC', 'USDA'];
+        if (!supportedTokens.includes(params.fromCurrency.toUpperCase()) ||
+            !supportedTokens.includes(params.toCurrency.toUpperCase())) {
+          throw new Error('Solo se soportan swaps entre STX, sBTC y USDA');
         }
         
         try {

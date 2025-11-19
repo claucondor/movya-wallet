@@ -1,5 +1,5 @@
 import { handleWalletAction } from '@/app/core/walletActionHandler';
-import { avalanche } from '@/constants/chains';
+import { stacksMainnet as stacks } from '@/constants/chains';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -93,7 +93,7 @@ export default function SendScreen() {
         recipientAddress: recipient,
         amount: amount,
         recipientEmail: null,
-        currency: avalanche.nativeCurrency.symbol
+        currency: stacks.nativeCurrency.symbol
       });
 
       if (result.success) {
@@ -170,7 +170,7 @@ export default function SendScreen() {
           <View style={styles.headerSection}>
             <Appbar.Header style={styles.appbarHeader}>
               <Appbar.BackAction onPress={() => router.back()} color={Color.colorWhite} />
-              <Appbar.Content title={`Send ${avalanche.nativeCurrency.symbol}`} color={Color.colorWhite} titleStyle={styles.appbarTitle} />
+              <Appbar.Content title={`Send ${stacks.nativeCurrency.symbol}`} color={Color.colorWhite} titleStyle={styles.appbarTitle} />
               <View style={{ width: 48 }} />
             </Appbar.Header>
 
@@ -181,7 +181,7 @@ export default function SendScreen() {
                 <PaperActivityIndicator size="small" color={Color.colorWhite} style={{alignSelf: 'center'}} />
               ) : (
                 <PaperText variant="headlineSmall" style={styles.balanceValue}>
-                  {balance ? `${balance} ${avalanche.nativeCurrency.symbol}` : 'Loading...'}
+                  {balance ? `${balance} ${stacks.nativeCurrency.symbol}` : 'Loading...'}
                 </PaperText>
               )}
             </View>
@@ -237,8 +237,8 @@ export default function SendScreen() {
                   <View style={styles.inputGroup}>
                     <PaperTextInput
                       mode="outlined"
-                      label={`Amount (${avalanche.nativeCurrency.symbol})`}
-                      placeholder={`0.00 ${avalanche.nativeCurrency.symbol}`}
+                      label={`Amount (${stacks.nativeCurrency.symbol})`}
+                      placeholder={`0.00 ${stacks.nativeCurrency.symbol}`}
                       value={amount}
                       onChangeText={setAmount}
                       keyboardType="decimal-pad"
@@ -252,9 +252,9 @@ export default function SendScreen() {
                       icon="information-outline" 
                       style={[styles.gasFeeChip, { backgroundColor: Color.colorRoyalblue200 }]}
                       textStyle={[styles.gasFeeChipText, { color: Color.colorRoyalblue100, fontFamily: FontFamily.geist }]}
-                      onPress={() => Alert.alert("Gas Fee Information", "A small network fee (gas) is required for every transaction on the Avalanche network. This fee is paid to network validators and is not collected by Movya Wallet. The amount displayed is an approximation.")}
+                      onPress={() => Alert.alert("Gas Fee Information", "A small network fee is required for every transaction on the Stacks network. This fee is paid to network miners and is not collected by Movya Wallet. The amount displayed is an approximation.")}
                     >
-                      Gas fee: ~0.01 {avalanche.nativeCurrency.symbol}
+                      Gas fee: ~0.01 {stacks.nativeCurrency.symbol}
                     </Chip>
                   </View>
 
@@ -297,7 +297,7 @@ export default function SendScreen() {
           <Dialog visible={isConfirmDialogVisible} onDismiss={onDialogCancel}>
             <Dialog.Title style={styles.dialogTitle}>Confirm Transaction</Dialog.Title>
             <Dialog.Content>
-              <PaperText style={styles.dialogContentText}>Send {amount} {avalanche.nativeCurrency.symbol} to:</PaperText>
+              <PaperText style={styles.dialogContentText}>Send {amount} {stacks.nativeCurrency.symbol} to:</PaperText>
               <PaperText selectable style={styles.dialogContentTextRecipient}>{recipient}</PaperText>
             </Dialog.Content>
             <Dialog.Actions>
