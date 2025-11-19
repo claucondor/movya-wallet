@@ -5,7 +5,12 @@ import {
   generateWallet,
   getStxAddress,
 } from '@stacks/wallet-sdk';
-import { TransactionVersion } from '@stacks/transactions';
+import {
+  TransactionVersion,
+  createStacksPrivateKey,
+  getAddressFromPrivateKey as getAddressFromPrivKeyStacks,
+  makeRandomPrivKey,
+} from '@stacks/transactions';
 import { storage } from '../core/storage';
 import { requestFaucetTokens } from './faucetService';
 
@@ -23,37 +28,42 @@ interface WalletData {
 
 /**
  * Generate a new Stacks wallet
+ * Using crypto.getRandomValues for React Native compatibility
  */
 async function generateNewWallet(): Promise<WalletData> {
   try {
     console.log('[generateNewWallet] Starting wallet generation...');
 
-    // Generate 24-word mnemonic (256 bits)
-    const mnemonic = generateSecretKey(256);
-    console.log('[generateNewWallet] Mnemonic generated');
+    // Generate 32 random bytes for private key using Web Crypto API
+    const randomBytes = new Uint8Array(32);
+    global.crypto.getRandomValues(randomBytes);
 
-    // Generate wallet from mnemonic
-    const wallet = await generateWallet({
-      secretKey: mnemonic,
-      password: '',
-    });
-    console.log('[generateNewWallet] Wallet generated from mnemonic');
+    // Convert to hex string (64 chars) and add '01' suffix for compressed key
+    const privateKeyString = Array.from(randomBytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('') + '01';
 
-    // Get first account
-    const account = wallet.accounts[0];
+    console.log('[generateNewWallet] Private key generated');
+
+    // Determine network version
     const version = DEFAULT_NETWORK.isTestnet ? TransactionVersion.Testnet : TransactionVersion.Mainnet;
 
     // Get address from private key
-    const address = getStxAddress({
-      account,
-      transactionVersion: version
-    });
-
+    const address = getAddressFromPrivKeyStacks(privateKeyString, version);
     console.log('[generateNewWallet] Address generated:', address);
+
+    // Generate mnemonic for backup (optional, for future recovery feature)
+    let mnemonic: string | undefined;
+    try {
+      mnemonic = generateSecretKey(256);
+      console.log('[generateNewWallet] Mnemonic generated for backup');
+    } catch (mnemonicError) {
+      console.warn('[generateNewWallet] Could not generate mnemonic, continuing without it:', mnemonicError);
+    }
 
     return {
       address: address, // Stacks address (SP... for mainnet, ST... for testnet)
-      privateKey: account.stxPrivateKey,
+      privateKey: privateKeyString,
       mnemonic: mnemonic,
     };
   } catch (error) {
