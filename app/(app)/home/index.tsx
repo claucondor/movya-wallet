@@ -14,9 +14,7 @@ import Contactmock from "../../../assets/contactmock.svg"
 import Contactmock1 from "../../../assets/contactmock.svg"
 import Contactmock2 from "../../../assets/contactmock.svg"
 import Contactmock3 from "../../../assets/contactmock.svg"
-import Usdcvector from "../../../assets/usdclogo.svg"
 import Arrowright from "../../../assets/arrowright.svg"
-import Avavector from "../../../assets/avalogo.svg"
 import Fab from "../../../assets/fab.svg"
 import Sendbutton from "../../../assets/sendbutton.svg"
 import { Padding, Gap, FontFamily, Color, FontSize, Border } from "./GlobalStyles";
@@ -475,9 +473,9 @@ const Home = () => {
         router.push('/(app)/chat');
     };
 
-    const handleSendToken = (tokenSymbol: 'USDC' | 'STX') => {
+    const handleSendToken = (tokenSymbol: 'STX' | 'sBTC' | 'USDA') => {
         const tokenData = getTokenData(tokenSymbol);
-        
+
         if (tokenData.showDeposit) {
             // If no balance, suggest deposit first
             router.push({
@@ -534,13 +532,11 @@ const Home = () => {
     };
     */
 
-    const handleSwapPress = (tokenSymbol: 'WAVAX' | 'USDC') => {
+    const handleSwapPress = (tokenSymbol: 'STX' | 'sBTC' | 'USDA') => {
         console.log(`[Home] Swap ${tokenSymbol} pressed`);
-        // Navigate to chat with swap message
-        const swapMessage = tokenSymbol === 'WAVAX' 
-            ? 'I want to swap WAVAX to USDC'
-            : 'I want to swap USDC to WAVAX';
-        
+        // Navigate to chat with swap message - let AI determine target token
+        const swapMessage = `I want to swap ${tokenSymbol}`;
+
         router.push({
             pathname: '/(app)/chat',
             params: {
@@ -766,50 +762,12 @@ const Home = () => {
                         // Assets View
                         <ScrollView style={styles.listingScrollView} contentContainerStyle={styles.listingContentContainer}>
                             <View style={styles.listing}>
+                                {/* STX Token Card */}
                                 <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
                                     <View style={styles.assetCardContent}>
                                         <View style={styles.assetMainRow}>
                                             <View style={styles.asset}>
-                                                <Usdcvector style={styles.buttonIconLayout} width={48} height={48} />
-                                                <View style={styles.assetId}>
-                                                    <Text style={[styles.assetName, styles.text2Typo]}>USD Coin</Text>
-                                                    <Text style={[styles.assetLetters, styles.labelTypo]}>USDC</Text>
-                                                </View>
-                                            </View>
-                                            <View style={styles.rightItems}>
-                                                {isLoadingBalances ? (
-                                                    <ActivityIndicator size="small" color="#0461F0" />
-                                                ) : (
-                                                    <View style={styles.tokenBalanceInfo}>
-                                                        <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('USDC').balance}</Text>
-                                                        <Text style={[styles.tokenAmount, styles.labelTypo]}>
-                                                            {getTokenData('USDC').displayAmount}
-                                                        </Text>
-                                                    </View>
-                                                )}
-                                            </View>
-                                        </View>
-                                        <View style={styles.assetActionsRow}>
-                                            <TouchableOpacity onPress={() => handleSendToken('USDC')} style={[styles.button, styles.buttonFlexBox]}>
-                                                <Text style={styles.deposit}>
-                                                    {getTokenData('USDC').showDeposit ? 'Deposit' : 'Send'}
-                                                </Text>
-                                                <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
-                                            </TouchableOpacity>
-                                            {!getTokenData('USDC').showDeposit && (
-                                                <SwapButton 
-                                                    tokenSymbol="USDC" 
-                                                    onPress={() => handleSwapPress('USDC')} 
-                                                />
-                                            )}
-                                        </View>
-                                    </View>
-                                </View>
-                                <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
-                                    <View style={styles.assetCardContent}>
-                                        <View style={styles.assetMainRow}>
-                                            <View style={styles.asset}>
-                                                <Avavector width={48} height={48} />
+                                                <TokenPlaceholder symbol="STX" size={48} />
                                                 <View style={styles.assetId}>
                                                     <Text style={[styles.assetName, styles.text2Typo]}>Stacks</Text>
                                                     <Text style={[styles.assetLetters, styles.labelTypo]}>STX</Text>
@@ -835,6 +793,94 @@ const Home = () => {
                                                 </Text>
                                                 <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
                                             </TouchableOpacity>
+                                            {!getTokenData('STX').showDeposit && (
+                                                <SwapButton
+                                                    tokenSymbol="STX"
+                                                    onPress={() => handleSwapPress('STX')}
+                                                />
+                                            )}
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* sBTC Token Card */}
+                                <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
+                                    <View style={styles.assetCardContent}>
+                                        <View style={styles.assetMainRow}>
+                                            <View style={styles.asset}>
+                                                <TokenPlaceholder symbol="sBTC" size={48} />
+                                                <View style={styles.assetId}>
+                                                    <Text style={[styles.assetName, styles.text2Typo]}>Synthetic Bitcoin</Text>
+                                                    <Text style={[styles.assetLetters, styles.labelTypo]}>sBTC</Text>
+                                                </View>
+                                            </View>
+                                            <View style={styles.rightItems}>
+                                                {isLoadingBalances ? (
+                                                    <ActivityIndicator size="small" color="#0461F0" />
+                                                ) : (
+                                                    <View style={styles.tokenBalanceInfo}>
+                                                        <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('sBTC').balance}</Text>
+                                                        <Text style={[styles.tokenAmount, styles.labelTypo]}>
+                                                            {getTokenData('sBTC').displayAmount}
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </View>
+                                        <View style={styles.assetActionsRow}>
+                                            <TouchableOpacity onPress={() => handleSendToken('sBTC')} style={[styles.button, styles.buttonFlexBox]}>
+                                                <Text style={styles.deposit}>
+                                                    {getTokenData('sBTC').showDeposit ? 'Deposit' : 'Send'}
+                                                </Text>
+                                                <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
+                                            </TouchableOpacity>
+                                            {!getTokenData('sBTC').showDeposit && (
+                                                <SwapButton
+                                                    tokenSymbol="sBTC"
+                                                    onPress={() => handleSwapPress('sBTC')}
+                                                />
+                                            )}
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* USDA Token Card */}
+                                <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
+                                    <View style={styles.assetCardContent}>
+                                        <View style={styles.assetMainRow}>
+                                            <View style={styles.asset}>
+                                                <TokenPlaceholder symbol="USDA" size={48} />
+                                                <View style={styles.assetId}>
+                                                    <Text style={[styles.assetName, styles.text2Typo]}>USD Anchor</Text>
+                                                    <Text style={[styles.assetLetters, styles.labelTypo]}>USDA</Text>
+                                                </View>
+                                            </View>
+                                            <View style={styles.rightItems}>
+                                                {isLoadingBalances ? (
+                                                    <ActivityIndicator size="small" color="#0461F0" />
+                                                ) : (
+                                                    <View style={styles.tokenBalanceInfo}>
+                                                        <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('USDA').balance}</Text>
+                                                        <Text style={[styles.tokenAmount, styles.labelTypo]}>
+                                                            {getTokenData('USDA').displayAmount}
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </View>
+                                        <View style={styles.assetActionsRow}>
+                                            <TouchableOpacity onPress={() => handleSendToken('USDA')} style={[styles.button, styles.buttonFlexBox]}>
+                                                <Text style={styles.deposit}>
+                                                    {getTokenData('USDA').showDeposit ? 'Deposit' : 'Send'}
+                                                </Text>
+                                                <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
+                                            </TouchableOpacity>
+                                            {!getTokenData('USDA').showDeposit && (
+                                                <SwapButton
+                                                    tokenSymbol="USDA"
+                                                    onPress={() => handleSwapPress('USDA')}
+                                                />
+                                            )}
                                         </View>
                                     </View>
                                 </View>
