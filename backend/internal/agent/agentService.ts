@@ -479,26 +479,27 @@ export class AgentService {
         }
 
         if (originalResponse.action === 'CHECK_BALANCE' && isSuccess && actionResult.data?.balance) {
+            const balanceData = actionResult.data.balance;
             const tokens = [];
-            if (actionResult.balance.stx) {
+            if (balanceData.stx) {
                 tokens.push({
                     symbol: 'STX',
-                    balance: actionResult.balance.stx,
-                    usdValue: actionResult.balance.stxUsd || 'N/A'
+                    balance: balanceData.stx,
+                    usdValue: balanceData.stxUsd || 'N/A'
                 });
             }
-            if (actionResult.balance.usda) {
+            if (balanceData.usda) {
                 tokens.push({
                     symbol: 'USDA',
-                    balance: actionResult.balance.usda,
-                    usdValue: actionResult.balance.usdaUsd || 'N/A'
+                    balance: balanceData.usda,
+                    usdValue: balanceData.usdaUsd || 'N/A'
                 });
             }
-            if (actionResult.balance.sbtc) {
+            if (balanceData.sbtc) {
                 tokens.push({
                     symbol: 'sBTC',
-                    balance: actionResult.balance.sbtc,
-                    usdValue: actionResult.balance.sbtcUsd || 'N/A'
+                    balance: balanceData.sbtc,
+                    usdValue: balanceData.sbtcUsd || 'N/A'
                 });
             }
 
@@ -506,7 +507,7 @@ export class AgentService {
                 type: 'balance_info',
                 data: {
                     tokens: tokens,
-                    balance: actionResult.balance.total || 'N/A'
+                    balance: balanceData.total || 'N/A'
                 }
             };
 
@@ -542,7 +543,7 @@ export class AgentService {
         }
 
         // Manejo específico para historial de transacciones
-        if ((originalResponse.action === 'VIEW_HISTORY' || originalResponse.action === 'FETCH_HISTORY') && actionResult.success && actionResult.history) {
+        if ((originalResponse.action === 'VIEW_HISTORY' || originalResponse.action === 'FETCH_HISTORY') && isSuccess && actionResult.data?.history) {
             // Detect language from user message for button labels
             const isSpanish = this.detectSpanishLanguage(userMessage);
 
