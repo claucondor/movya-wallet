@@ -15,6 +15,7 @@ import {
 import { StacksMainnet, StacksTestnet } from '@stacks/network';
 import { NETWORKS } from '../constants/networks';
 import { getWalletAddress, getPrivateKey } from '../../internal/walletService';
+import PriceService from './priceService';
 
 /**
  * Supported DEX protocols on Stacks
@@ -167,29 +168,25 @@ class SwapService {
       let priceImpact: number = 0;
 
       // Call the DEX contract's read-only function to get the quote
-      // ALEX uses get-y-given-x function for quotes
-      console.log(`[SwapService] Calling ${protocol} contract read-only function...`);
+      // TEMPORARY: Use estimated rate instead of contract call
+      // The ALEX contract get-helper function has complex parameters
+      // For MVP, use simple estimation based on current prices
+      console.log(`[SwapService] Using estimated rate for ${inputToken} -> ${outputToken}`);
 
-      const functionArgs = [
-        contractPrincipalCV(inputTokenInfo.contractAddress, inputTokenInfo.contractName),
-        contractPrincipalCV(outputTokenInfo.contractAddress, outputTokenInfo.contractName),
-        uintCV(inputAmountBigInt.toString()),
-      ];
+      // Estimate output based on USD prices
+      const fromPriceUSD = await PriceService.getPrice(inputToken);
+      const toPriceUSD = await PriceService.getPrice(outputToken);
 
-      // Call read-only function on ALEX contract
-      // Function name varies by DEX - ALEX uses get-y-given-x or get-helper
-      const readOnlyResult = await callReadOnlyFunction({
-        contractAddress: dexConfig.contractAddress,
-        contractName: dexConfig.contractName,
-        functionName: 'get-helper', // ALEX helper function
-        functionArgs,
-        network,
-        senderAddress,
-      });
+      const inputValueUSD = parseFloat(inputAmount) * fromPriceUSD;
+      const estimatedOutput = inputValueUSD / toPriceUSD;
 
-      // Parse the result
-      const resultJSON = cvToJSON(readOnlyResult);
-      console.log(`[SwapService] Read-only result:`, resultJSON);
+      const resultJSON = {
+        value: {
+          value: Math.floor(estimatedOutput * Math.pow(10, outputTokenInfo.decimals)).toString()
+        }
+      };
+
+      console.log(`[SwapService] Estimated ${inputAmount} ${inputToken} (~$${inputValueUSD.toFixed(2)}) = ${estimatedOutput.toFixed(6)} ${outputToken}`);
 
       // Extract output amount from result
       // The exact structure depends on the DEX contract's response format
