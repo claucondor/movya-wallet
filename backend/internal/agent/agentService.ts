@@ -125,6 +125,34 @@ export class AgentService {
             console.log('AI Raw Response:', responseJsonString);
             console.log('AI Parsed Response:', aiResponse);
 
+            // SAFETY NET: Si el usuario está confirmando una acción SWAP/SEND y Gemini perdió los parámetros,
+            // restaurarlos desde el currentState
+            if (currentState && currentState.confirmationRequired && !aiResponse.confirmationRequired) {
+                const isConfirmation = currentUserMessage.toLowerCase().match(/^(yes|sí|si|confirm|confirmar|ok|okay|do it|hazlo|dale)/);
+
+                if (isConfirmation) {
+                    console.log('[SAFETY NET] Detected confirmation. Checking if parameters were lost...');
+
+                    // Si la acción es la misma pero los parámetros están null, restaurar desde currentState
+                    if (aiResponse.action === currentState.action && aiResponse.parameters) {
+                        const hasNullParams = (
+                            (currentState.action === 'SWAP' &&
+                             (!aiResponse.parameters.fromCurrency || !aiResponse.parameters.toCurrency)) ||
+                            (currentState.action === 'SEND' &&
+                             (!aiResponse.parameters.amount || !aiResponse.parameters.currency))
+                        );
+
+                        if (hasNullParams && currentState.parameters) {
+                            console.log('[SAFETY NET] Parameters were lost! Restoring from currentState:', currentState.parameters);
+                            aiResponse.parameters = {
+                                ...aiResponse.parameters,
+                                ...currentState.parameters
+                            };
+                        }
+                    }
+                }
+            }
+
             // Validate and enrich response with price information
             await this.validateAndEnrichResponse(aiResponse);
 
