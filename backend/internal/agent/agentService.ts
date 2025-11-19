@@ -51,7 +51,7 @@ export interface AgentServiceResponse {
     responseMessage: string;
     newState: AIResponse | null; // The state passed between turns is the AI's response structure
     actionDetails: {
-        type: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | 'SWAP_TOKENS' | null;
+        type: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | 'SWAP' | null;
         recipientAddress: string | null; // Explicitly allow null
         recipientEmail: string | null;   // Explicitly allow null
         amount: string | null;           // Explicitly allow null
