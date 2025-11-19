@@ -26,14 +26,18 @@ interface WalletData {
  */
 async function generateNewWallet(): Promise<WalletData> {
   try {
-    // Generate 24-word mnemonic
+    console.log('[generateNewWallet] Starting wallet generation...');
+
+    // Generate 24-word mnemonic (256 bits)
     const mnemonic = generateSecretKey(256);
+    console.log('[generateNewWallet] Mnemonic generated');
 
     // Generate wallet from mnemonic
     const wallet = await generateWallet({
       secretKey: mnemonic,
       password: '',
     });
+    console.log('[generateNewWallet] Wallet generated from mnemonic');
 
     // Get first account
     const account = wallet.accounts[0];
@@ -45,13 +49,15 @@ async function generateNewWallet(): Promise<WalletData> {
       transactionVersion: version
     });
 
+    console.log('[generateNewWallet] Address generated:', address);
+
     return {
       address: address, // Stacks address (SP... for mainnet, ST... for testnet)
       privateKey: account.stxPrivateKey,
       mnemonic: mnemonic,
     };
   } catch (error) {
-    console.error('Error generating new wallet:', error);
+    console.error('[generateNewWallet] Error generating new wallet:', error);
     throw error;
   }
 }
