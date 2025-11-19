@@ -448,7 +448,7 @@ const Home = () => {
         router.push('/(app)/chat');
     };
 
-    const handleSendToken = (tokenSymbol: 'USDC' | 'AVAX' | 'WAVAX') => {
+    const handleSendToken = (tokenSymbol: 'USDC' | 'STX') => {
         const tokenData = getTokenData(tokenSymbol);
         
         if (tokenData.showDeposit) {
@@ -784,8 +784,8 @@ const Home = () => {
                                             <View style={styles.asset}>
                                                 <Avavector width={48} height={48} />
                                                 <View style={styles.assetId}>
-                                                    <Text style={[styles.assetName, styles.text2Typo]}>AVAX</Text>
-                                                    <Text style={[styles.assetLetters, styles.labelTypo]}>AVA</Text>
+                                                    <Text style={[styles.assetName, styles.text2Typo]}>Stacks</Text>
+                                                    <Text style={[styles.assetLetters, styles.labelTypo]}>STX</Text>
                                                 </View>
                                             </View>
                                             <View style={styles.rightItems}>
@@ -793,74 +793,21 @@ const Home = () => {
                                                     <ActivityIndicator size="small" color="#0461F0" />
                                                 ) : (
                                                     <View style={styles.tokenBalanceInfo}>
-                                                        <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('AVAX').balance}</Text>
+                                                        <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('STX').balance}</Text>
                                                         <Text style={[styles.tokenAmount, styles.labelTypo]}>
-                                                            {getTokenData('AVAX').displayAmount}
+                                                            {getTokenData('STX').displayAmount}
                                                         </Text>
                                                     </View>
                                                 )}
                                             </View>
                                         </View>
                                         <View style={styles.assetActionsRow}>
-                                            <TouchableOpacity onPress={() => handleSendToken('AVAX')} style={[styles.button, styles.buttonFlexBox]}>
+                                            <TouchableOpacity onPress={() => handleSendToken('STX')} style={[styles.button, styles.buttonFlexBox]}>
                                                 <Text style={styles.deposit}>
-                                                    {getTokenData('AVAX').showDeposit ? 'Deposit' : 'Send'}
+                                                    {getTokenData('STX').showDeposit ? 'Deposit' : 'Send'}
                                                 </Text>
                                                 <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
                                             </TouchableOpacity>
-                                            {/* Wrap/Unwrap not needed on Stacks - disabled */}
-                                            {/* {!getTokenData('AVAX').showDeposit && (
-                                                <WrapUnwrapButton
-                                                    tokenSymbol="AVAX"
-                                                    onPress={() => handleWrapPress('AVAX')}
-                                                />
-                                            )} */}
-                                        </View>
-                                    </View>
-                                </View>
-                                <View style={[styles.assetCardMain, styles.buttonFlexBox]}>
-                                    <View style={styles.assetCardContent}>
-                                        <View style={styles.assetMainRow}>
-                                            <View style={styles.asset}>
-                                                <Avavector width={48} height={48} />
-                                                <View style={styles.assetId}>
-                                                    <Text style={[styles.assetName, styles.text2Typo]}>Wrapped AVAX</Text>
-                                                    <Text style={[styles.assetLetters, styles.labelTypo]}>WAVAX</Text>
-                                                </View>
-                                            </View>
-                                            <View style={styles.rightItems}>
-                                                {isLoadingBalances ? (
-                                                    <ActivityIndicator size="small" color="#0461F0" />
-                                                ) : (
-                                                    <View style={styles.tokenBalanceInfo}>
-                                                        <Text style={[styles.text2, styles.text2Typo]}>{getTokenData('WAVAX').balance}</Text>
-                                                        <Text style={[styles.tokenAmount, styles.labelTypo]}>
-                                                            {getTokenData('WAVAX').displayAmount}
-                                                        </Text>
-                                                    </View>
-                                                )}
-                                            </View>
-                                        </View>
-                                        <View style={styles.assetActionsRow}>
-                                            <TouchableOpacity onPress={() => handleSendToken('WAVAX')} style={[styles.button, styles.buttonFlexBox]}>
-                                                <Text style={styles.deposit}>
-                                                    {getTokenData('WAVAX').showDeposit ? 'Deposit' : 'Send'}
-                                                </Text>
-                                                <Arrowright style={styles.arrowRightIcon} width={12} height={12} />
-                                            </TouchableOpacity>
-                                            {!getTokenData('WAVAX').showDeposit && (
-                                                <>
-                                                    {/* Wrap/Unwrap not needed on Stacks - disabled */}
-                                                    {/* <WrapUnwrapButton
-                                                        tokenSymbol="WAVAX"
-                                                        onPress={() => handleWrapPress('WAVAX')}
-                                                    /> */}
-                                                    <SwapButton
-                                                        tokenSymbol="WAVAX"
-                                                        onPress={() => handleSwapPress('WAVAX')}
-                                                    />
-                                                </>
-                                            )}
                                         </View>
                                     </View>
                                 </View>
