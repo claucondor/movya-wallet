@@ -69,6 +69,33 @@ const getInitials = (nickname?: string, value?: string, type?: 'address' | 'emai
     return name.substring(0, 2).toUpperCase();
 };
 
+// Token placeholder component
+const TokenPlaceholder = ({ symbol, size = 48 }: { symbol: string; size?: number }) => {
+    const colors: Record<string, string> = {
+        'STX': '#5546FF',
+        'sBTC': '#F7931A',
+        'USDA': '#2775CA'
+    };
+
+    return (
+        <View style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: colors[symbol] || '#999',
+            justifyContent: 'center',
+            alignItems: 'center'
+        }}>
+            <Text style={{
+                color: '#FFFFFF',
+                fontSize: size * 0.35,
+                fontWeight: '700',
+                fontFamily: 'Geist'
+            }}>{symbol}</Text>
+        </View>
+    );
+};
+
 const Home = () => {
     const router = useRouter();
     const searchParams = useLocalSearchParams();
