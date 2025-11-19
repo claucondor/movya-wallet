@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { AgentService, AIResponse } from '../agent/agentService';
 
 // Initialize AgentService with API key from environment
-const agentService = new AgentService(process.env.OPENROUTER_API_KEY);
+const agentService = new AgentService(process.env.GOOGLE_AI_API_KEY);
 
 interface ChatRequest {
     message: string;

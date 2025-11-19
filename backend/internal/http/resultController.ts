@@ -3,7 +3,7 @@ import { AgentService } from '../agent/agentService';
 
 // Re-use the initialized AgentService instance (assuming it's a singleton or managed elsewhere)
 // If not, initialize it here similarly to agentController.ts
-const agentService = new AgentService(process.env.OPENROUTER_API_KEY);
+const agentService = new AgentService(process.env.GOOGLE_AI_API_KEY);
 
 // Define the expected input structure for the request body
 // (Matches the ActionResultInput in AgentService)

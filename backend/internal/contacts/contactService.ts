@@ -50,8 +50,8 @@ class ContactService {
       throw new Error('Nickname already exists for this user');
     }
 
-    // Validar dirección (básica validación EVM)
-    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    // Validar dirección de Stacks (SP para mainnet, ST para testnet)
+    if (!/^(SP|ST)[0-9A-Z]{39,41}$/.test(address)) {
       throw new Error('Invalid wallet address');
     }
 
@@ -59,7 +59,7 @@ class ContactService {
       ownerId,
       nickname,
       type: 'address',
-      value: address.toLowerCase(), // Normalizar dirección
+      value: address.toUpperCase(), // Normalizar dirección de Stacks (mayúsculas)
       createdAt: new Date(),
       updatedAt: new Date()
     };

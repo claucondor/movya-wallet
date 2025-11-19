@@ -7,10 +7,10 @@ const envPath = path.resolve(__dirname, '../.env');
 dotenv.config({ path: envPath });
 
 // --- Configuration (Read from environment or keep defaults) ---
-const projectId = process.env.PROJECT_ID || 'automatic-ace-457219-r3'; // Or read from .env if you add it
+const projectId = process.env.PROJECT_ID || 'sigma-cortex-478101-f9'; // Or read from .env if you add it
 const region = process.env.REGION || 'us-central1'; // Or read from .env if you add it
-const serviceName = process.env.SERVICE_NAME || 'auth-callback-backend'; // Or read from .env
-const imageName = process.env.IMAGE_NAME || `gcr.io/${projectId}/${serviceName}:latest`; // Or read from .env
+const serviceName = process.env.SERVICE_NAME || 'movya-wallet-backend'; // Or read from .env
+const imageName = process.env.IMAGE_NAME || `gcr.io/${projectId}/movya-backend:latest`; // Or read from .env
 
 // --- Read required variables from loaded .env ---
 const googleClientId = process.env.GOOGLE_CLIENT_ID;

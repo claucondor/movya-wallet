@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import { AgentService } from '../agent/agentService';
 
-const openRouterApiKey = process.env.OPENROUTER_API_KEY;
-if (!openRouterApiKey) {
-    throw new Error("OPENROUTER_API_KEY is not set in environment variables.");
+const geminiApiKey = process.env.GOOGLE_AI_API_KEY;
+if (!geminiApiKey) {
+    throw new Error("GOOGLE_AI_API_KEY is not set in environment variables.");
 }
 
 // Create a single AgentService instance
-const agentService = new AgentService(openRouterApiKey);
+const agentService = new AgentService(geminiApiKey);
 
 /**
  * Enhanced action result reporting that includes interactive elements

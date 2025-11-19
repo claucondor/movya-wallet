@@ -1,6 +1,6 @@
 import { ActionResultSystemPrompt } from '../openrouter/ActionResultSystemPrompt';
 import { WalletAssistantSystemPrompt } from '../openrouter/prompts';
-import { OpenRouterService } from '../openrouter/service';
+import { GeminiService } from '../gemini/service';
 import RecipientResolver from './recipientResolver';
 import PriceService from '../services/priceService';
 
@@ -78,17 +78,17 @@ interface ActionResultInput {
 }
 
 export class AgentService {
-    private openRouterService: OpenRouterService;
+    private geminiService: GeminiService;
 
     constructor(apiKey: string | undefined) {
         if (!apiKey) {
-            throw new Error("OpenRouter API key is missing. Please set OPENROUTER_API_KEY environment variable.");
+            throw new Error("Gemini API key is missing. Please set GOOGLE_AI_API_KEY environment variable.");
         }
-        this.openRouterService = new OpenRouterService({ apiKey });
+        this.geminiService = new GeminiService({ apiKey });
     }
 
     /**
-     * Processes a user's message using the OpenRouter AI and prepares a response for the frontend.
+     * Processes a user's message using Gemini AI and prepares a response for the frontend.
      *
      * @param {string} currentUserMessage - The latest message from the user.
      * @param {AIResponse | null} currentState - The state object returned by the AI in the previous turn.
@@ -117,7 +117,7 @@ export class AgentService {
 
         try {
             // Call chat with user message and the specific system prompt
-            const responseJsonString = await this.openRouterService.chat(
+            const responseJsonString = await this.geminiService.chat(
                 JSON.stringify(inputJson), // User message is the JSON input
                 WalletAssistantSystemPrompt // System prompt override
             );
@@ -227,7 +227,7 @@ export class AgentService {
                 actionDetails: actionDetails
             };
         } catch (error) {
-            console.error('Error processing message with OpenRouter:', error);
+            console.error('Error processing message with Gemini:', error);
             return {
                 responseMessage: "Sorry, I encountered an error trying to understand that. Please try again.",
                 newState: null,
@@ -360,7 +360,7 @@ export class AgentService {
 
         try {
             // Call chat with the result data and the ActionResultSystemPrompt
-            const responseMessage = await this.openRouterService.chat(
+            const responseMessage = await this.geminiService.chat(
                 inputJsonString, // The user message is the JSON result data
                 ActionResultSystemPrompt // Override system prompt
             );
@@ -370,7 +370,7 @@ export class AgentService {
                 responseMessage: responseMessage.trim()
             };
         } catch (error) {
-            console.error('Error processing action result with OpenRouter:', error);
+            console.error('Error processing action result with Gemini:', error);
             return {
                 responseMessage: "I received the result of the action, but had trouble formulating a response. Please check the outcome manually if needed."
             };

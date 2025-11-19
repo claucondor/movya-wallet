@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { generateSecretKey, generateWallet, getStxAddress } from '@stacks/wallet-sdk';
-import { TransactionVersion } from '@stacks/transactions';
 
 /**
  * Generate a new Stacks wallet
@@ -23,16 +22,10 @@ export async function generateWalletHandler(req: Request, res: Response) {
     const account = wallet.accounts[0];
 
     // Get mainnet address
-    const mainnetAddress = getStxAddress({
-      account,
-      transactionVersion: TransactionVersion.Mainnet
-    });
+    const mainnetAddress = getStxAddress(account, 'mainnet');
 
     // Get testnet address
-    const testnetAddress = getStxAddress({
-      account,
-      transactionVersion: TransactionVersion.Testnet
-    });
+    const testnetAddress = getStxAddress(account, 'testnet');
 
     console.log('[generateWalletHandler] Wallet generated successfully');
     console.log('[generateWalletHandler] Mainnet address:', mainnetAddress);
