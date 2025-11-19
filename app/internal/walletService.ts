@@ -1,15 +1,11 @@
 import { DEFAULT_NETWORK } from '@/app/core/constants/networks';
 import Constants from 'expo-constants';
 import {
-  generateSecretKey,
   generateWallet,
   getStxAddress,
 } from '@stacks/wallet-sdk';
 import {
   TransactionVersion,
-  createStacksPrivateKey,
-  getAddressFromPrivateKey as getAddressFromPrivKeyStacks,
-  makeRandomPrivKey,
 } from '@stacks/transactions';
 import { storage } from '../core/storage';
 import { requestFaucetTokens } from './faucetService';
@@ -27,47 +23,48 @@ interface WalletData {
 }
 
 /**
- * Generate a new Stacks wallet
- * Using crypto.getRandomValues for React Native compatibility
+ * Generate a new Stacks wallet via backend endpoint
+ * Backend uses @stacks/wallet-sdk which works properly in Node.js
  */
 async function generateNewWallet(): Promise<WalletData> {
   try {
-    console.log('[generateNewWallet] Starting wallet generation...');
+    console.log('[generateNewWallet] Calling backend to generate wallet...');
 
-    // Generate 32 random bytes for private key using Web Crypto API
-    const randomBytes = new Uint8Array(32);
-    global.crypto.getRandomValues(randomBytes);
+    const response = await fetch(`${BACKEND_URL}/wallet/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-    // Convert to hex string (64 chars) and add '01' suffix for compressed key
-    const privateKeyString = Array.from(randomBytes)
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('') + '01';
-
-    console.log('[generateNewWallet] Private key generated');
-
-    // Determine network version
-    const version = DEFAULT_NETWORK.isTestnet ? TransactionVersion.Testnet : TransactionVersion.Mainnet;
-
-    // Get address from private key
-    const address = getAddressFromPrivKeyStacks(privateKeyString, version);
-    console.log('[generateNewWallet] Address generated:', address);
-
-    // Generate mnemonic for backup (optional, for future recovery feature)
-    let mnemonic: string | undefined;
-    try {
-      mnemonic = generateSecretKey(256);
-      console.log('[generateNewWallet] Mnemonic generated for backup');
-    } catch (mnemonicError) {
-      console.warn('[generateNewWallet] Could not generate mnemonic, continuing without it:', mnemonicError);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to generate wallet: ${response.status} ${errorText}`);
     }
 
+    const data = await response.json();
+
+    if (!data.success || !data.wallet) {
+      throw new Error('Backend failed to generate wallet');
+    }
+
+    console.log('[generateNewWallet] Wallet generated successfully by backend');
+
+    // Use the appropriate network address (mainnet or testnet)
+    const address = DEFAULT_NETWORK.isTestnet
+      ? data.wallet.testnet.address
+      : data.wallet.mainnet.address;
+
+    console.log('[generateNewWallet] Address:', address);
+    console.log('[generateNewWallet] Mnemonic generated:', !!data.wallet.mnemonic);
+
     return {
-      address: address, // Stacks address (SP... for mainnet, ST... for testnet)
-      privateKey: privateKeyString,
-      mnemonic: mnemonic,
+      address: address,
+      privateKey: data.wallet.privateKey,
+      mnemonic: data.wallet.mnemonic,
     };
   } catch (error) {
-    console.error('[generateNewWallet] Error generating new wallet:', error);
+    console.error('[generateNewWallet] Error generating wallet via backend:', error);
     throw error;
   }
 }

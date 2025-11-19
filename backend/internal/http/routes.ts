@@ -16,6 +16,7 @@ import {
     getWalletAddressHandler,
     saveWalletAddressHandler
 } from './walletHandler';
+import { generateWalletHandler } from './walletGeneratorHandler';
 import {
     checkWalletAddressHandler,
     getUserByAddressHandler,
@@ -91,12 +92,17 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
 routes.post('/faucet', asyncHandler(faucetHandler));
 
 // Rutas de wallet
-routes.post('/wallet/address', 
+routes.post('/wallet/generate',
+  express.json(),          // Parse JSON body
+  asyncHandler(generateWalletHandler)    // Generar nueva wallet (mnemonic, privateKey, addresses)
+);
+
+routes.post('/wallet/address',
   express.json(),          // Parse JSON body
   asyncHandler(saveWalletAddressHandler) // Guardar dirección de wallet
 );
 
-routes.get('/wallet/address/:userId', 
+routes.get('/wallet/address/:userId',
   asyncHandler(getWalletAddressHandler)  // Obtener dirección de wallet
 );
 
