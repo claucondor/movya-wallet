@@ -394,8 +394,21 @@ export class AgentService {
             );
             console.log('Action Result AI Response:', responseMessage);
 
+            // SAFETY: Sometimes Gemini returns JSON instead of just the message string
+            // Try to parse it and extract the responseMessage field
+            let finalMessage = responseMessage.trim();
+            try {
+                const parsed = JSON.parse(finalMessage);
+                if (parsed.responseMessage) {
+                    finalMessage = parsed.responseMessage;
+                    console.log('[AgentService] Extracted responseMessage from JSON response');
+                }
+            } catch (parseError) {
+                // Not JSON, use as-is
+            }
+
             return {
-                responseMessage: responseMessage.trim()
+                responseMessage: finalMessage
             };
         } catch (error) {
             console.error('Error processing action result with Gemini:', error);
