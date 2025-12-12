@@ -1,3 +1,11 @@
+import {
+  callReadOnlyFunction,
+  contractPrincipalCV,
+  uintCV,
+  cvToJSON,
+} from '@stacks/transactions';
+import { StacksMainnet } from '@stacks/network';
+
 export interface TokenPrice {
   symbol: string;
   price: number; // Price in USD
@@ -13,8 +21,21 @@ export interface CurrencyConversion {
   exchangeRate: number;
 }
 
-// ALEX SDK API for price data
-const ALEX_SDK_API = 'https://alex-sdk-api.alexlab.co';
+// ALEX AMM contract for quotes
+const ALEX_AMM_CONTRACT = {
+  address: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM',
+  name: 'amm-pool-v2-01',
+};
+
+const POOL_FACTOR = '100000000';
+
+// Token contracts for price queries
+const TOKEN_CONTRACTS: Record<string, { address: string; name: string }> = {
+  'STX': { address: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM', name: 'token-wstx-v2' },
+  'aBTC': { address: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK', name: 'token-abtc' },
+  'aUSD': { address: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK', name: 'token-susdt' },
+  'ALEX': { address: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM', name: 'token-alex' },
+};
 
 // Cache for prices
 interface PriceCache {
@@ -27,40 +48,75 @@ const CACHE_DURATION = 60 * 1000; // 1 minute cache
 
 /**
  * Price Service for handling token prices and USD conversions
- * Uses ALEX DEX data for real prices, with fallback to known pegs
+ * Uses ALEX DEX contract calls for real prices
  */
 class PriceService {
   // Fallback prices (used when API fails)
   private static fallbackPrices: Record<string, TokenPrice> = {
     'STX': {
       symbol: 'STX',
-      price: 1.50,
+      price: 0.30,
       change24h: 0,
       lastUpdated: Date.now()
     },
     'sBTC': {
       symbol: 'sBTC',
-      price: 95000.00, // Pegged 1:1 with Bitcoin
+      price: 95000.00,
       change24h: 0,
       lastUpdated: Date.now()
     },
     'aUSD': {
       symbol: 'aUSD',
-      price: 1.00, // ALEX bridged USDT, always $1
+      price: 1.00,
       change24h: 0,
       lastUpdated: Date.now()
     },
     'ALEX': {
       symbol: 'ALEX',
-      price: 0.08,
+      price: 0.002,
       change24h: 0,
       lastUpdated: Date.now()
     }
   };
 
   /**
-   * Fetch prices from ALEX SDK API
-   * Uses pool data to derive prices based on aUSD (which is always $1)
+   * Get quote from ALEX DEX using get-helper read-only call
+   */
+  private static async getAlexQuote(
+    fromToken: { address: string; name: string },
+    toToken: { address: string; name: string },
+    amount: number
+  ): Promise<number> {
+    const network = new StacksMainnet();
+    const amountInBaseUnits = BigInt(Math.floor(amount * Math.pow(10, 8)));
+
+    const result = await callReadOnlyFunction({
+      contractAddress: ALEX_AMM_CONTRACT.address,
+      contractName: ALEX_AMM_CONTRACT.name,
+      functionName: 'get-helper',
+      functionArgs: [
+        contractPrincipalCV(fromToken.address, fromToken.name),
+        contractPrincipalCV(toToken.address, toToken.name),
+        uintCV(POOL_FACTOR),
+        uintCV(amountInBaseUnits.toString()),
+      ],
+      network,
+      senderAddress: ALEX_AMM_CONTRACT.address,
+    });
+
+    const resultJSON = cvToJSON(result);
+
+    if (resultJSON.success === false) {
+      throw new Error(`Contract error: ${JSON.stringify(resultJSON.value)}`);
+    }
+
+    const outputAmountBigInt = BigInt(resultJSON.value?.value || resultJSON.value || 0);
+    return Number(outputAmountBigInt) / Math.pow(10, 8);
+  }
+
+  /**
+   * Fetch real prices from ALEX DEX contract
+   * Uses aUSD as base ($1) and derives other prices from swap quotes
    */
   private static async fetchAlexPrices(): Promise<Record<string, TokenPrice>> {
     try {
@@ -69,84 +125,92 @@ class PriceService {
         return priceCache.prices;
       }
 
-      console.log('[PriceService] Fetching prices from ALEX SDK API...');
-      const response = await fetch(ALEX_SDK_API);
-
-      if (!response.ok) {
-        throw new Error(`ALEX API error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      console.log('[PriceService] Fetching real prices from ALEX DEX...');
       const prices: Record<string, TokenPrice> = {};
+      const now = Date.now();
 
       // aUSD is always $1 (it's bridged USDT)
       prices['aUSD'] = {
         symbol: 'aUSD',
         price: 1.00,
         change24h: 0,
-        lastUpdated: Date.now()
+        lastUpdated: now
       };
 
-      // Find aBTC-aUSD pool to get aBTC price in USD
-      const abtcPool = data.pools?.find((p: any) =>
-        (p.tokenX === 'token-abtc' && p.tokenY === 'token-susdt') ||
-        (p.tokenX === 'token-susdt' && p.tokenY === 'token-abtc')
-      );
+      // Get aBTC price: 1 aBTC -> aUSD
+      try {
+        const abtcToAusd = await this.getAlexQuote(
+          TOKEN_CONTRACTS['aBTC'],
+          TOKEN_CONTRACTS['aUSD'],
+          0.0001 // Small amount to get rate
+        );
+        const abtcPrice = abtcToAusd / 0.0001; // Price per 1 aBTC
 
-      if (abtcPool) {
-        // sBTC/aBTC is pegged to Bitcoin
-        // Price would be derived from pool reserves if available
-        // For now, use known BTC price
         prices['sBTC'] = {
           symbol: 'sBTC',
-          price: 100000.00, // Approximate BTC price
+          price: Number(abtcPrice.toFixed(2)),
           change24h: 0,
-          lastUpdated: Date.now()
+          lastUpdated: now
         };
-      } else {
+        console.log(`[PriceService] sBTC/aBTC price: $${abtcPrice.toFixed(2)}`);
+      } catch (error) {
+        console.warn('[PriceService] Failed to get aBTC price:', error);
         prices['sBTC'] = this.fallbackPrices['sBTC'];
       }
 
-      // Find STX-aBTC pool to get STX price
-      const stxPool = data.pools?.find((p: any) =>
-        (p.tokenX === 'token-wstx' && p.tokenY === 'token-abtc') ||
-        (p.tokenX === 'token-abtc' && p.tokenY === 'token-wstx')
-      );
-
-      if (stxPool && prices['sBTC']) {
-        // STX price can be derived: if we know sBTC price and STX/sBTC rate
-        // For now, estimate based on known market price
-        prices['STX'] = {
-          symbol: 'STX',
-          price: 0.80, // Approximate current STX price
-          change24h: 0,
-          lastUpdated: Date.now()
-        };
-      } else {
+      // Get STX price: 1 STX -> aUSD (via 2-hop if needed)
+      try {
+        // First try STX -> aBTC
+        const stxToAbtc = await this.getAlexQuote(
+          TOKEN_CONTRACTS['STX'],
+          TOKEN_CONTRACTS['aBTC'],
+          10 // 10 STX
+        );
+        // Then calculate STX price using aBTC price
+        if (prices['sBTC']) {
+          const stxPrice = (stxToAbtc / 10) * prices['sBTC'].price;
+          prices['STX'] = {
+            symbol: 'STX',
+            price: Number(stxPrice.toFixed(4)),
+            change24h: 0,
+            lastUpdated: now
+          };
+          console.log(`[PriceService] STX price: $${stxPrice.toFixed(4)}`);
+        }
+      } catch (error) {
+        console.warn('[PriceService] Failed to get STX price:', error);
         prices['STX'] = this.fallbackPrices['STX'];
       }
 
-      // ALEX token price (can derive from STX-ALEX pool)
-      const alexPool = data.pools?.find((p: any) =>
-        (p.tokenX === 'token-wstx' && p.tokenY === 'age000-governance-token') ||
-        (p.tokenX === 'age000-governance-token' && p.tokenY === 'token-wstx')
-      );
-
-      if (alexPool && prices['STX']) {
-        prices['ALEX'] = {
-          symbol: 'ALEX',
-          price: 0.004, // Approximate ALEX price
-          change24h: 0,
-          lastUpdated: Date.now()
-        };
-      } else {
+      // Get ALEX price: STX -> ALEX, then calculate
+      try {
+        const stxToAlex = await this.getAlexQuote(
+          TOKEN_CONTRACTS['STX'],
+          TOKEN_CONTRACTS['ALEX'],
+          10 // 10 STX
+        );
+        // ALEX per STX
+        const alexPerStx = stxToAlex / 10;
+        // ALEX price = STX price / ALEX per STX
+        if (prices['STX']) {
+          const alexPrice = prices['STX'].price / alexPerStx;
+          prices['ALEX'] = {
+            symbol: 'ALEX',
+            price: Number(alexPrice.toFixed(6)),
+            change24h: 0,
+            lastUpdated: now
+          };
+          console.log(`[PriceService] ALEX price: $${alexPrice.toFixed(6)}`);
+        }
+      } catch (error) {
+        console.warn('[PriceService] Failed to get ALEX price:', error);
         prices['ALEX'] = this.fallbackPrices['ALEX'];
       }
 
       // Update cache
       priceCache = {
         prices,
-        lastFetched: Date.now()
+        lastFetched: now
       };
 
       console.log('[PriceService] Prices updated:', Object.keys(prices).map(k => `${k}: $${prices[k].price}`).join(', '));

@@ -25,6 +25,12 @@ import {
     getAddressByEmailHandler,
     checkEmailExistsHandler
 } from './userHandler';
+import {
+    getPricesHandler,
+    getTokenPriceHandler,
+    convertCurrencyHandler,
+    calculateUsdValueHandler
+} from './priceHandler';
 
 const routes = express.Router();
 
@@ -174,6 +180,23 @@ routes.get('/user/address-by-email/:email',
 
 routes.get('/user/check-email/:email',
   asyncHandler(checkEmailExistsHandler)     // Check if email exists in system
+);
+
+// Price endpoints (with Firestore caching)
+routes.get('/prices',
+  asyncHandler(getPricesHandler)            // Get all token prices (cached)
+);
+
+routes.get('/prices/convert',
+  asyncHandler(convertCurrencyHandler)      // Convert between currencies
+);
+
+routes.get('/prices/usd-value',
+  asyncHandler(calculateUsdValueHandler)    // Calculate USD value of token amount
+);
+
+routes.get('/prices/:symbol',
+  asyncHandler(getTokenPriceHandler)        // Get specific token price
 );
 
 // --- Default/Health Check Route (already in server.js, but can be here too) ---

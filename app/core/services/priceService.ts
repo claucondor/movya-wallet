@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { STACKS_MAINNET_TOKENS } from '../constants/tokens';
 
 export interface TokenPrice {
@@ -7,81 +8,102 @@ export interface TokenPrice {
   lastUpdated: number; // Timestamp
 }
 
+// Backend URL from config
+const configuredUrl = Constants.expoConfig?.extra?.backendUrl;
+const BACKEND_URL = configuredUrl || 'http://localhost:8080';
+
 /**
- * Real Price Service for Stacks using CoinGecko API
- * Fetches live prices for STX, sBTC, USDA tokens
+ * Price Service for Stacks tokens
+ * Fetches prices from backend which caches them in Firestore
+ * Backend uses ALEX DEX data for real prices
  */
 class PriceService {
-  private static readonly COINGECKO_API = 'https://api.coingecko.com/api/v3';
-  private static readonly CACHE_DURATION = 60 * 1000; // 1 minute cache
-
-  // Map Stacks symbols to CoinGecko IDs
-  private static readonly COINGECKO_IDS: Record<string, string> = {
-    'STX': 'stacks',
-    'sBTC': 'bitcoin', // Use bitcoin price for sBTC
-    'aUSD': 'tether',  // aUSD is pegged to USD, use tether as proxy
-    'ALEX': 'alexgo',  // ALEX DEX governance token
-  };
+  // Local cache duration (short, since backend handles longer caching)
+  private static readonly LOCAL_CACHE_DURATION = 30 * 1000; // 30 seconds
 
   // Price cache to reduce API calls
   private static priceCache: Map<string, { data: TokenPrice; timestamp: number }> = new Map();
 
+  // Full prices cache (all tokens at once)
+  private static allPricesCache: { data: TokenPrice[]; timestamp: number } | null = null;
+
   /**
-   * Get price for a specific token from CoinGecko
-   * @param symbol Token symbol (e.g., 'STX', 'sBTC', 'USDA')
-   * @returns Real price data from CoinGecko
+   * Get all token prices from backend (cached in Firestore)
+   * @returns Array of price data for all supported tokens
+   */
+  static async getAllPrices(): Promise<TokenPrice[]> {
+    try {
+      // Check local cache first
+      if (this.allPricesCache && (Date.now() - this.allPricesCache.timestamp) < this.LOCAL_CACHE_DURATION) {
+        console.log('[PriceService] Using local cached prices');
+        return this.allPricesCache.data;
+      }
+
+      console.log('[PriceService] Fetching prices from backend...');
+      const response = await fetch(`${BACKEND_URL}/prices`);
+
+      if (!response.ok) {
+        console.error(`[PriceService] Backend error: ${response.status}`);
+        return this.getFallbackPrices();
+      }
+
+      const result = await response.json();
+
+      if (!result.success || !result.prices) {
+        console.error('[PriceService] Invalid response from backend');
+        return this.getFallbackPrices();
+      }
+
+      const prices: TokenPrice[] = result.prices;
+
+      // Update local cache
+      this.allPricesCache = {
+        data: prices,
+        timestamp: Date.now(),
+      };
+
+      // Also update individual price cache
+      for (const price of prices) {
+        this.priceCache.set(price.symbol.toUpperCase(), {
+          data: price,
+          timestamp: Date.now(),
+        });
+      }
+
+      console.log(`[PriceService] Got ${prices.length} prices from backend (cached: ${result.cached})`);
+      return prices;
+    } catch (error: any) {
+      console.error('[PriceService] Error fetching prices from backend:', error);
+      return this.getFallbackPrices();
+    }
+  }
+
+  /**
+   * Get price for a specific token
+   * @param symbol Token symbol (e.g., 'STX', 'sBTC', 'aUSD', 'ALEX')
+   * @returns Price data or null if not found
    */
   static async getTokenPrice(symbol: string): Promise<TokenPrice | null> {
     try {
       const upperSymbol = symbol.toUpperCase();
-      const coingeckoId = this.COINGECKO_IDS[upperSymbol];
 
-      if (!coingeckoId) {
-        console.warn(`[PriceService] No CoinGecko ID mapping for ${symbol}`);
-        return null;
-      }
-
-      // Check cache first
+      // Check local cache first
       const cached = this.priceCache.get(upperSymbol);
-      if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+      if (cached && (Date.now() - cached.timestamp) < this.LOCAL_CACHE_DURATION) {
         console.log(`[PriceService] Using cached price for ${symbol}`);
         return cached.data;
       }
 
-      // Fetch from CoinGecko API
-      console.log(`[PriceService] Fetching live price for ${symbol} from CoinGecko...`);
-      const url = `${this.COINGECKO_API}/simple/price?ids=${coingeckoId}&vs_currencies=usd&include_24hr_change=true`;
+      // Fetch all prices (backend caches efficiently)
+      const prices = await this.getAllPrices();
+      const price = prices.find(p => p.symbol.toUpperCase() === upperSymbol);
 
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        console.error(`[PriceService] CoinGecko API error: ${response.status}`);
+      if (!price) {
+        console.warn(`[PriceService] No price data for ${symbol}`);
         return null;
       }
 
-      const data = await response.json();
-
-      if (!data[coingeckoId]) {
-        console.error(`[PriceService] No price data for ${coingeckoId}`);
-        return null;
-      }
-
-      const tokenData = data[coingeckoId];
-      const tokenPrice: TokenPrice = {
-        symbol: upperSymbol,
-        price: tokenData.usd || 0,
-        change24h: tokenData.usd_24h_change || 0,
-        lastUpdated: Date.now(),
-      };
-
-      // Cache the result
-      this.priceCache.set(upperSymbol, {
-        data: tokenPrice,
-        timestamp: Date.now(),
-      });
-
-      console.log(`[PriceService] ${symbol}: $${tokenPrice.price} (${tokenPrice.change24h.toFixed(2)}%)`);
-      return tokenPrice;
+      return price;
     } catch (error: any) {
       console.error(`[PriceService] Error fetching price for ${symbol}:`, error);
       return null;
@@ -89,64 +111,18 @@ class PriceService {
   }
 
   /**
-   * Get prices for multiple tokens from CoinGecko
+   * Get prices for multiple tokens
    * @param symbols Array of token symbols
-   * @returns Array of real price data
+   * @returns Array of price data
    */
   static async getTokenPrices(symbols: string[]): Promise<TokenPrice[]> {
     try {
-      // Filter symbols that have CoinGecko IDs
-      const validSymbols = symbols.filter(s => this.COINGECKO_IDS[s.toUpperCase()]);
+      // Fetch all prices (backend caches efficiently)
+      const allPrices = await this.getAllPrices();
 
-      if (validSymbols.length === 0) {
-        console.warn('[PriceService] No valid symbols provided');
-        return [];
-      }
-
-      // Build CoinGecko IDs string
-      const ids = validSymbols
-        .map(s => this.COINGECKO_IDS[s.toUpperCase()])
-        .join(',');
-
-      // Fetch all prices in one API call
-      console.log(`[PriceService] Fetching prices for ${validSymbols.length} tokens from CoinGecko...`);
-      const url = `${this.COINGECKO_API}/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`;
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        console.error(`[PriceService] CoinGecko API error: ${response.status}`);
-        return [];
-      }
-
-      const data = await response.json();
-      const prices: TokenPrice[] = [];
-
-      for (const symbol of validSymbols) {
-        const upperSymbol = symbol.toUpperCase();
-        const coingeckoId = this.COINGECKO_IDS[upperSymbol];
-        const tokenData = data[coingeckoId];
-
-        if (tokenData) {
-          const tokenPrice: TokenPrice = {
-            symbol: upperSymbol,
-            price: tokenData.usd || 0,
-            change24h: tokenData.usd_24h_change || 0,
-            lastUpdated: Date.now(),
-          };
-
-          prices.push(tokenPrice);
-
-          // Cache the result
-          this.priceCache.set(upperSymbol, {
-            data: tokenPrice,
-            timestamp: Date.now(),
-          });
-        }
-      }
-
-      console.log(`[PriceService] Successfully fetched ${prices.length} prices`);
-      return prices;
+      // Filter to requested symbols
+      const upperSymbols = symbols.map(s => s.toUpperCase());
+      return allPrices.filter(p => upperSymbols.includes(p.symbol.toUpperCase()));
     } catch (error: any) {
       console.error('[PriceService] Error fetching multiple prices:', error);
       return [];
@@ -155,7 +131,7 @@ class PriceService {
 
   /**
    * Get prices for all Stacks tokens
-   * @returns Array of real price data for all supported tokens
+   * @returns Array of price data for all supported tokens
    */
   static async getAllStacksPrices(): Promise<TokenPrice[]> {
     const symbols = STACKS_MAINNET_TOKENS.map(token => token.symbol);
@@ -163,10 +139,10 @@ class PriceService {
   }
 
   /**
-   * Calculate USD value of a token amount (using real prices)
+   * Calculate USD value of a token amount
    * @param symbol Token symbol
    * @param amount Token amount
-   * @returns USD value (real calculation)
+   * @returns USD value
    */
   static async calculateUSDValue(symbol: string, amount: number): Promise<number> {
     const price = await this.getTokenPrice(symbol);
@@ -179,10 +155,24 @@ class PriceService {
   }
 
   /**
+   * Fallback prices when backend is unavailable
+   */
+  private static getFallbackPrices(): TokenPrice[] {
+    console.warn('[PriceService] Using fallback prices');
+    return [
+      { symbol: 'STX', price: 0.80, change24h: 0, lastUpdated: Date.now() },
+      { symbol: 'sBTC', price: 100000, change24h: 0, lastUpdated: Date.now() },
+      { symbol: 'aUSD', price: 1.00, change24h: 0, lastUpdated: Date.now() },
+      { symbol: 'ALEX', price: 0.004, change24h: 0, lastUpdated: Date.now() },
+    ];
+  }
+
+  /**
    * Clear price cache (useful for testing or forcing refresh)
    */
   static clearCache(): void {
     this.priceCache.clear();
+    this.allPricesCache = null;
     console.log('[PriceService] Price cache cleared');
   }
 
