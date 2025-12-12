@@ -52,17 +52,6 @@ export const STACKS_MAINNET_TOKENS: TokenInfo[] = [
     contractName: 'age000-governance-token',
     assetName: 'alex',
     logoUri: 'https://alexgo.io/alex-logo.png'
-  },
-  {
-    symbol: 'DIKO',
-    name: 'Arkadiko Token',
-    contractAddress: 'SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.arkadiko-token',
-    decimals: 6,
-    isNative: false,
-    networkId: 'mainnet',
-    contractName: 'arkadiko-token',
-    assetName: 'diko',
-    logoUri: 'https://arkadiko.finance/diko-logo.png'
   }
 ];
 

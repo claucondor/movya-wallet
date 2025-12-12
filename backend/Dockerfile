@@ -9,8 +9,8 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install ALL dependencies (including devDependencies for TypeScript compilation)
-# Using --include=dev to ensure devDependencies are installed for the build step
-RUN npm ci --include=dev
+# Using npm install to ensure all dependencies including TypeScript are properly installed
+RUN npm install
 
 # Copy the rest of the application code
 COPY . .

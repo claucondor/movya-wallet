@@ -20,6 +20,7 @@ class PriceService {
     'STX': 'stacks',
     'sBTC': 'bitcoin', // Use bitcoin price for sBTC
     'aUSD': 'tether',  // aUSD is pegged to USD, use tether as proxy
+    'ALEX': 'alexgo',  // ALEX DEX governance token
   };
 
   // Price cache to reduce API calls
