@@ -18,8 +18,8 @@ class PriceService {
   // Map Stacks symbols to CoinGecko IDs
   private static readonly COINGECKO_IDS: Record<string, string> = {
     'STX': 'stacks',
-    'sBTC': 'sbtc',
-    'USDA': 'usda',
+    'sBTC': 'bitcoin', // Use bitcoin price for sBTC
+    'aUSD': 'tether',  // aUSD is pegged to USD, use tether as proxy
   };
 
   // Price cache to reduce API calls

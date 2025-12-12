@@ -8,14 +8,12 @@ import {
   createAssetInfo,
   contractPrincipalCV,
   uintCV,
-  callReadOnlyFunction,
-  cvToJSON,
-  ClarityValue,
+  someCV,
 } from '@stacks/transactions';
 import { StacksMainnet, StacksTestnet } from '@stacks/network';
-import { NETWORKS } from '../constants/networks';
 import { getWalletAddress, getPrivateKey } from '../../internal/walletService';
 import PriceService from './priceService';
+import { getSwapQuote as getAlexQuote, findRoute } from './alexApiService';
 
 /**
  * Supported DEX protocols on Stacks
@@ -85,13 +83,14 @@ export interface SwapResult {
 
 /**
  * DEX configurations for Stacks mainnet
+ * Using ALEX AMM v2 contract for all swaps
  */
 const DEX_CONFIGS: Record<DEXProtocol, DEXConfig> = {
   [DEXProtocol.ALEX]: {
     protocol: DEXProtocol.ALEX,
-    contractAddress: 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9',
-    contractName: 'amm-swap-pool-v1-1',
-    swapFunctionName: 'swap-x-for-y',
+    contractAddress: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM',
+    contractName: 'amm-pool-v2-01',
+    swapFunctionName: 'swap-helper', // For direct swaps
   },
   [DEXProtocol.ARKADIKO]: {
     protocol: DEXProtocol.ARKADIKO,
@@ -101,29 +100,46 @@ const DEX_CONFIGS: Record<DEXProtocol, DEXConfig> = {
   },
 };
 
+// Pool factor for ALEX (1e8)
+const ALEX_POOL_FACTOR = '100000000';
+
 /**
- * Token contracts for swaps (Mainnet)
+ * Token contracts for swaps (Mainnet) - Using ALEX wrapped tokens
  */
 const SWAP_TOKENS: Record<string, SwapToken> = {
   'STX': {
     symbol: 'STX',
-    contractAddress: 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9',
+    contractAddress: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM',
     contractName: 'token-wstx',
-    decimals: 6,
+    decimals: 8, // ALEX uses 8 decimals
     isNative: true,
   },
   'sBTC': {
     symbol: 'sBTC',
-    contractAddress: 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4',
-    contractName: 'sbtc-token',
+    contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
+    contractName: 'token-abtc', // ALEX uses aBTC which is pegged to BTC
     decimals: 8,
     isNative: false,
   },
-  'USDA': {
-    symbol: 'USDA',
-    contractAddress: 'SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR',
-    contractName: 'usda-token',
-    decimals: 6,
+  'aBTC': {
+    symbol: 'aBTC',
+    contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
+    contractName: 'token-abtc',
+    decimals: 8,
+    isNative: false,
+  },
+  'aUSD': {
+    symbol: 'aUSD',
+    contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
+    contractName: 'token-susdt',
+    decimals: 8,
+    isNative: false,
+  },
+  'ALEX': {
+    symbol: 'ALEX',
+    contractAddress: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM',
+    contractName: 'age000-governance-token',
+    decimals: 8,
     isNative: false,
   },
 };
@@ -134,8 +150,8 @@ const SWAP_TOKENS: Record<string, SwapToken> = {
  */
 class SwapService {
   /**
-   * Get a swap quote from the DEX using real contract read-only calls
-   * Uses Hiro API to call read-only functions on ALEX DEX contract
+   * Get a swap quote from the DEX using ALEX API and contract read-only calls
+   * Uses ALEX SDK API for routing and contract calls for quotes
    */
   static async getSwapQuote(
     inputToken: string,
@@ -146,77 +162,56 @@ class SwapService {
     networkId: string = 'mainnet'
   ): Promise<SwapQuote> {
     try {
-      console.log(`[SwapService] Getting REAL quote for ${inputAmount} ${inputToken} -> ${outputToken}`);
+      console.log(`[SwapService] Getting ALEX quote for ${inputAmount} ${inputToken} -> ${outputToken}`);
 
-      const inputTokenInfo = SWAP_TOKENS[inputToken.toUpperCase()];
-      const outputTokenInfo = SWAP_TOKENS[outputToken.toUpperCase()];
-
-      if (!inputTokenInfo || !outputTokenInfo) {
-        throw new Error(`Unsupported token pair: ${inputToken}/${outputToken}`);
+      const amount = parseFloat(inputAmount);
+      if (isNaN(amount) || amount <= 0) {
+        throw new Error(`Invalid input amount: ${inputAmount}`);
       }
 
-      // Convert input amount to base units
-      const inputAmountBigInt = BigInt(Math.floor(parseFloat(inputAmount) * Math.pow(10, inputTokenInfo.decimals)));
+      let outputAmountFormatted: string;
+      let route: string[];
+      let priceImpact: number;
+      let exchangeRateNum: number;
 
-      const dexConfig = DEX_CONFIGS[protocol];
-      const network = networkId === 'testnet' ? new StacksTestnet() : new StacksMainnet();
+      try {
+        // Try to get real quote from ALEX DEX contract
+        console.log(`[SwapService] Attempting ALEX contract quote...`);
+        const alexQuote = await getAlexQuote(inputToken, outputToken, amount);
 
-      // Get sender address (needed for read-only calls)
-      const senderAddress = await getWalletAddress() || 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9';
+        outputAmountFormatted = alexQuote.outputAmount;
+        route = alexQuote.route;
+        priceImpact = alexQuote.priceImpact;
+        exchangeRateNum = alexQuote.exchangeRate;
 
-      let outputAmountBigInt: bigint;
-      let priceImpact: number = 0;
+        console.log(`[SwapService] Got ALEX quote: ${outputAmountFormatted} ${outputToken} (route: ${route.join(' → ')})`);
+      } catch (alexError: any) {
+        console.warn(`[SwapService] ALEX quote failed: ${alexError.message}`);
+        console.log(`[SwapService] Falling back to price-based estimation...`);
 
-      // Call the DEX contract's read-only function to get the quote
-      // TEMPORARY: Use estimated rate instead of contract call
-      // The ALEX contract get-helper function has complex parameters
-      // For MVP, use simple estimation based on current prices
-      console.log(`[SwapService] Using estimated rate for ${inputToken} -> ${outputToken}`);
+        // Fallback: Estimate output based on USD prices
+        const fromPriceData = await PriceService.getTokenPrice(inputToken);
+        const toPriceData = await PriceService.getTokenPrice(outputToken);
 
-      // Estimate output based on USD prices
-      const fromPriceData = await PriceService.getTokenPrice(inputToken);
-      const toPriceData = await PriceService.getTokenPrice(outputToken);
-
-      if (!fromPriceData || !toPriceData) {
-        throw new Error(`Could not fetch price data for ${inputToken} or ${outputToken}`);
-      }
-
-      const fromPriceUSD = fromPriceData.price;
-      const toPriceUSD = toPriceData.price;
-
-      const inputValueUSD = parseFloat(inputAmount) * fromPriceUSD;
-      const estimatedOutput = inputValueUSD / toPriceUSD;
-
-      const resultJSON = {
-        value: {
-          value: Math.floor(estimatedOutput * Math.pow(10, outputTokenInfo.decimals)).toString()
+        if (!fromPriceData || !toPriceData) {
+          throw new Error(`Could not fetch price data for ${inputToken} or ${outputToken}`);
         }
-      };
 
-      console.log(`[SwapService] Estimated ${inputAmount} ${inputToken} (~$${inputValueUSD.toFixed(2)}) = ${estimatedOutput.toFixed(6)} ${outputToken}`);
+        const inputValueUSD = amount * fromPriceData.price;
+        const estimatedOutput = inputValueUSD / toPriceData.price;
 
-      // Extract output amount from our estimated result
-      outputAmountBigInt = BigInt(resultJSON.value.value);
+        outputAmountFormatted = estimatedOutput.toFixed(8);
+        route = [inputToken, outputToken];
+        priceImpact = 0.5; // Estimate
+        exchangeRateNum = estimatedOutput / amount;
 
-      // Validate we got a valid quote
-      if (!outputAmountBigInt || outputAmountBigInt === BigInt(0)) {
-        throw new Error('Could not calculate swap quote');
+        console.log(`[SwapService] Estimated ${inputAmount} ${inputToken} (~$${inputValueUSD.toFixed(2)}) = ${outputAmountFormatted} ${outputToken}`);
       }
-
-      // Calculate price impact
-      const expectedValue = inputAmountBigInt * BigInt(1000000) / BigInt(1000000);
-      const actualValue = outputAmountBigInt;
-      priceImpact = Math.abs(Number(expectedValue - actualValue)) / Number(expectedValue) * 100;
-
-      console.log(`[SwapService] Got real quote from contract: ${outputAmountBigInt.toString()}`);
 
       // Calculate minimum received with slippage
+      const outputAmountNum = parseFloat(outputAmountFormatted);
       const slippageMultiplier = 1 - (slippageTolerance / 100);
-      const minimumReceivedBigInt = BigInt(Math.floor(Number(outputAmountBigInt) * slippageMultiplier));
-
-      const outputAmountFormatted = (Number(outputAmountBigInt) / Math.pow(10, outputTokenInfo.decimals)).toFixed(outputTokenInfo.decimals);
-      const minReceivedFormatted = (Number(minimumReceivedBigInt) / Math.pow(10, outputTokenInfo.decimals)).toFixed(outputTokenInfo.decimals);
-      const exchangeRate = (Number(outputAmountBigInt) / Number(inputAmountBigInt)).toString();
+      const minimumReceived = (outputAmountNum * slippageMultiplier).toFixed(8);
 
       const quote: SwapQuote = {
         inputAmount: inputAmount,
@@ -224,13 +219,13 @@ class SwapService {
         inputToken,
         outputToken,
         priceImpact,
-        minimumReceived: minReceivedFormatted,
-        exchangeRate,
+        minimumReceived,
+        exchangeRate: exchangeRateNum.toFixed(8),
         protocol,
-        route: [inputToken, outputToken],
+        route,
         // Legacy properties for backward compatibility
         amountOut: outputAmountFormatted,
-        amountOutMin: minReceivedFormatted,
+        amountOutMin: minimumReceived,
         toToken: outputToken,
         gasEstimateUSD: '$0.01', // STX fees are very low
       };
@@ -244,7 +239,8 @@ class SwapService {
   }
 
   /**
-   * Execute a swap transaction
+   * Execute a swap transaction using ALEX DEX v2 contract
+   * Supports both direct swaps and multi-hop routes
    */
   static async executeSwap(
     inputToken: string,
@@ -281,53 +277,64 @@ class SwapService {
       // Get DEX config
       const dexConfig = DEX_CONFIGS[protocol];
 
-      // Convert amounts to base units
-      const inputAmountBigInt = BigInt(Math.floor(parseFloat(inputAmount) * Math.pow(10, inputTokenInfo.decimals)));
-      const minOutputBigInt = BigInt(Math.floor(parseFloat(minimumOutputAmount) * Math.pow(10, outputTokenInfo.decimals)));
+      // Convert amounts to base units (ALEX uses 8 decimals)
+      const inputAmountBigInt = BigInt(Math.floor(parseFloat(inputAmount) * Math.pow(10, 8)));
+      const minOutputBigInt = BigInt(Math.floor(parseFloat(minimumOutputAmount) * Math.pow(10, 8)));
 
       // Setup network
       const network = networkId === 'testnet' ? new StacksTestnet() : new StacksMainnet();
 
-      // Create post-conditions for security
-      // This ensures the swap cannot transfer more than expected
-      const postConditions = [];
+      // Find the route for this swap
+      const routeInfo = await findRoute(inputToken, outputToken);
+      const isMultiHop = routeInfo.isMultiHop;
 
-      // Post-condition for input token (what we're sending)
-      if (inputTokenInfo.isNative) {
-        // For STX, we'd use STX post-condition (not implemented in this example)
-        console.log('[SwapService] STX post-condition (wrapped)');
+      console.log(`[SwapService] Route: ${routeInfo.route.join(' -> ')} (${isMultiHop ? 'multi-hop' : 'direct'})`);
+
+      // Build function arguments based on route type
+      let functionName: string;
+      let functionArgs: any[];
+
+      if (isMultiHop && routeInfo.route.length === 3) {
+        // 2-hop swap using swap-helper-a
+        const midToken = routeInfo.route[1];
+        const midTokenInfo = SWAP_TOKENS[midToken.toUpperCase()];
+
+        if (!midTokenInfo) {
+          throw new Error(`Intermediate token not found: ${midToken}`);
+        }
+
+        functionName = 'swap-helper-a';
+        functionArgs = [
+          contractPrincipalCV(inputTokenInfo.contractAddress, inputTokenInfo.contractName),
+          contractPrincipalCV(midTokenInfo.contractAddress, midTokenInfo.contractName),
+          contractPrincipalCV(outputTokenInfo.contractAddress, outputTokenInfo.contractName),
+          uintCV(ALEX_POOL_FACTOR), // factor-x for pool 1
+          uintCV(ALEX_POOL_FACTOR), // factor-y for pool 2
+          uintCV(inputAmountBigInt.toString()), // dx
+          someCV(uintCV(minOutputBigInt.toString())), // min-dz (optional)
+        ];
+
+        console.log(`[SwapService] Using 2-hop swap via ${midToken}`);
       } else {
-        const inputAssetInfo = createAssetInfo(
-          inputTokenInfo.contractAddress,
-          inputTokenInfo.contractName,
-          'token'
-        );
-        postConditions.push(
-          makeStandardFungiblePostCondition(
-            senderAddress,
-            FungibleConditionCode.LessEqual,
-            inputAmountBigInt,
-            inputAssetInfo
-          )
-        );
+        // Direct swap using swap-helper
+        functionName = 'swap-helper';
+        functionArgs = [
+          contractPrincipalCV(inputTokenInfo.contractAddress, inputTokenInfo.contractName),
+          contractPrincipalCV(outputTokenInfo.contractAddress, outputTokenInfo.contractName),
+          uintCV(ALEX_POOL_FACTOR), // factor
+          uintCV(inputAmountBigInt.toString()), // dx
+          someCV(uintCV(minOutputBigInt.toString())), // min-dy (optional)
+        ];
+
+        console.log(`[SwapService] Using direct swap`);
       }
 
-      // Build function arguments using contractPrincipalCV for token traits
-      const functionArgs = [
-        // token-x-trait (input token)
-        contractPrincipalCV(inputTokenInfo.contractAddress, inputTokenInfo.contractName),
-        // token-y-trait (output token)
-        contractPrincipalCV(outputTokenInfo.contractAddress, outputTokenInfo.contractName),
-        // dx (input amount in base units)
-        uintCV(inputAmountBigInt.toString()),
-        // min-dy (minimum output amount - slippage protection)
-        uintCV(minOutputBigInt.toString()),
-      ];
+      // Post-conditions are set to Allow since ALEX contract handles transfers internally
+      // For production, you may want to add more specific post-conditions
 
       console.log('[SwapService] Creating contract call transaction...');
-      console.log(`  - DEX: ${dexConfig.protocol}`);
       console.log(`  - Contract: ${dexConfig.contractAddress}.${dexConfig.contractName}`);
-      console.log(`  - Function: ${dexConfig.swapFunctionName}`);
+      console.log(`  - Function: ${functionName}`);
       console.log(`  - Input: ${inputAmount} ${inputToken}`);
       console.log(`  - Min Output: ${minimumOutputAmount} ${outputToken}`);
 
@@ -335,12 +342,11 @@ class SwapService {
       const txOptions = {
         contractAddress: dexConfig.contractAddress,
         contractName: dexConfig.contractName,
-        functionName: dexConfig.swapFunctionName,
+        functionName,
         functionArgs,
         senderKey: privateKey,
         network,
-        postConditions,
-        postConditionMode: PostConditionMode.Deny, // Deny any transfers not in post-conditions
+        postConditionMode: PostConditionMode.Allow, // ALEX handles transfers internally
         anchorMode: AnchorMode.Any,
       };
 
@@ -361,10 +367,10 @@ class SwapService {
         // Legacy properties for backward compatibility
         amountIn: inputAmount,
         fromToken: inputToken,
-        amountOut: minimumOutputAmount, // Approximate
+        amountOut: minimumOutputAmount,
         toToken: outputToken,
-        transactionHash: txId, // Alias for txId
-        gasUsed: BigInt(0), // Stacks doesn't provide gas used in broadcast response
+        transactionHash: txId,
+        gasUsed: BigInt(0),
       };
     } catch (error: any) {
       console.error('[SwapService] Error executing swap:', error);

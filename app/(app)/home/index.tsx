@@ -72,7 +72,8 @@ const TokenPlaceholder = ({ symbol, size = 48 }: { symbol: string; size?: number
     const colors: Record<string, string> = {
         'STX': '#5546FF',
         'sBTC': '#F7931A',
-        'USDA': '#2775CA'
+        'aUSD': '#2775CA',
+        'ALEX': '#FF6B35'
     };
 
     return (

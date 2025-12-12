@@ -120,8 +120,8 @@ export class AgentService {
         try {
             // Build dynamic system prompt with network context
             const networkContext = network === 'testnet'
-                ? '\n\n**CURRENT NETWORK: TESTNET** - User is on testnet. ONLY STX is available. NO sBTC, NO USDA, NO SWAPS. If user asks about these, explain they are only on mainnet.'
-                : '\n\n**CURRENT NETWORK: MAINNET** - User is on mainnet. All currencies (STX, sBTC, USDA) and SWAPS are available.';
+                ? '\n\n**CURRENT NETWORK: TESTNET** - User is on testnet. ONLY STX is available. NO sBTC, NO aUSD, NO SWAPS. If user asks about these, explain they are only on mainnet.'
+                : '\n\n**CURRENT NETWORK: MAINNET** - User is on mainnet. All currencies (STX, sBTC, aUSD, ALEX) and SWAPS via ALEX DEX are available.';
 
             const dynamicPrompt = WalletAssistantSystemPrompt + networkContext;
 
@@ -341,7 +341,7 @@ export class AgentService {
         if (currency && !PriceService.isCurrencySupported(currency)) {
             console.log(`Unsupported currency detected: ${currency}`);
             aiResponse.action = 'ERROR';
-            aiResponse.responseMessage = `Sorry, I only support STX, sBTC, and USDA transactions. ${currency} is not supported on this wallet.`;
+            aiResponse.responseMessage = `Sorry, I only support STX, sBTC, aUSD, and ALEX transactions. ${currency} is not supported on this wallet.`;
             aiResponse.confirmationRequired = false;
             aiResponse.confirmationMessage = null;
             return;
@@ -559,11 +559,11 @@ export class AgentService {
                     usdValue: balanceData.stxUsd || 'N/A'
                 });
             }
-            if (balanceData.usda) {
+            if (balanceData.ausd || balanceData.usda) {
                 tokens.push({
-                    symbol: 'USDA',
-                    balance: balanceData.usda,
-                    usdValue: balanceData.usdaUsd || 'N/A'
+                    symbol: 'aUSD',
+                    balance: balanceData.ausd || balanceData.usda,
+                    usdValue: balanceData.ausdUsd || balanceData.usdaUsd || 'N/A'
                 });
             }
             if (balanceData.sbtc) {
@@ -594,8 +594,8 @@ export class AgentService {
                 },
                 {
                     type: 'button',
-                    label: isSpanish ? '💸 Enviar USDA' : '💸 Send USDA',
-                    value: isSpanish ? 'enviar USDA' : 'send USDA',
+                    label: isSpanish ? '💸 Enviar aUSD' : '💸 Send aUSD',
+                    value: isSpanish ? 'enviar aUSD' : 'send aUSD',
                     style: 'primary'
                 },
                 {
@@ -700,8 +700,8 @@ export class AgentService {
                 },
                 {
                     type: 'button',
-                    label: '💰 USDA',
-                    value: 'USDA',
+                    label: '💰 aUSD',
+                    value: 'aUSD',
                     style: 'primary'
                 },
                 {
@@ -728,13 +728,13 @@ export class AgentService {
                 {
                     type: 'button',
                     label: isSpanish ? '💵 $10 USD' : '💵 $10 USD worth',
-                    value: '10 USDA',
+                    value: '10 aUSD',
                     style: 'secondary'
                 },
                 {
                     type: 'button',
                     label: isSpanish ? '💵 $50 USD' : '💵 $50 USD worth',
-                    value: '50 USDA',
+                    value: '50 aUSD',
                     style: 'primary'
                 },
                 {
@@ -825,7 +825,7 @@ export class AgentService {
                 {
                     type: 'button',
                     label: isSpanish ? '🔄 Intercambiar tokens' : '🔄 Swap tokens',
-                    value: isSpanish ? 'intercambiar STX por USDA' : 'swap STX to USDA',
+                    value: isSpanish ? 'intercambiar STX por aUSD' : 'swap STX to aUSD',
                     style: 'secondary'
                 },
                 {
@@ -860,14 +860,14 @@ export class AgentService {
             aiResponse.quickActions = [
                 {
                     type: 'button',
-                    label: '🔷 STX → 💰 USDA',
-                    value: isSpanish ? 'intercambiar STX por USDA' : 'swap STX to USDA',
+                    label: '🔷 STX → 💰 aUSD',
+                    value: isSpanish ? 'intercambiar STX por aUSD' : 'swap STX to aUSD',
                     style: 'primary'
                 },
                 {
                     type: 'button',
-                    label: '💰 USDA → 🔷 STX',
-                    value: isSpanish ? 'intercambiar USDA por STX' : 'swap USDA to STX',
+                    label: '💰 aUSD → 🔷 STX',
+                    value: isSpanish ? 'intercambiar aUSD por STX' : 'swap aUSD to STX',
                     style: 'primary'
                 }
             ];

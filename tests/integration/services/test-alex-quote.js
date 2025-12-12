@@ -19,31 +19,40 @@ const ALEX_CONTRACT = {
   name: 'amm-swap-pool-v1-1',
 };
 
-// Token contracts
+// Token contracts - Using ALEX wrapped tokens (v2 versions for swaps)
 const TOKENS = {
   'wSTX': {
-    address: 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9',
-    name: 'token-wstx',
-    decimals: 6,
+    address: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM',
+    name: 'token-wstx-v2',
+    decimals: 8, // wSTX v2 uses 8 decimals
   },
-  'USDA': {
-    address: 'SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR',
-    name: 'usda-token',
-    decimals: 6,
+  'aUSD': {
+    address: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
+    name: 'token-susdt',
+    decimals: 8,
   },
-  'sBTC': {
-    address: 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4',
-    name: 'sbtc-token',
+  'aBTC': {
+    address: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
+    name: 'token-abtc',
+    decimals: 8,
+  },
+  'ALEX': {
+    address: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM',
+    name: 'token-alex',
     decimals: 8,
   },
 };
 
-async function testALEXQuote(fromToken, toToken, amount) {
-  console.log(`\n=== Testing ALEX Quote: ${amount} ${fromToken} → ${toToken} ===`);
+async function testALEXQuote(fromToken, toToken, amount, intermediateToken = null) {
+  const routeStr = intermediateToken
+    ? `${fromToken} → ${intermediateToken} → ${toToken}`
+    : `${fromToken} → ${toToken}`;
+  console.log(`\n=== Testing ALEX Quote: ${amount} ${routeStr} ===`);
 
   try {
     const fromInfo = TOKENS[fromToken];
     const toInfo = TOKENS[toToken];
+    const midInfo = intermediateToken ? TOKENS[intermediateToken] : null;
 
     if (!fromInfo || !toInfo) {
       throw new Error(`Unknown token: ${fromToken} or ${toToken}`);
@@ -53,16 +62,36 @@ async function testALEXQuote(fromToken, toToken, amount) {
     const amountInBaseUnits = BigInt(Math.floor(amount * Math.pow(10, fromInfo.decimals)));
     console.log(`Amount in base units: ${amountInBaseUnits.toString()}`);
 
-    // Prepare function arguments
-    const functionArgs = [
-      contractPrincipalCV(fromInfo.address, fromInfo.name),
-      contractPrincipalCV(toInfo.address, toInfo.name),
-      uintCV(amountInBaseUnits.toString()),
-    ];
+    // Factor is typically 100000000 (1e8) for standard ALEX pools
+    const POOL_FACTOR = '100000000';
+
+    let functionName, functionArgs;
+
+    if (intermediateToken && midInfo) {
+      // 2-hop swap using get-helper-a
+      functionName = 'get-helper-a';
+      functionArgs = [
+        contractPrincipalCV(fromInfo.address, fromInfo.name),  // token-x
+        contractPrincipalCV(midInfo.address, midInfo.name),    // token-y (intermediate)
+        contractPrincipalCV(toInfo.address, toInfo.name),      // token-z
+        uintCV(POOL_FACTOR),  // factor-x (pool X-Y)
+        uintCV(POOL_FACTOR),  // factor-y (pool Y-Z)
+        uintCV(amountInBaseUnits.toString()),  // dx
+      ];
+    } else {
+      // Direct swap using get-helper
+      functionName = 'get-helper';
+      functionArgs = [
+        contractPrincipalCV(fromInfo.address, fromInfo.name),
+        contractPrincipalCV(toInfo.address, toInfo.name),
+        uintCV(POOL_FACTOR),
+        uintCV(amountInBaseUnits.toString()),
+      ];
+    }
 
     console.log('Calling ALEX contract read-only function...');
     console.log(`Contract: ${ALEX_CONTRACT.address}.${ALEX_CONTRACT.name}`);
-    console.log(`Function: get-helper`);
+    console.log(`Function: ${functionName}`);
 
     // Call read-only function
     const network = new StacksMainnet();
@@ -71,7 +100,7 @@ async function testALEXQuote(fromToken, toToken, amount) {
     const result = await callReadOnlyFunction({
       contractAddress: ALEX_CONTRACT.address,
       contractName: ALEX_CONTRACT.name,
-      functionName: 'get-helper',
+      functionName,
       functionArgs,
       network,
       senderAddress,
@@ -116,18 +145,21 @@ async function main() {
   console.log('║     ALEX DEX Read-Only Contract Call Test Script      ║');
   console.log('╚════════════════════════════════════════════════════════╝');
 
-  // Test multiple swap pairs
+  // Test multiple swap pairs - using tokens that have pools on ALEX
   const tests = [
-    ['wSTX', 'USDA', 10],     // 10 STX → USDA
-    ['wSTX', 'USDA', 100],    // 100 STX → USDA
-    ['USDA', 'wSTX', 10],     // 10 USDA → STX
+    // Direct swaps
+    { from: 'wSTX', to: 'ALEX', amount: 10, intermediate: null },      // 10 STX → ALEX
+    { from: 'wSTX', to: 'aBTC', amount: 10, intermediate: null },      // 10 STX → aBTC
+    { from: 'aBTC', to: 'aUSD', amount: 0.0001, intermediate: null },  // aBTC → aUSD
+    // Multi-hop swap: STX → aBTC → aUSD
+    { from: 'wSTX', to: 'aUSD', amount: 10, intermediate: 'aBTC' },    // 10 STX → aUSD via aBTC
   ];
 
   let passedTests = 0;
   let totalTests = tests.length;
 
-  for (const [from, to, amount] of tests) {
-    const passed = await testALEXQuote(from, to, amount);
+  for (const { from, to, amount, intermediate } of tests) {
+    const passed = await testALEXQuote(from, to, amount, intermediate);
     if (passed) passedTests++;
   }
 

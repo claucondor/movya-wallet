@@ -32,15 +32,15 @@ export const STACKS_MAINNET_TOKENS: TokenInfo[] = [
     logoUri: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png'
   },
   {
-    symbol: 'USDA',
-    name: 'USD Arkadiko',
-    contractAddress: 'SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.usda-token',
-    decimals: 6,
+    symbol: 'aUSD',
+    name: 'aUSD (ALEX)',
+    contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK.token-susdt',
+    decimals: 8,
     isNative: false,
     networkId: 'mainnet',
-    contractName: 'usda-token',
-    assetName: 'usda',
-    logoUri: 'https://arkadiko.finance/usda-logo.png'
+    contractName: 'token-susdt',
+    assetName: 'bridged-usdt',
+    logoUri: 'https://alexgo.io/ausd-logo.png'
   },
   {
     symbol: 'ALEX',
