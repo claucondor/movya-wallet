@@ -21,10 +21,13 @@ console.log('[agentApi] Usando URL del backend:', BACKEND_URL);
 export const sendMessageToAgent = async (message: string, currentState: AIResponse | null): Promise<AgentServiceResponse> => {
     const token = storage.getString('userToken'); // Obtener el token si existe
     const userId = storage.getString('userId'); // Obtener el userId de storage
+    // Movya-wallet (Expo/Android) is always mainnet
+    const network = 'mainnet';
 
     console.log(`[agentApi] Sending message to ${BACKEND_URL}/agent/chat`);
     console.log('[agentApi] Current state being sent:', currentState);
     console.log('[agentApi] Using userId:', userId);
+    console.log('[agentApi] Network:', network);
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -41,10 +44,11 @@ export const sendMessageToAgent = async (message: string, currentState: AIRespon
         const response = await fetch(`${BACKEND_URL}/agent/chat`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ 
-                message, 
+            body: JSON.stringify({
+                message,
                 currentState,
-                userId: userId || undefined // Incluir el userId en el cuerpo si está disponible
+                userId: userId || undefined, // Incluir el userId en el cuerpo si está disponible
+                network // Enviar network al backend para validación correcta
             }),
         });
 

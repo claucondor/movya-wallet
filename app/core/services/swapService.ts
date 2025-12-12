@@ -174,8 +174,15 @@ class SwapService {
       console.log(`[SwapService] Using estimated rate for ${inputToken} -> ${outputToken}`);
 
       // Estimate output based on USD prices
-      const fromPriceUSD = await PriceService.getPrice(inputToken);
-      const toPriceUSD = await PriceService.getPrice(outputToken);
+      const fromPriceData = await PriceService.getTokenPrice(inputToken);
+      const toPriceData = await PriceService.getTokenPrice(outputToken);
+
+      if (!fromPriceData || !toPriceData) {
+        throw new Error(`Could not fetch price data for ${inputToken} or ${outputToken}`);
+      }
+
+      const fromPriceUSD = fromPriceData.price;
+      const toPriceUSD = toPriceData.price;
 
       const inputValueUSD = parseFloat(inputAmount) * fromPriceUSD;
       const estimatedOutput = inputValueUSD / toPriceUSD;
@@ -188,17 +195,12 @@ class SwapService {
 
       console.log(`[SwapService] Estimated ${inputAmount} ${inputToken} (~$${inputValueUSD.toFixed(2)}) = ${estimatedOutput.toFixed(6)} ${outputToken}`);
 
-      // Extract output amount from result
-      // The exact structure depends on the DEX contract's response format
-      if (resultJSON.value && typeof resultJSON.value === 'object') {
-        outputAmountBigInt = BigInt(resultJSON.value.dy || resultJSON.value || 0);
-      } else {
-        outputAmountBigInt = BigInt(resultJSON.value || 0);
-      }
+      // Extract output amount from our estimated result
+      outputAmountBigInt = BigInt(resultJSON.value.value);
 
       // Validate we got a valid quote
       if (!outputAmountBigInt || outputAmountBigInt === BigInt(0)) {
-        throw new Error('Contract returned invalid quote (zero or null)');
+        throw new Error('Could not calculate swap quote');
       }
 
       // Calculate price impact
