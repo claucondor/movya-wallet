@@ -8,7 +8,7 @@ const agentService = new AgentService(process.env.GOOGLE_AI_API_KEY);
 // Define the expected input structure for the request body
 // (Matches the ActionResultInput in AgentService)
 interface ReportResultRequest {
-    actionType: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY';
+    actionType: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | 'SWAP';
     status: 'success' | 'failure';
     data: Record<string, any>; // Use a generic object for data, AgentService will handle specifics
 }

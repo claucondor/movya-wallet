@@ -26,8 +26,11 @@ export async function addContactByAddressHandler(req: Request, res: Response) {
     );
 
     return res.status(201).json({
-      message: "Contact added successfully",
-      contact
+      success: true,
+      data: {
+        message: "Contact added successfully",
+        contact
+      }
     });
   } catch (error) {
     console.error("Error adding contact by address:", error);
@@ -79,8 +82,11 @@ export async function addContactByEmailHandler(req: Request, res: Response) {
     );
 
     return res.status(201).json({
-      message: "Contact added successfully",
-      contact
+      success: true,
+      data: {
+        message: "Contact added successfully",
+        contact
+      }
     });
   } catch (error) {
     console.error("Error adding contact by email:", error);
@@ -124,8 +130,11 @@ export async function getContactsHandler(req: Request, res: Response) {
     const contacts = await ContactService.getContacts(userId);
 
     return res.status(200).json({
-      contacts,
-      count: contacts.length
+      success: true,
+      data: {
+        contacts,
+        count: contacts.length
+      }
     });
   } catch (error) {
     console.error("Error retrieving contacts:", error);
@@ -159,7 +168,10 @@ export async function getContactByNicknameHandler(req: Request, res: Response) {
       });
     }
 
-    return res.status(200).json(contact);
+    return res.status(200).json({
+      success: true,
+      data: contact
+    });
   } catch (error) {
     console.error("Error retrieving contact:", error);
     return res.status(500).json({ 
@@ -173,11 +185,12 @@ export async function getContactByNicknameHandler(req: Request, res: Response) {
  * Eliminar un contacto
  */
 export async function deleteContactHandler(req: Request, res: Response) {
-  const { userId, contactId } = req.params;
+  const { contactId } = req.params;
+  const userId = req.query.userId as string || req.body?.userId;
 
   // Validaciones básicas
   if (!userId) {
-    return res.status(400).json({ error: "User ID is required" });
+    return res.status(400).json({ error: "User ID is required (pass as query param ?userId=xxx)" });
   }
   if (!contactId) {
     return res.status(400).json({ error: "Contact ID is required" });
@@ -186,8 +199,11 @@ export async function deleteContactHandler(req: Request, res: Response) {
   try {
     await ContactService.deleteContact(contactId, userId);
 
-    return res.status(200).json({ 
-      message: "Contact deleted successfully" 
+    return res.status(200).json({
+      success: true,
+      data: {
+        message: "Contact deleted successfully"
+      }
     });
   } catch (error) {
     console.error("Error deleting contact:", error);
@@ -216,12 +232,13 @@ export async function deleteContactHandler(req: Request, res: Response) {
  * Actualizar un contacto
  */
 export async function updateContactHandler(req: Request, res: Response) {
-  const { userId, contactId } = req.params;
+  const { contactId } = req.params;
+  const userId = req.query.userId as string || req.body?.userId;
   const { nickname, value } = req.body;
 
   // Validaciones básicas
   if (!userId) {
-    return res.status(400).json({ error: "User ID is required" });
+    return res.status(400).json({ error: "User ID is required (pass as query param ?userId=xxx)" });
   }
   if (!contactId) {
     return res.status(400).json({ error: "Contact ID is required" });
@@ -246,8 +263,11 @@ export async function updateContactHandler(req: Request, res: Response) {
     const updatedContact = await ContactService.updateContact(contactId, userId, updates);
 
     return res.status(200).json({
-      message: "Contact updated successfully",
-      contact: updatedContact
+      success: true,
+      data: {
+        message: "Contact updated successfully",
+        contact: updatedContact
+      }
     });
   } catch (error) {
     console.error("Error updating contact:", error);

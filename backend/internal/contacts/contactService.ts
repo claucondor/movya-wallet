@@ -136,21 +136,36 @@ class ContactService {
   /**
    * Obtener un contacto por nickname
    * @param ownerId - ID del usuario
-   * @param nickname - Nickname del contacto
+   * @param nickname - Nickname del contacto (case-insensitive search)
    * @returns Contacto o null
    */
   static async getContactByNickname(
-    ownerId: string, 
+    ownerId: string,
     nickname: string
   ): Promise<Contact | null> {
-    const contacts = await FirestoreService.queryDocuments<Contact>(
+    // Primero intentar búsqueda exacta (más eficiente)
+    const exactMatch = await FirestoreService.queryDocuments<Contact>(
       this.CONTACTS_COLLECTION,
       (ref) => ref
         .where('ownerId', '==', ownerId)
         .where('nickname', '==', nickname)
     );
 
-    return contacts[0] || null;
+    if (exactMatch.length > 0) {
+      return exactMatch[0];
+    }
+
+    // Si no hay match exacto, buscar case-insensitive
+    // Firestore no soporta case-insensitive queries directamente,
+    // así que obtenemos todos los contactos y filtramos en memoria
+    const allContacts = await this.getContacts(ownerId);
+    const normalizedNickname = nickname.toLowerCase().trim();
+
+    const found = allContacts.find(
+      contact => contact.nickname.toLowerCase().trim() === normalizedNickname
+    );
+
+    return found || null;
   }
 
   /**
@@ -214,11 +229,11 @@ class ContactService {
     // Si se está actualizando el valor, validar según el tipo
     if (updates.value && updates.value !== contact.value) {
       if (contact.type === 'address') {
-        // Validar dirección
-        if (!/^0x[a-fA-F0-9]{40}$/.test(updates.value)) {
+        // Validar dirección Stacks (SP para mainnet, ST para testnet)
+        if (!/^(SP|ST)[0-9A-Z]{39,41}$/.test(updates.value)) {
           throw new Error('Invalid wallet address');
         }
-        updates.value = updates.value.toLowerCase();
+        updates.value = updates.value.toUpperCase(); // Stacks addresses are uppercase
       } else if (contact.type === 'email') {
         // Validar email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

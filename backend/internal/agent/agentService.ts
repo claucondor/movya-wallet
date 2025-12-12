@@ -29,12 +29,12 @@ export interface RichContent {
 }
 
 export interface AIResponse {
-    action: 'SEND' | 'CHECK_BALANCE' | 'VIEW_HISTORY' | 'SWAP' | 'CLARIFY' | 'GREETING' | 'ERROR' | string; // Allow string for potential flexibility/errors
+    action: 'SEND' | 'CHECK_BALANCE' | 'VIEW_HISTORY' | 'SWAP' | 'ADD_CONTACT' | 'CLARIFY' | 'GREETING' | 'ERROR' | string; // Allow string for potential flexibility/errors
     parameters: {
         recipientEmail: string | null;
         recipientAddress: string | null;
         amount: number | string | null;
-        currency: string | null;
+        currency: string | null; // Also used as nickname for ADD_CONTACT
         fromCurrency: string | null; // For SWAP: source currency
         toCurrency: string | null;   // For SWAP: target currency
     } | null;
@@ -51,18 +51,18 @@ export interface AgentServiceResponse {
     responseMessage: string;
     newState: AIResponse | null; // The state passed between turns is the AI's response structure
     actionDetails: {
-        type: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | 'SWAP' | null;
+        type: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | 'SWAP' | 'ADD_CONTACT' | null;
         recipientAddress: string | null; // Explicitly allow null
         recipientEmail: string | null;   // Explicitly allow null
         amount: string | null;           // Explicitly allow null
-        currency: string | null;         // Explicitly allow null
+        currency: string | null;         // Explicitly allow null (also nickname for ADD_CONTACT)
         fromCurrency: string | null;     // For SWAP: source currency
         toCurrency: string | null;       // For SWAP: target currency
     } | null;
 }
 
 interface ActionResultInput {
-    actionType: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY';
+    actionType: 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | 'SWAP';
     status: 'success' | 'failure';
     data: {
         transactionHash?: string;
@@ -93,12 +93,13 @@ export class AgentService {
      * @param {string} currentUserMessage - The latest message from the user.
      * @param {AIResponse | null} currentState - The state object returned by the AI in the previous turn.
      * @param {string} userId - The ID of the user for resolving contacts and recipients.
+     * @param {string} network - The network the user is on ('mainnet' or 'testnet').
      * @returns {Promise<AgentServiceResponse>}
      *          - responseMessage: The message to display to the user.
      *          - newState: The state object to be stored by the frontend for the next turn.
      *          - actionDetails: If an action needs frontend execution (e.g., SEND), this contains the parameters.
      */
-    async processMessage(currentUserMessage: string, currentState: AIResponse | null, userId: string): Promise<AgentServiceResponse> {
+    async processMessage(currentUserMessage: string, currentState: AIResponse | null, userId: string, network: 'mainnet' | 'testnet' = 'mainnet'): Promise<AgentServiceResponse> {
         // Restore the check for empty messages *before* calling the AI
         if (!currentUserMessage) {
             console.log('Empty message received, returning predefined response.');
@@ -109,17 +110,25 @@ export class AgentService {
             };
         }
 
-        console.log('Processing message with state:', { currentUserMessage, currentState });
+        console.log('Processing message with state:', { currentUserMessage, currentState, network });
         const inputJson = {
             currentUserMessage,
-            currentState
+            currentState,
+            network // Include network in the input to the AI
         };
 
         try {
+            // Build dynamic system prompt with network context
+            const networkContext = network === 'testnet'
+                ? '\n\n**CURRENT NETWORK: TESTNET** - User is on testnet. ONLY STX is available. NO sBTC, NO USDA, NO SWAPS. If user asks about these, explain they are only on mainnet.'
+                : '\n\n**CURRENT NETWORK: MAINNET** - User is on mainnet. All currencies (STX, sBTC, USDA) and SWAPS are available.';
+
+            const dynamicPrompt = WalletAssistantSystemPrompt + networkContext;
+
             // Call chat with user message and the specific system prompt
             const responseJsonString = await this.geminiService.chat(
                 JSON.stringify(inputJson), // User message is the JSON input
-                WalletAssistantSystemPrompt // System prompt override
+                dynamicPrompt // System prompt with network context
             );
             const aiResponse: AIResponse = JSON.parse(responseJsonString);
             console.log('AI Raw Response:', responseJsonString);
@@ -156,15 +165,59 @@ export class AgentService {
             // Validate and enrich response with price information
             await this.validateAndEnrichResponse(aiResponse);
 
+            // NETWORK MISMATCH CHECK: Detect if user provides address for wrong network
+            if (aiResponse.parameters?.recipientAddress && (aiResponse.action === 'SEND' || aiResponse.action === 'ADD_CONTACT')) {
+                const address = aiResponse.parameters.recipientAddress;
+                const isMainnetAddress = address.startsWith('SP');
+                const isTestnetAddress = address.startsWith('ST');
+
+                if (network === 'testnet' && isMainnetAddress) {
+                    console.log(`[NETWORK MISMATCH] User is on testnet but provided mainnet address: ${address}`);
+                    aiResponse.action = 'ERROR';
+                    aiResponse.confirmationRequired = false;
+                    aiResponse.responseMessage = `¡Ojo! Estás en testnet pero esa dirección (${address.substring(0, 8)}...) es de mainnet (empieza con SP). Las direcciones de testnet empiezan con ST. ¿Podrías darme una dirección de testnet?`;
+                } else if (network === 'mainnet' && isTestnetAddress) {
+                    console.log(`[NETWORK MISMATCH] User is on mainnet but provided testnet address: ${address}`);
+                    aiResponse.action = 'ERROR';
+                    aiResponse.confirmationRequired = false;
+                    aiResponse.responseMessage = `¡Ojo! Estás en mainnet pero esa dirección (${address.substring(0, 8)}...) es de testnet (empieza con ST). Las direcciones de mainnet empiezan con SP. ¿Podrías darme una dirección de mainnet?`;
+                }
+            }
+
+            // SAFETY NET: Detect ADD_CONTACT intent from user message even if Gemini returned CLARIFY
+            const addContactKeywords = /\b(add|save|store|guardar?|agregar|añadir)\b.*\b(contact|contacto|email|address|dirección)\b|\b(contact|contacto)\b.*\b(add|save|guardar|agregar)\b/i;
+            const looksLikeAddContact = addContactKeywords.test(currentUserMessage);
+
+            if (looksLikeAddContact && aiResponse.action === 'CLARIFY' && aiResponse.parameters) {
+                // Check if we have enough info to execute ADD_CONTACT
+                const hasEmail = aiResponse.parameters.recipientEmail && aiResponse.parameters.recipientEmail.includes('@');
+                const hasAddress = aiResponse.parameters.recipientAddress && /^(SP|ST)[A-Z0-9]{38,41}$/.test(aiResponse.parameters.recipientAddress);
+
+                // Try to extract nickname from the user message
+                const nicknameMatch = currentUserMessage.match(/\b(?:as|como|called|llamado)\s+["']?([a-zA-Z]+)["']?/i) ||
+                                     currentUserMessage.match(/["']([a-zA-Z]+)["']\s+(?:with|con|to my contacts)/i);
+                const extractedNickname = nicknameMatch ? nicknameMatch[1] : null;
+
+                if ((hasEmail || hasAddress) && extractedNickname) {
+                    console.log(`[SAFETY NET] Detected ADD_CONTACT intent. Upgrading from CLARIFY to ADD_CONTACT`);
+                    console.log(`[SAFETY NET] Email: ${aiResponse.parameters.recipientEmail}, Address: ${aiResponse.parameters.recipientAddress}, Nickname: ${extractedNickname}`);
+
+                    aiResponse.action = 'ADD_CONTACT';
+                    aiResponse.parameters.currency = extractedNickname; // nickname goes in currency field
+                    aiResponse.confirmationRequired = false;
+                    aiResponse.responseMessage = `Guardando a ${extractedNickname} en tus contactos...`;
+                }
+            }
+
             // MODIFICACIÓN: Intentar resolver el destinatario incluso para acciones CLARIFY
             // si recipientEmail está presente pero recipientAddress no
-            if (aiResponse.parameters && 
-                aiResponse.parameters.recipientEmail && 
-                !aiResponse.parameters.recipientAddress && 
+            if (aiResponse.parameters &&
+                aiResponse.parameters.recipientEmail &&
+                !aiResponse.parameters.recipientAddress &&
                 (aiResponse.action === 'SEND' || aiResponse.action === 'CLARIFY')) {
                 
                 console.log(`Attempting to resolve recipient from email/nickname: ${aiResponse.parameters.recipientEmail}`);
-                await this.resolveRecipient(aiResponse, userId);
+                await this.resolveRecipient(aiResponse, userId, network);
                 
                 // Si estamos en CLARIFY y pudimos resolver el destinatario,
                 // podríamos considerar cambiar a SEND si tenemos todos los demás parámetros
@@ -190,7 +243,7 @@ export class AgentService {
             // (Esto podría ser redundante ahora para algunos casos, pero lo mantenemos como salvaguarda)
             if (aiResponse.action === 'SEND' && !aiResponse.confirmationRequired && aiResponse.parameters) {
                 // Resolver nickname/email a dirección de wallet si es necesario
-                await this.resolveRecipient(aiResponse, userId);
+                await this.resolveRecipient(aiResponse, userId, network);
             }
 
             let actionDetails: AgentServiceResponse['actionDetails'] = null;
@@ -230,12 +283,23 @@ export class AgentService {
                     toCurrency: null
                 };
             } else if (aiResponse.action === 'VIEW_HISTORY') {
-                actionDetails = { 
-                    type: 'FETCH_HISTORY', 
-                    recipientAddress: null, 
-                    recipientEmail: null, 
-                    amount: null, 
+                actionDetails = {
+                    type: 'FETCH_HISTORY',
+                    recipientAddress: null,
+                    recipientEmail: null,
+                    amount: null,
                     currency: null,
+                    fromCurrency: null,
+                    toCurrency: null
+                };
+            } else if (aiResponse.action === 'ADD_CONTACT' && aiResponse.parameters) {
+                // ADD_CONTACT: currency field contains the nickname
+                actionDetails = {
+                    type: 'ADD_CONTACT',
+                    recipientAddress: aiResponse.parameters.recipientAddress,
+                    recipientEmail: aiResponse.parameters.recipientEmail,
+                    amount: null,
+                    currency: aiResponse.parameters.currency, // This is the nickname
                     fromCurrency: null,
                     toCurrency: null
                 };
@@ -309,48 +373,42 @@ export class AgentService {
      * Resuelve el destinatario (nickname o email) a una dirección de wallet
      * @param aiResponse - Respuesta del AI para modificar
      * @param userId - ID del usuario para buscar contactos
+     * @param network - Red actual para seleccionar la dirección correcta
      */
-    private async resolveRecipient(aiResponse: AIResponse, userId: string): Promise<void> {
+    private async resolveRecipient(aiResponse: AIResponse, userId: string, network: 'mainnet' | 'testnet' = 'mainnet'): Promise<void> {
         if (!aiResponse.parameters) return;
 
         const recipientEmail = aiResponse.parameters.recipientEmail;
         const recipientAddress = aiResponse.parameters.recipientAddress;
 
-        // Si ya tenemos una dirección y no un email, no hay nada que resolver
-        if (recipientAddress && !recipientEmail) return;
+        console.log(`[resolveRecipient] recipientEmail: "${recipientEmail}", recipientAddress: "${recipientAddress}", network: "${network}"`);
 
-        // Si tenemos un email, intentamos resolverlo a una dirección
-        if (recipientEmail) {
-            const resolved = await RecipientResolver.resolveRecipient(userId, recipientEmail);
-            
+        // Helper to check if a string is a valid Stacks address
+        const isValidStacksAddress = (addr: string | null | undefined): boolean => {
+            if (!addr) return false;
+            return /^(SP|ST)[A-Z0-9]{38,41}$/.test(addr);
+        };
+
+        // If recipientAddress looks like a valid Stacks address, nothing to resolve
+        if (isValidStacksAddress(recipientAddress)) {
+            console.log(`[resolveRecipient] recipientAddress is valid Stacks address, no resolution needed`);
+            return;
+        }
+
+        // Try to resolve: prioritize recipientEmail, then recipientAddress (might be a nickname)
+        const toResolve = recipientEmail || recipientAddress;
+
+        if (toResolve) {
+            console.log(`[resolveRecipient] Attempting to resolve: "${toResolve}" for network: ${network}`);
+            const resolved = await RecipientResolver.resolveRecipient(userId, toResolve, network);
+
             if (resolved.address) {
-                // Si se pudo resolver, actualizamos los parámetros de la respuesta
+                console.log(`[resolveRecipient] Resolved "${toResolve}" to address: ${resolved.address}`);
+                // Store the original value as "email" for display purposes
+                aiResponse.parameters.recipientEmail = toResolve;
                 aiResponse.parameters.recipientAddress = resolved.address;
-                // Mantenemos el email para referencia en los mensajes al usuario
-            }
-        } 
-        // Si no tenemos ni dirección ni email (podría ser un nickname)
-        else if (!recipientAddress && !recipientEmail) {
-            // Buscamos en el mensaje del usuario alguna palabra que pueda ser un destinatario
-            // Nota: Esto es una simplificación, en un caso real se necesitaría un análisis más sofisticado
-            const words = aiResponse.responseMessage.split(/\s+/);
-            
-            for (const word of words) {
-                // Ignorar palabras muy cortas y palabras comunes
-                if (word.length < 3) continue;
-                
-                const resolved = await RecipientResolver.resolveRecipient(userId, word);
-                
-                if (resolved.address) {
-                    aiResponse.parameters.recipientAddress = resolved.address;
-                    
-                    // Si era un nickname, añadimos un mensaje adicional
-                    if (resolved.type === 'nickname') {
-                        aiResponse.parameters.recipientEmail = resolved.originalValue; // Guardamos el nickname original
-                    }
-                    
-                    break; // Terminamos la búsqueda si encontramos una coincidencia
-                }
+            } else {
+                console.log(`[resolveRecipient] Could not resolve "${toResolve}" to any address for network: ${network}`);
             }
         }
     }

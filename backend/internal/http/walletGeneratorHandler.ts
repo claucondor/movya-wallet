@@ -1,13 +1,16 @@
 import { Request, Response } from 'express';
 import { generateSecretKey, generateWallet, getStxAddress } from '@stacks/wallet-sdk';
+import UserService from '../users/userService';
 
 /**
  * Generate a new Stacks wallet
  * POST /wallet/generate
+ * Body: { userId?: string } - If provided, wallet addresses will be saved to Firestore
  */
 export async function generateWalletHandler(req: Request, res: Response) {
   try {
-    console.log('[generateWalletHandler] Generating new Stacks wallet...');
+    const { userId } = req.body || {};
+    console.log('[generateWalletHandler] Generating new Stacks wallet...', userId ? `for user ${userId}` : '');
 
     // Generate 24-word mnemonic
     const mnemonic = generateSecretKey(256);
@@ -30,6 +33,20 @@ export async function generateWalletHandler(req: Request, res: Response) {
     console.log('[generateWalletHandler] Wallet generated successfully');
     console.log('[generateWalletHandler] Mainnet address:', mainnetAddress);
     console.log('[generateWalletHandler] Testnet address:', testnetAddress);
+
+    // If userId provided, save addresses to Firestore for email resolution
+    if (userId) {
+      try {
+        await UserService.saveWalletAddresses(userId, {
+          mainnet: mainnetAddress,
+          testnet: testnetAddress
+        });
+        console.log('[generateWalletHandler] Wallet addresses saved to Firestore for user:', userId);
+      } catch (saveError) {
+        console.error('[generateWalletHandler] Failed to save addresses to Firestore:', saveError);
+        // Don't fail the request - wallet was generated successfully
+      }
+    }
 
     // Return wallet data
     res.status(200).json({

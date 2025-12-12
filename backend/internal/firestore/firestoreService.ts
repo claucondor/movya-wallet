@@ -116,14 +116,15 @@ class FirestoreService {
    * @returns Array of documents
    */
   static async queryDocuments<T>(
-    collection: string, 
+    collection: string,
     queryFn: (ref: FirebaseFirestore.CollectionReference) => FirebaseFirestore.Query
   ): Promise<T[]> {
     try {
       const collectionRef = firestore.collection(collection);
       const query = queryFn(collectionRef);
       const snapshot = await query.get();
-      return snapshot.docs.map(doc => doc.data() as T);
+      // Include the document ID in the returned data
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
     } catch (error) {
       console.error(`Error querying documents in ${collection}:`, error);
       throw new Error(`Could not query documents in ${collection}`);

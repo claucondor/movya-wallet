@@ -130,6 +130,110 @@ export const getUserByAddressHandler = async (req: Request, res: Response): Prom
  * @param req - Express request object
  * @param res - Express response object
  */
+/**
+ * Get wallet address by email
+ * Used for sending transactions to other users by email
+ * @param req - Express request object
+ * @param res - Express response object
+ */
+export const getAddressByEmailHandler = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const { email } = req.params;
+
+        if (!email || typeof email !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'Email parameter is required'
+            });
+        }
+
+        // Search for user with this email
+        const users = await FirestoreService.queryDocuments<UserProfile>(
+            'users',
+            (ref) => ref.where('email', '==', email.toLowerCase())
+        );
+
+        if (users.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found with this email'
+            });
+        }
+
+        const user = users[0];
+
+        if (!user.walletAddress) {
+            return res.status(404).json({
+                success: false,
+                message: 'User does not have a wallet address'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                address: user.walletAddress,
+                userId: user.googleUserId,
+                name: user.name,
+                email: user.email
+            }
+        });
+
+    } catch (error: any) {
+        console.error('[getAddressByEmailHandler] Error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Check if an email exists in the system
+ * Used for validating recipients before sending
+ * @param req - Express request object
+ * @param res - Express response object
+ */
+export const checkEmailExistsHandler = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const { email } = req.params;
+
+        if (!email || typeof email !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'Email parameter is required'
+            });
+        }
+
+        // Search for user with this email
+        const users = await FirestoreService.queryDocuments<UserProfile>(
+            'users',
+            (ref) => ref.where('email', '==', email.toLowerCase())
+        );
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                exists: users.length > 0
+            }
+        });
+
+    } catch (error: any) {
+        console.error('[checkEmailExistsHandler] Error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get user profile by user ID
+ * @param req - Express request object
+ * @param res - Express response object
+ */
 export const getUserProfileHandler = async (req: Request, res: Response): Promise<Response> => {
     try {
         const { userId } = req.params;

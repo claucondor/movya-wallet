@@ -2,7 +2,47 @@ import { Request, Response } from 'express';
 import UserService from '../users/userService';
 
 /**
- * Guardar la dirección de wallet de un usuario
+ * Guardar las direcciones de wallet de un usuario (mainnet y testnet)
+ */
+export async function saveWalletAddressesHandler(req: Request, res: Response) {
+  const { userId, mainnetAddress, testnetAddress } = req.body;
+
+  // Validaciones básicas
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required" });
+  }
+  if (!mainnetAddress && !testnetAddress) {
+    return res.status(400).json({ error: "At least one wallet address is required (mainnetAddress or testnetAddress)" });
+  }
+
+  try {
+    console.log(`[saveWalletAddressesHandler] Saving addresses for user ${userId}:`, { mainnetAddress, testnetAddress });
+
+    // Guardar las direcciones
+    await UserService.saveWalletAddresses(userId, {
+      mainnet: mainnetAddress,
+      testnet: testnetAddress
+    });
+
+    // Obtener las direcciones guardadas para confirmar
+    const savedWallet = await UserService.getWalletAddress(userId);
+
+    return res.status(200).json({
+      message: "Wallet addresses saved successfully",
+      wallet: savedWallet
+    });
+  } catch (error) {
+    console.error("Error saving wallet addresses:", error);
+
+    return res.status(500).json({
+      error: "Failed to save wallet addresses",
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Guardar la dirección de wallet de un usuario (single address - legacy)
  */
 export async function saveWalletAddressHandler(req: Request, res: Response) {
   const { userId, walletAddress, network, type } = req.body;
@@ -17,9 +57,9 @@ export async function saveWalletAddressHandler(req: Request, res: Response) {
 
   try {
     // Intentar guardar la dirección de wallet
-    await UserService.saveWalletAddress(userId, walletAddress, { 
-      network, 
-      type 
+    await UserService.saveWalletAddress(userId, walletAddress, {
+      network,
+      type
     });
 
     // Obtener la dirección guardada para confirmar
@@ -31,15 +71,15 @@ export async function saveWalletAddressHandler(req: Request, res: Response) {
     });
   } catch (error) {
     console.error("Error saving wallet address:", error);
-    
+
     // Manejar diferentes tipos de errores
-    if (error instanceof Error && error.message.includes('inválida')) {
+    if (error instanceof Error && error.message.includes('Invalid')) {
       return res.status(400).json({ error: error.message });
     }
 
-    return res.status(500).json({ 
-      error: "Failed to save wallet address", 
-      details: error instanceof Error ? error.message : 'Unknown error' 
+    return res.status(500).json({
+      error: "Failed to save wallet address",
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }

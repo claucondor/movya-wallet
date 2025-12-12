@@ -19,7 +19,9 @@ export interface UserProfile {
   googleUserId?: string;
   lastFaucetUse?: Date;
   faucetCount?: number;
-  walletAddress?: string;
+  walletAddress?: string; // Legacy field - use walletAddressMainnet/Testnet instead
+  walletAddressMainnet?: string; // Stacks mainnet address (SP...)
+  walletAddressTestnet?: string; // Stacks testnet address (ST...)
   createdAt?: Date;
   updatedAt?: Date;
   picture?: string;
@@ -112,60 +114,144 @@ class UserService {
   }
 
   /**
-   * Guardar o actualizar la dirección de wallet de un usuario
+   * Validate Stacks address format
+   */
+  private static isValidStacksAddress(address: string): boolean {
+    // Mainnet: SP + 38-41 alphanumeric chars
+    // Testnet: ST + 38-41 alphanumeric chars
+    return /^(SP|ST)[A-Z0-9]{38,41}$/i.test(address);
+  }
+
+  /**
+   * Guardar direcciones de wallet de un usuario (mainnet y testnet)
+   * @param userId - ID de usuario de Google
+   * @param addresses - Direcciones de wallet a guardar
+   */
+  static async saveWalletAddresses(
+    userId: string,
+    addresses: {
+      mainnet?: string;
+      testnet?: string;
+    }
+  ): Promise<void> {
+    // Validate addresses if provided
+    if (addresses.mainnet && !this.isValidStacksAddress(addresses.mainnet)) {
+      throw new Error(`Invalid mainnet address: ${addresses.mainnet}`);
+    }
+    if (addresses.testnet && !this.isValidStacksAddress(addresses.testnet)) {
+      throw new Error(`Invalid testnet address: ${addresses.testnet}`);
+    }
+
+    // Build update object
+    const updateData: Partial<UserProfile> = {
+      updatedAt: new Date()
+    };
+
+    if (addresses.mainnet) {
+      updateData.walletAddressMainnet = addresses.mainnet;
+      // Also set legacy field to mainnet address for backward compatibility
+      updateData.walletAddress = addresses.mainnet;
+    }
+    if (addresses.testnet) {
+      updateData.walletAddressTestnet = addresses.testnet;
+    }
+
+    await this.upsertUserProfile(userId, updateData);
+    console.log(`[UserService] Saved wallet addresses for user ${userId}:`, addresses);
+  }
+
+  /**
+   * Guardar o actualizar la dirección de wallet de un usuario (legacy - single address)
    * @param userId - ID de usuario de Google
    * @param walletAddress - Dirección de wallet a guardar
    * @param options - Opciones adicionales para la actualización
    */
   static async saveWalletAddress(
-    userId: string, 
-    walletAddress: string, 
+    userId: string,
+    walletAddress: string,
     options?: {
-      network?: string;
-      type?: 'evm' | 'solana' | 'other';
+      network?: 'mainnet' | 'testnet' | string;
+      type?: 'evm' | 'solana' | 'stacks' | 'other';
     }
   ): Promise<void> {
-    // Validar dirección de wallet (ejemplo básico para direcciones EVM)
-    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
-      throw new Error('Dirección de wallet inválida');
+    // Validate Stacks address
+    if (!this.isValidStacksAddress(walletAddress)) {
+      throw new Error(`Invalid Stacks wallet address: ${walletAddress}`);
     }
 
-    // Obtener perfil existente
-    const existingProfile = await this.getUserProfile(userId);
+    // Determine which field to update based on address prefix or network option
+    const isTestnet = walletAddress.startsWith('ST') || options?.network === 'testnet';
 
-    // Preparar datos de actualización
-    const updateData: UserProfile = {
-      ...existingProfile,
-      walletAddress,
+    const updateData: Partial<UserProfile> = {
       walletNetwork: options?.network,
-      walletType: options?.type,
+      walletType: options?.type || 'stacks',
       updatedAt: new Date()
     };
 
-    // Guardar perfil actualizado
+    if (isTestnet) {
+      updateData.walletAddressTestnet = walletAddress;
+    } else {
+      updateData.walletAddressMainnet = walletAddress;
+      updateData.walletAddress = walletAddress; // Legacy field
+    }
+
     await this.upsertUserProfile(userId, updateData);
+    console.log(`[UserService] Saved wallet address for user ${userId}: ${walletAddress} (${isTestnet ? 'testnet' : 'mainnet'})`);
   }
 
   /**
    * Obtener la dirección de wallet de un usuario
    * @param userId - ID de usuario de Google
+   * @param network - Red específica ('mainnet', 'testnet') o undefined para la que tenga
    * @returns Dirección de wallet o null
    */
-  static async getWalletAddress(userId: string): Promise<{
-    address: string | null, 
-    network?: string, 
-    type?: string
+  static async getWalletAddress(userId: string, network?: 'mainnet' | 'testnet'): Promise<{
+    address: string | null;
+    addressMainnet?: string | null;
+    addressTestnet?: string | null;
+    network?: string;
+    type?: string;
   } | null> {
     const user = await this.getUserProfile(userId);
-    
-    if (!user || !user.walletAddress) {
+
+    if (!user) {
+      return null;
+    }
+
+    // If specific network requested
+    if (network === 'mainnet') {
+      return user.walletAddressMainnet ? {
+        address: user.walletAddressMainnet,
+        addressMainnet: user.walletAddressMainnet,
+        addressTestnet: user.walletAddressTestnet,
+        network: 'mainnet',
+        type: user.walletType || 'stacks'
+      } : null;
+    }
+
+    if (network === 'testnet') {
+      return user.walletAddressTestnet ? {
+        address: user.walletAddressTestnet,
+        addressMainnet: user.walletAddressMainnet,
+        addressTestnet: user.walletAddressTestnet,
+        network: 'testnet',
+        type: user.walletType || 'stacks'
+      } : null;
+    }
+
+    // Return any available address (prefer mainnet, fallback to testnet, then legacy)
+    const address = user.walletAddressMainnet || user.walletAddressTestnet || user.walletAddress;
+
+    if (!address) {
       return null;
     }
 
     return {
-      address: user.walletAddress,
+      address,
+      addressMainnet: user.walletAddressMainnet,
+      addressTestnet: user.walletAddressTestnet,
       network: user.walletNetwork,
-      type: user.walletType
+      type: user.walletType || 'stacks'
     };
   }
 

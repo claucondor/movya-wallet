@@ -1,6 +1,6 @@
-# Use an official Node.js runtime as a parent image (Long Term Support version is recommended)
-# Using alpine for a smaller image size
-FROM node:lts-alpine as builder
+# Use an official Node.js runtime as a parent image
+# Using Node 20 (LTS) alpine for stability
+FROM node:20-alpine as builder
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
@@ -9,7 +9,8 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install ALL dependencies (including devDependencies for TypeScript compilation)
-RUN npm ci
+# Using --include=dev to ensure devDependencies are installed for the build step
+RUN npm ci --include=dev
 
 # Copy the rest of the application code
 COPY . .
@@ -19,7 +20,7 @@ RUN npm run build
 
 # --- Second Stage: Runtime ---
 # Use a minimal Node.js image for the final stage
-FROM node:lts-alpine
+FROM node:20-alpine
 
 WORKDIR /usr/src/app
 

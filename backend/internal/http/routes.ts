@@ -1,6 +1,6 @@
 import express, { NextFunction, Request, Response } from 'express';
 import { chatWithAgent } from './agentController';
-import { handleAuthCallback } from './authHandler'; // Assuming authHandler will be migrated and export handleAuthCallback
+import { handleAuthCallback, handleGoogleAuth } from './authHandler';
 import {
     addContactByAddressHandler,
     addContactByEmailHandler,
@@ -14,13 +14,16 @@ import { reportAgentResult } from './resultController'; // Import the new contro
 import { reportEnrichedAgentResult } from './enrichedResultController'; // Import enriched controller
 import {
     getWalletAddressHandler,
-    saveWalletAddressHandler
+    saveWalletAddressHandler,
+    saveWalletAddressesHandler
 } from './walletHandler';
 import { generateWalletHandler } from './walletGeneratorHandler';
 import {
     checkWalletAddressHandler,
     getUserByAddressHandler,
-    getUserProfileHandler
+    getUserProfileHandler,
+    getAddressByEmailHandler,
+    checkEmailExistsHandler
 } from './userHandler';
 
 const routes = express.Router();
@@ -28,6 +31,10 @@ const routes = express.Router();
 // Define the authentication callback route
 // This is the endpoint Expo Auth should redirect to.
 routes.get('/auth/callback', handleAuthCallback as any); // Use as any for now until authHandler is typed
+
+// Google Auth endpoint for web frontend (SPA)
+// Receives ID token from Google Sign-In popup and validates it
+routes.post('/auth/google', express.json(), handleGoogleAuth as any);
 
 // You can add other routes here if needed
 
@@ -99,7 +106,12 @@ routes.post('/wallet/generate',
 
 routes.post('/wallet/address',
   express.json(),          // Parse JSON body
-  asyncHandler(saveWalletAddressHandler) // Guardar dirección de wallet
+  asyncHandler(saveWalletAddressHandler) // Guardar dirección de wallet (single)
+);
+
+routes.post('/wallet/addresses',
+  express.json(),          // Parse JSON body
+  asyncHandler(saveWalletAddressesHandler) // Guardar direcciones mainnet y testnet
 );
 
 routes.get('/wallet/address/:userId',
@@ -150,9 +162,18 @@ routes.get('/users/by-address/:address',
   asyncHandler(getUserByAddressHandler)     // Get user details by address (requires auth)
 );
 
-routes.get('/users/profile/:userId', 
+routes.get('/users/profile/:userId',
   authMiddleware,
   asyncHandler(getUserProfileHandler)       // Get user profile by user ID (requires auth)
+);
+
+// Email-based user lookup routes (for sending transactions by email)
+routes.get('/user/address-by-email/:email',
+  asyncHandler(getAddressByEmailHandler)    // Get wallet address by email
+);
+
+routes.get('/user/check-email/:email',
+  asyncHandler(checkEmailExistsHandler)     // Check if email exists in system
 );
 
 // --- Default/Health Check Route (already in server.js, but can be here too) ---

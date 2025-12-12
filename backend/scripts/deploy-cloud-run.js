@@ -37,6 +37,7 @@ const envVarsString = [
 // Using parameters from above, adjust memory, cpu, timeout as needed
 const gcloudCommand = `gcloud run deploy ${serviceName}` +
                       ` --image ${imageName}` +
+                      ` --project ${projectId}` +
                       ` --region ${region}` +
                       ` --platform managed` +
                       ` --allow-unauthenticated` +

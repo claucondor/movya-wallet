@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Request, Response } from 'express';
+import { OAuth2Client } from 'google-auth-library';
 import UserService from '../users/userService';
 
 // Your Expo app scheme (from app.json)
@@ -113,5 +114,103 @@ async function handleAuthCallback(req: Request, res: Response) {
   }
 }
 
-export { handleAuthCallback };
+/**
+ * Handles Google authentication from web frontend (SPA).
+ * - Receives ID token from Google Sign-In popup
+ * - Validates the token with Google
+ * - Creates/updates user in Firestore
+ * - Returns user data and wallet address
+ */
+async function handleGoogleAuth(req: Request, res: Response) {
+  const { idToken } = req.body;
+
+  if (!idToken) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing idToken in request body'
+    });
+  }
+
+  if (!GOOGLE_CLIENT_ID) {
+    console.error('Missing GOOGLE_CLIENT_ID environment variable.');
+    return res.status(500).json({
+      success: false,
+      error: 'Server configuration error'
+    });
+  }
+
+  try {
+    // Verify the ID token with Google
+    const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+      idToken: idToken,
+      audience: GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload) {
+      throw new Error('Invalid token payload');
+    }
+
+    const userId = payload.sub; // Google's unique user ID
+    const userEmail = payload.email;
+    const userName = payload.name;
+    const userPicture = payload.picture;
+
+    if (!userId || !userEmail) {
+      throw new Error('Could not get user info from token');
+    }
+
+    console.log(`[handleGoogleAuth] Authenticated user: ${userEmail} (${userId})`);
+
+    // Save credentials (using idToken as accessToken since we don't have a separate one in this flow)
+    const credentialsToSave = {
+      accessToken: idToken, // Required by UserCredentials interface
+      idToken: idToken,
+      googleUserId: userId,
+      email: userEmail,
+    };
+    await UserService.saveCredentials(userId, credentialsToSave);
+
+    // Upsert user profile
+    await UserService.upsertUserProfile(userId, {
+      email: userEmail,
+      name: userName,
+      googleUserId: userId,
+      picture: userPicture
+    });
+
+    // Get wallet address if exists
+    let walletAddress = null;
+    try {
+      const walletData = await UserService.getWalletAddress(userId);
+      walletAddress = walletData?.address || null;
+    } catch (e) {
+      // Wallet may not exist yet, that's ok
+      console.log(`[handleGoogleAuth] No wallet found for user ${userId}`);
+    }
+
+    // Return success response
+    return res.status(200).json({
+      success: true,
+      data: {
+        userId: userId,
+        email: userEmail,
+        name: userName,
+        picture: userPicture,
+        walletAddress: walletAddress,
+        userToken: idToken // Can be used for subsequent authenticated requests
+      }
+    });
+
+  } catch (err: any) {
+    console.error('[handleGoogleAuth] Error:', err.message);
+    return res.status(401).json({
+      success: false,
+      error: err.message || 'Failed to authenticate with Google'
+    });
+  }
+}
+
+export { handleAuthCallback, handleGoogleAuth };
 
