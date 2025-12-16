@@ -121,6 +121,14 @@ const SWAP_TOKENS: Record<string, SwapToken> = {
     decimals: 8,
     isNative: false,
   },
+  'SBTC': {
+    // Uppercase alias for sBTC
+    symbol: 'sBTC',
+    contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
+    contractName: 'token-abtc',
+    decimals: 8,
+    isNative: false,
+  },
   'aBTC': {
     symbol: 'aBTC',
     contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
@@ -128,7 +136,23 @@ const SWAP_TOKENS: Record<string, SwapToken> = {
     decimals: 8,
     isNative: false,
   },
+  'ABTC': {
+    // Uppercase alias for aBTC
+    symbol: 'aBTC',
+    contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
+    contractName: 'token-abtc',
+    decimals: 8,
+    isNative: false,
+  },
   'aUSD': {
+    symbol: 'aUSD',
+    contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
+    contractName: 'token-susdt',
+    decimals: 8,
+    isNative: false,
+  },
+  'AUSD': {
+    // Uppercase alias for aUSD
     symbol: 'aUSD',
     contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
     contractName: 'token-susdt',
