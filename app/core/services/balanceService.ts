@@ -190,27 +190,80 @@ class BalanceService {
 
   /**
    * Get all token balances for the current wallet
+   * Optimized: single API call to get all balances
    */
   static async getAllBalances(networkId: string = 'mainnet'): Promise<TokenBalance[]> {
     try {
-      const balances: TokenBalance[] = [];
+      const address = await this.getAddress();
+      const network = networkId === 'mainnet' ? DEFAULT_NETWORK : DEFAULT_NETWORK;
 
-      // Get STX balance
-      const stxBalance = await this.getSTXBalance(networkId);
-      balances.push(stxBalance);
+      // Add API key to headers if available
+      const headers: Record<string, string> = {};
+      const apiKey = getHiroApiKey();
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+      }
 
-      // Get SIP-010 token balances
-      const tokens = getTokensByNetwork(networkId);
-      const sip010Tokens = tokens.filter(t => !t.isNative);
-
-      const tokenBalancePromises = sip010Tokens.map(token =>
-        this.getTokenBalance(token.symbol, networkId)
+      // Single API call to get ALL balances (STX + fungible tokens)
+      const response = await fetch(
+        `${network.url}/extended/v1/address/${address}/balances`,
+        { headers }
       );
 
-      const tokenBalances = await Promise.all(tokenBalancePromises);
-      const validBalances = tokenBalances.filter(balance => balance !== null) as TokenBalance[];
+      if (!response.ok) {
+        throw new Error(`Failed to fetch balances: ${response.statusText}`);
+      }
 
-      balances.push(...validBalances);
+      const data = await response.json();
+      const balances: TokenBalance[] = [];
+
+      // Get all tokens for this network
+      const tokens = getTokensByNetwork(networkId);
+
+      for (const token of tokens) {
+        if (token.isNative) {
+          // STX balance from stx.balance
+          const stxBalance = BigInt(data.stx?.balance || 0);
+          balances.push({
+            symbol: token.symbol,
+            name: token.name,
+            balance: formatTokenAmount(stxBalance, token),
+            balanceRaw: stxBalance,
+            decimals: token.decimals,
+            isNative: true,
+            networkId
+          });
+        } else if (token.contractAddress) {
+          // SIP-010 token balance from fungible_tokens
+          const ftKey = `${token.contractAddress}::${token.assetName || token.contractName}`;
+          let balanceRaw: bigint = 0n;
+
+          // Try exact key match first
+          if (data.fungible_tokens?.[ftKey]?.balance) {
+            balanceRaw = BigInt(data.fungible_tokens[ftKey].balance);
+          } else {
+            // Try finding by contract name or asset name
+            const altKey = Object.keys(data.fungible_tokens || {}).find(k =>
+              k.includes(token.contractAddress!) ||
+              k.includes(token.assetName || '')
+            );
+            if (altKey && data.fungible_tokens[altKey]?.balance) {
+              balanceRaw = BigInt(data.fungible_tokens[altKey].balance);
+            }
+          }
+
+          balances.push({
+            symbol: token.symbol,
+            name: token.name,
+            balance: formatTokenAmount(balanceRaw, token),
+            balanceRaw,
+            decimals: token.decimals,
+            contractAddress: token.contractAddress,
+            isNative: false,
+            networkId
+          });
+        }
+      }
 
       console.log(`[BalanceService] Retrieved ${balances.length} balances for network ${networkId}`);
       return balances;
