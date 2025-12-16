@@ -135,6 +135,14 @@ const SWAP_TOKENS: Record<string, SwapToken> = {
     decimals: 8,
     isNative: false,
   },
+  'USDA': {
+    // Alias for aUSD (legacy name from agent)
+    symbol: 'aUSD',
+    contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
+    contractName: 'token-susdt',
+    decimals: 8,
+    isNative: false,
+  },
   'ALEX': {
     symbol: 'ALEX',
     contractAddress: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM',
