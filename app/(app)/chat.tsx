@@ -327,10 +327,9 @@ const Chat = () => {
 			addMessage(response.responseMessage, 'agent', response.actionDetails, interactiveElements);
 			setConversationState(response.newState);
 
-			// Simplified action handling: if actionDetails are present, process them.
-			// The check for confirmationRequired has been removed to fix linter error.
-			// If explicit confirmation flow is needed, types and this logic must be updated.
-			if (response.actionDetails && response.actionDetails.type) {
+			// Only execute action if NOT waiting for confirmation
+			// If confirmationRequired is true, we wait for user to confirm before executing
+			if (response.actionDetails && response.actionDetails.type && response.newState?.confirmationRequired === false) {
 				await handleAgentAction(response.actionDetails, messageToSend, response.newState || undefined);
 			}
 		} catch (error: any) {

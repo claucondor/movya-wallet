@@ -4,16 +4,21 @@ import { getWalletAddress } from '../../internal/walletService';
 // Transaction types for Stacks
 export interface Transaction {
   txid: string;
-  type: 'sent' | 'received' | 'contract_call' | 'token_transfer';
+  type: 'sent' | 'received' | 'contract_call' | 'token_transfer' | 'swap';
   status: 'success' | 'pending' | 'failed';
   amount: string;
-  currency: 'STX' | 'sBTC' | 'USDA' | string;
+  currency: 'STX' | 'sBTC' | 'aUSD' | 'ALEX' | string;
   recipient?: string;
   sender?: string;
   timestamp: number;
   blockHeight?: number;
   fee?: string;
   explorerUrl: string;
+  functionName?: string; // For contract calls
+  swapInfo?: {
+    fromToken: string;
+    toToken: string;
+  };
 }
 
 /**
@@ -87,29 +92,47 @@ class TransactionHistoryService {
   private parseTransaction(tx: any, myAddress: string): Transaction | null {
     try {
       const txid = tx.tx_id;
-      const status = tx.tx_status === 'success' ? 'success' :
-                     tx.tx_status === 'pending' ? 'pending' : 'failed';
+      // Map Hiro status to our status - abort_by_response means failed
+      const status: 'success' | 'pending' | 'failed' =
+        tx.tx_status === 'success' ? 'success' :
+        tx.tx_status === 'pending' ? 'pending' : 'failed';
 
       // Determine transaction type
-      let type: 'sent' | 'received' | 'contract_call' | 'token_transfer' = 'contract_call';
+      let type: 'sent' | 'received' | 'contract_call' | 'token_transfer' | 'swap' = 'contract_call';
       let amount = '0';
       let currency = 'STX';
       let recipient = '';
       let sender = tx.sender_address || '';
+      let functionName: string | undefined;
+      let swapInfo: { fromToken: string; toToken: string } | undefined;
 
       if (tx.tx_type === 'token_transfer') {
         // STX transfer
         type = sender === myAddress ? 'sent' : 'received';
-        amount = (parseInt(tx.token_transfer?.amount || '0') / 1_000_000).toString();
+        amount = (parseInt(tx.token_transfer?.amount || '0') / 1_000_000).toFixed(6);
         currency = 'STX';
         recipient = tx.token_transfer?.recipient_address || '';
       } else if (tx.tx_type === 'contract_call') {
-        // SIP-010 token transfer or other contract call
-        type = 'contract_call';
-        // Try to parse if it's a token transfer
-        if (tx.contract_call?.function_name === 'transfer') {
+        functionName = tx.contract_call?.function_name;
+
+        // Check if it's a swap transaction
+        if (functionName === 'swap-helper' || functionName === 'swap-helper-a') {
+          type = 'swap';
+          // Parse swap info from contract call args if available
+          const contractId = tx.contract_call?.contract_id || '';
+          if (contractId.includes('amm-pool')) {
+            swapInfo = {
+              fromToken: 'STX',
+              toToken: 'aUSD'
+            };
+          }
+          // Fee as the "amount" for swaps
+          amount = tx.fee_rate ? (parseInt(tx.fee_rate) / 1_000_000).toFixed(6) : '0';
+          currency = 'STX';
+        } else if (functionName === 'transfer') {
+          // SIP-010 token transfer
           type = sender === myAddress ? 'sent' : 'received';
-          currency = 'Token'; // Would need to parse contract to get symbol
+          currency = 'Token';
         }
       }
 
@@ -123,10 +146,12 @@ class TransactionHistoryService {
         currency,
         recipient,
         sender,
-        timestamp: tx.burn_block_time || Date.now() / 1000,
+        timestamp: tx.burn_block_time || tx.receipt_time || Date.now() / 1000,
         blockHeight: tx.block_height,
-        fee: tx.fee_rate ? (parseInt(tx.fee_rate) / 1_000_000).toString() : undefined,
-        explorerUrl
+        fee: tx.fee_rate ? (parseInt(tx.fee_rate) / 1_000_000).toFixed(6) : undefined,
+        explorerUrl,
+        functionName,
+        swapInfo
       };
 
     } catch (error) {
