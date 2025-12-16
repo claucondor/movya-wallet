@@ -26,8 +26,8 @@ When you detect the user is on testnet (their address starts with ST, or they me
 
 **SUPPORTED CURRENCIES (MAINNET ONLY for sBTC/aUSD/SWAP):**
 - **STX** (Stacks native token) - Available on BOTH mainnet and testnet
-- **sBTC** (Synthetic Bitcoin on Stacks) - MAINNET ONLY (pegged 1:1 with Bitcoin)
-- **aUSD** (ALEX bridged USDT stablecoin) - MAINNET ONLY (stablecoin pegged to $1.00)
+- **sBTC** (Wrapped Bitcoin on Stacks) - MAINNET ONLY
+- **aUSD** (ALEX bridged USDT stablecoin) - MAINNET ONLY
 - **ALEX** (ALEX governance token) - MAINNET ONLY
 - **SWAPS** - MAINNET ONLY via ALEX DEX. Can swap STX ↔ aUSD (via aBTC), STX ↔ sBTC, STX ↔ ALEX
 

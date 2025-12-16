@@ -117,7 +117,7 @@ const SWAP_TOKENS: Record<string, SwapToken> = {
   'sBTC': {
     symbol: 'sBTC',
     contractAddress: 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK',
-    contractName: 'token-abtc', // ALEX uses aBTC which is pegged to BTC
+    contractName: 'token-abtc',
     decimals: 8,
     isNative: false,
   },
