@@ -71,6 +71,13 @@ interface ActionResultInput {
         recipient?: string;
         balance?: string;
         history?: { date: string; type: 'sent' | 'received'; amount: string; recipientOrSender: string }[];
+        // SWAP specific fields
+        fromAmount?: string;
+        fromToken?: string;
+        toAmount?: string;
+        toToken?: string;
+        gasUsed?: string;
+        // Error fields
         errorCode?: string;
         errorMessage?: string;
     };
@@ -500,9 +507,19 @@ export class AgentService {
         console.log('Processing enriched action result:', actionResult);
 
         // Primero obtener la respuesta base usando el método existente
+        // Map action type correctly including SWAP
+        const getActionType = (action: string): 'SEND_TRANSACTION' | 'FETCH_BALANCE' | 'FETCH_HISTORY' | 'SWAP' => {
+            switch (action) {
+                case 'SEND': return 'SEND_TRANSACTION';
+                case 'CHECK_BALANCE': return 'FETCH_BALANCE';
+                case 'VIEW_HISTORY': return 'FETCH_HISTORY';
+                case 'SWAP': return 'SWAP';
+                default: return 'FETCH_HISTORY';
+            }
+        };
+
         const actionResultInput: ActionResultInput = {
-            actionType: originalResponse.action === 'SEND' ? 'SEND_TRANSACTION' :
-                       originalResponse.action === 'CHECK_BALANCE' ? 'FETCH_BALANCE' : 'FETCH_HISTORY',
+            actionType: getActionType(originalResponse.action),
             status: actionResult.status === 'success' ? 'success' : 'failure',
             data: {
                 ...actionResult.data,
@@ -664,6 +681,56 @@ export class AgentService {
                     style: 'secondary'
                 }
             ];
+        }
+
+        // Manejo específico para SWAP exitoso
+        if (originalResponse.action === 'SWAP' && isSuccess && actionResult.data?.transactionHash) {
+            response.richContent = {
+                type: 'transaction_details',
+                data: {
+                    transactionHash: actionResult.data.transactionHash,
+                    amount: `${actionResult.data.fromAmount || ''} ${actionResult.data.fromToken || ''} → ${actionResult.data.toAmount || ''} ${actionResult.data.toToken || ''}`,
+                    currency: actionResult.data.toToken || originalResponse.parameters?.toCurrency,
+                    explorerUrl: `https://explorer.hiro.so/txid/${actionResult.data.transactionHash}?chain=mainnet`
+                }
+            };
+
+            // Detect language from user message for button labels
+            const isSpanish = this.detectSpanishLanguage(userMessage);
+
+            response.quickActions = [
+                {
+                    type: 'transaction_link',
+                    label: isSpanish ? '🔍 Ver en explorador' : '🔍 View on Explorer',
+                    value: actionResult.data.transactionHash,
+                    url: `https://explorer.hiro.so/txid/${actionResult.data.transactionHash}?chain=mainnet`,
+                    style: 'primary'
+                },
+                {
+                    type: 'button',
+                    label: isSpanish ? '💰 Revisar balance' : '💰 Check balance',
+                    value: isSpanish ? 'revisar mi balance' : 'check my balance',
+                    style: 'secondary'
+                },
+                {
+                    type: 'button',
+                    label: isSpanish ? '🔄 Otro swap' : '🔄 Another swap',
+                    value: isSpanish ? 'quiero hacer otro swap' : 'I want to do another swap',
+                    style: 'secondary'
+                }
+            ];
+
+            // Generar un mensaje de éxito amigable si el base response tiene el mensaje genérico
+            if (response.responseMessage.includes('had trouble formulating') || response.responseMessage.includes('check the outcome')) {
+                const fromToken = actionResult.data.fromToken || originalResponse.parameters?.fromCurrency || 'tokens';
+                const toToken = actionResult.data.toToken || originalResponse.parameters?.toCurrency || 'tokens';
+                const fromAmount = actionResult.data.fromAmount || originalResponse.parameters?.amount || '';
+                const toAmount = actionResult.data.toAmount || '';
+
+                response.responseMessage = isSpanish
+                    ? `✅ ¡Swap completado! Intercambiaste ${fromAmount} ${fromToken} por ${toAmount} ${toToken}. La transacción ya fue enviada a la blockchain.`
+                    : `✅ Swap completed! You exchanged ${fromAmount} ${fromToken} for ${toAmount} ${toToken}. The transaction has been submitted to the blockchain.`;
+            }
         }
 
         this.generateInteractiveElements(response, userMessage);

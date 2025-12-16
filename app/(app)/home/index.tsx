@@ -139,7 +139,7 @@ const Home = () => {
 
     // Transaction History States
     const [transactions, setTransactions] = React.useState<Transaction[]>([]);
-    const [historyFilter, setHistoryFilter] = React.useState<'all' | 'sent' | 'received'>('all');
+    const [historyFilter, setHistoryFilter] = React.useState<'all' | 'sent' | 'received' | 'swap'>('all');
     const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
 
     // Auto-refresh states
@@ -404,6 +404,8 @@ const Home = () => {
         switch (type) {
             case 'sent': return '📤';
             case 'received': return '📥';
+            case 'swap': return '🔄';
+            case 'contract_call': return '📜';
             default: return '📊';
         }
     };
@@ -904,11 +906,17 @@ const Home = () => {
                                 >
                                     <Text style={[styles.filterButtonText, historyFilter === 'sent' && styles.filterButtonTextActive]}>Sent</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={() => setHistoryFilter('received')}
                                     style={[styles.filterButton, historyFilter === 'received' && styles.filterButtonActive]}
                                 >
                                     <Text style={[styles.filterButtonText, historyFilter === 'received' && styles.filterButtonTextActive]}>Received</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => setHistoryFilter('swap')}
+                                    style={[styles.filterButton, historyFilter === 'swap' && styles.filterButtonActive]}
+                                >
+                                    <Text style={[styles.filterButtonText, historyFilter === 'swap' && styles.filterButtonTextActive]}>Swaps</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -942,18 +950,23 @@ const Home = () => {
                                             <View style={styles.transactionDetails}>
                                                 <View style={styles.transactionHeader}>
                                                     <Text style={styles.transactionType}>
-                                                        {transaction.type === 'sent' ? 'Sent' : 'Received'} {transaction.currency}
+                                                        {transaction.type === 'sent' ? 'Sent' :
+                                                         transaction.type === 'received' ? 'Received' :
+                                                         transaction.type === 'swap' ? 'Swap' :
+                                                         transaction.type === 'contract_call' ? 'Contract' : 'Transaction'} {transaction.type === 'swap' && transaction.swapInfo ? `${transaction.swapInfo.fromToken} → ${transaction.swapInfo.toToken}` : transaction.currency}
                                                     </Text>
-                                                    <Text style={[styles.transactionAmount, transaction.type === 'sent' ? styles.sentAmount : styles.receivedAmount]}>
-                                                        {transaction.type === 'sent' ? '-' : '+'}{transaction.amount} {transaction.currency}
+                                                    <Text style={[styles.transactionAmount, transaction.type === 'sent' ? styles.sentAmount : transaction.type === 'swap' ? styles.swapAmount : styles.receivedAmount]}>
+                                                        {transaction.type === 'sent' ? '-' : transaction.type === 'swap' ? '⇄' : '+'}{transaction.amount} {transaction.currency}
                                                     </Text>
                                                 </View>
                                                 <View style={styles.transactionMeta}>
-                                                                                                <Text style={styles.transactionTarget}>
-                                                {transaction.type === 'sent'
-                                                    ? `To: ${transaction.recipient ? transaction.recipient.substring(0, 10) + '...' : 'Unknown'}`
-                                                    : `From: ${transaction.sender ? transaction.sender.substring(0, 10) + '...' : 'Unknown'}`}
-                                            </Text>
+                                                    <Text style={styles.transactionTarget}>
+                                                        {transaction.type === 'sent'
+                                                            ? `To: ${transaction.recipient ? transaction.recipient.substring(0, 10) + '...' : 'Unknown'}`
+                                                            : transaction.type === 'swap'
+                                                            ? `Via: ALEX DEX`
+                                                            : `From: ${transaction.sender ? transaction.sender.substring(0, 10) + '...' : 'Unknown'}`}
+                                                    </Text>
                                                     <Text style={styles.transactionDate}>
                                                         {formatTransactionDate(transaction.timestamp)}
                                                     </Text>
@@ -1723,6 +1736,9 @@ const styles = StyleSheet.create({
     },
     receivedAmount: {
         color: '#51CF66',
+    },
+    swapAmount: {
+        color: '#FFB347', // Orange for swap transactions
     },
     transactionMeta: {
         flexDirection: 'row',
