@@ -189,7 +189,7 @@ class SwapService {
     inputToken: string,
     outputToken: string,
     inputAmount: string,
-    slippageTolerance: number = 0.5, // 0.5%
+    slippageTolerance: number = 2.0, // 2% - increased to reduce failed swaps
     protocol: DEXProtocol = DEXProtocol.ALEX,
     networkId: string = 'mainnet'
   ): Promise<SwapQuote> {
@@ -279,7 +279,7 @@ class SwapService {
     outputToken: string,
     inputAmount: string,
     minimumOutputAmount: string,
-    slippageTolerance: number = 0.5,
+    slippageTolerance: number = 2.0, // 2% - increased to reduce failed swaps
     protocol: DEXProtocol = DEXProtocol.ALEX,
     networkId: string = 'mainnet'
   ): Promise<SwapResult> {
