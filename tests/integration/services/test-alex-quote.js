@@ -13,10 +13,10 @@ const {
 } = require('@stacks/transactions');
 const { StacksMainnet } = require('@stacks/network');
 
-// ALEX AMM Pool contract
+// ALEX AMM Pool contract v2 (current mainnet contract)
 const ALEX_CONTRACT = {
-  address: 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9',
-  name: 'amm-swap-pool-v1-1',
+  address: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM',
+  name: 'amm-pool-v2-01',
 };
 
 // Token contracts - Using ALEX wrapped tokens (v2 versions for swaps)
