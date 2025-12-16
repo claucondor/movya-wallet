@@ -110,7 +110,7 @@ const SWAP_TOKENS: Record<string, SwapToken> = {
   'STX': {
     symbol: 'STX',
     contractAddress: 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM',
-    contractName: 'token-wstx',
+    contractName: 'token-wstx-v2', // Must use v2 for ALEX pools
     decimals: 8, // ALEX uses 8 decimals
     isNative: true,
   },
