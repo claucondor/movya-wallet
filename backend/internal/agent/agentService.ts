@@ -118,12 +118,31 @@ export class AgentService {
         };
 
         try {
-            // Build dynamic system prompt with network context
+            // Build dynamic system prompt with network context and real-time prices
             const networkContext = network === 'testnet'
                 ? '\n\n**CURRENT NETWORK: TESTNET** - User is on testnet. ONLY STX is available. NO sBTC, NO aUSD, NO SWAPS. If user asks about these, explain they are only on mainnet.'
                 : '\n\n**CURRENT NETWORK: MAINNET** - User is on mainnet. All currencies (STX, sBTC, aUSD, ALEX) and SWAPS via ALEX DEX are available.';
 
-            const dynamicPrompt = WalletAssistantSystemPrompt + networkContext;
+            // Fetch real-time prices for the prompt
+            let priceContext = '';
+            try {
+                const [stxPrice, sbtcPrice, alexPrice] = await Promise.all([
+                    PriceService.getTokenPrice('STX'),
+                    PriceService.getTokenPrice('sBTC'),
+                    PriceService.getTokenPrice('ALEX')
+                ]);
+                priceContext = `\n\n**REAL-TIME PRICES (use these for USD estimates):**
+- STX: $${stxPrice?.price.toFixed(4) || '0.28'}
+- sBTC: $${sbtcPrice?.price.toFixed(2) || '87000'}
+- aUSD: $1.00 (stablecoin)
+- ALEX: $${alexPrice?.price.toFixed(6) || '0.0015'}`;
+                console.log('[AgentService] Injected real-time prices into prompt:', priceContext);
+            } catch (priceError) {
+                console.warn('[AgentService] Failed to fetch prices for prompt, using defaults:', priceError);
+                priceContext = '\n\n**PRICES:** Use aUSD as reference ($1). Do not estimate other token USD values.';
+            }
+
+            const dynamicPrompt = WalletAssistantSystemPrompt + networkContext + priceContext;
 
             // Call chat with user message and the specific system prompt
             const responseJsonString = await this.geminiService.chat(
