@@ -166,7 +166,7 @@ export async function handleWalletAction(
             params.fromCurrency,
             params.toCurrency,
             params.amount,
-            2.0 // 2% slippage to reduce failed swaps
+            5.0 // 5% slippage to reduce failed swaps
           );
 
           // Execute the swap
@@ -175,7 +175,7 @@ export async function handleWalletAction(
             params.toCurrency,
             params.amount,
             quote.minimumReceived,
-            2.0 // 2% slippage to reduce failed swaps
+            5.0 // 5% slippage to reduce failed swaps
           );
           
           if (swapResult.success) {
