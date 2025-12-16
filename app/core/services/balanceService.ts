@@ -2,13 +2,9 @@ import { DEFAULT_NETWORK, getHiroApiKey } from '../constants/networks';
 import {
   findToken,
   formatTokenAmount,
-  parseTokenAmount,
   getTokensByNetwork,
-  parseContractPrincipal,
-  STACKS_MAINNET_TOKENS
 } from '../constants/tokens';
-import type { TokenInfo } from '../constants/tokens';
-import { getPrivateKey, getWalletAddress } from '../../internal/walletService';
+import { getWalletAddress } from '../../internal/walletService';
 
 export interface TokenBalance {
   symbol: string;
@@ -89,7 +85,8 @@ class BalanceService {
   }
 
   /**
-   * Get SIP-010 token balance (like sBTC, USDA)
+   * Get SIP-010 token balance (like sBTC, aUSD, ALEX)
+   * Uses Hiro API extended endpoint to get fungible token balances
    */
   static async getTokenBalance(
     tokenSymbol: string,
@@ -114,56 +111,49 @@ class BalanceService {
       }
 
       const network = networkId === 'mainnet' ? DEFAULT_NETWORK : DEFAULT_NETWORK;
-      const { address: contractAddr, contractName } = parseContractPrincipal(token.contractAddress);
-
-      // Call read-only function get-balance on the SIP-010 token contract
-      const readOnlyFunctionArgs = {
-        sender: address,
-        arguments: [`0x${Buffer.from(address).toString('hex')}`]
-      };
 
       // Add API key to headers if available
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = {};
       const apiKey = getHiroApiKey();
       if (apiKey) {
         headers['x-api-key'] = apiKey;
       }
 
+      // Use Hiro extended API to get all fungible token balances for the address
       const response = await fetch(
-        `${network.url}/v2/contracts/call-read/${contractAddr}/${contractName}/get-balance`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(readOnlyFunctionArgs)
-        }
+        `${network.url}/extended/v1/address/${address}/balances`,
+        { headers }
       );
 
       if (!response.ok) {
-        console.warn(`[BalanceService] Failed to fetch ${tokenSymbol} balance:`, response.statusText);
+        console.warn(`[BalanceService] Failed to fetch balances for ${address}:`, response.statusText);
         return null;
       }
 
       const data = await response.json();
 
-      // Parse Clarity value response
-      // The response should be a uint or ok with uint
-      let balanceRaw: bigint;
+      // Find the specific token in the fungible_tokens object
+      // The key format is: "contractAddress::assetName"
+      const ftKey = `${token.contractAddress}::${token.assetName || token.contractName}`;
+      const ftBalance = data.fungible_tokens?.[ftKey];
 
-      if (data.okay === true && data.result) {
-        // Parse hex result - it's a Clarity value
-        const resultHex = data.result.replace('0x', '');
+      let balanceRaw: bigint = 0n;
 
-        // For SIP-010, get-balance typically returns (ok uint)
-        // We need to parse the uint part
-        // For now, try to parse as bigint directly
-        try {
-          balanceRaw = BigInt(`0x${resultHex}`);
-        } catch {
-          console.warn(`[BalanceService] Could not parse balance for ${tokenSymbol}`);
-          balanceRaw = 0n;
-        }
+      if (ftBalance && ftBalance.balance) {
+        balanceRaw = BigInt(ftBalance.balance);
       } else {
-        balanceRaw = 0n;
+        // Try alternative key formats
+        const altKeys = Object.keys(data.fungible_tokens || {}).filter(k =>
+          k.includes(token.contractName || '') ||
+          k.includes(token.assetName || '')
+        );
+
+        if (altKeys.length > 0) {
+          const altBalance = data.fungible_tokens[altKeys[0]];
+          if (altBalance && altBalance.balance) {
+            balanceRaw = BigInt(altBalance.balance);
+          }
+        }
       }
 
       const balanceFormatted = formatTokenAmount(balanceRaw, token);

@@ -97,6 +97,7 @@ function symbolToAlexTokenId(symbol: string): string {
     'ALEX': 'age000-governance-token',
     'ABTC': 'token-abtc',
     'AUSD': 'token-susdt',
+    'USDA': 'token-susdt', // Alias for aUSD (legacy name)
     'SBTC': 'token-abtc', // Map sBTC to aBTC for ALEX
   };
   const upperSymbol = symbol.toUpperCase();

@@ -85,7 +85,10 @@ class PriceService {
    */
   static async getTokenPrice(symbol: string): Promise<TokenPrice | null> {
     try {
-      const upperSymbol = symbol.toUpperCase();
+      let upperSymbol = symbol.toUpperCase();
+
+      // Normalize aliases
+      if (upperSymbol === 'USDA') upperSymbol = 'AUSD';
 
       // Check local cache first
       const cached = this.priceCache.get(upperSymbol);
@@ -96,7 +99,13 @@ class PriceService {
 
       // Fetch all prices (backend caches efficiently)
       const prices = await this.getAllPrices();
-      const price = prices.find(p => p.symbol.toUpperCase() === upperSymbol);
+
+      // Find price, also check for aUSD alias
+      const price = prices.find(p => {
+        const pSymbol = p.symbol.toUpperCase();
+        return pSymbol === upperSymbol ||
+               (upperSymbol === 'AUSD' && pSymbol === 'AUSD');
+      });
 
       if (!price) {
         console.warn(`[PriceService] No price data for ${symbol}`);
