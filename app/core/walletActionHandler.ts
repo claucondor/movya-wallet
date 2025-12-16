@@ -153,11 +153,11 @@ export async function handleWalletAction(
           throw new Error('El monto a intercambiar es requerido para el swap');
         }
 
-        // Validar que sean tokens soportados en Stacks (STX, sBTC, USDA)
-        const supportedTokens = ['STX', 'sBTC', 'USDA'];
+        // Validar que sean tokens soportados en Stacks
+        const supportedTokens = ['STX', 'SBTC', 'ABTC', 'AUSD', 'USDA', 'ALEX'];
         if (!supportedTokens.includes(params.fromCurrency.toUpperCase()) ||
             !supportedTokens.includes(params.toCurrency.toUpperCase())) {
-          throw new Error('Solo se soportan swaps entre STX, sBTC y USDA');
+          throw new Error('Solo se soportan swaps entre STX, sBTC, aUSD y ALEX');
         }
         
         try {
@@ -166,7 +166,7 @@ export async function handleWalletAction(
             params.fromCurrency,
             params.toCurrency,
             params.amount,
-            0.5 // 0.5% slippage
+            2.0 // 2% slippage to reduce failed swaps
           );
 
           // Execute the swap
@@ -175,7 +175,7 @@ export async function handleWalletAction(
             params.toCurrency,
             params.amount,
             quote.minimumReceived,
-            0.5 // 0.5% slippage
+            2.0 // 2% slippage to reduce failed swaps
           );
           
           if (swapResult.success) {
